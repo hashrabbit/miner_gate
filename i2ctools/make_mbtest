@@ -1,0 +1,11 @@
+GPP_CMD="arm-none-linux-gnueabi-g++ -g -O0 -fpermissive -rdynamic"
+LINK_LIB="-lpthread -static-libstdc++ -static-libgcc"
+
+TRG=mbtest
+
+$GPP_CMD ${TRG}.cpp i2c.c ../miner_gate/dc2dc.c ../miner_gate/squid.cpp ../miner_gate/spond_debug.cpp -o ${TRG} ${LINK_LIB} -I../miner_gate -D__MBTEST__
+
+chmod +x ${TRG}
+cp ./${TRG} ~/shared/ 
+cp ./${TRG} ~/shared/scripts
+

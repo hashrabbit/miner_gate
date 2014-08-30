@@ -1,0 +1,14 @@
+GPP_CMD="arm-none-linux-gnueabi-g++ -g -O0 -fpermissive -rdynamic"
+LINK_LIB="-lpthread -static-libstdc++ -static-libgcc"
+
+$GPP_CMD ac2dcvpd.c i2c.c  ../miner_gate/squid.cpp ../miner_gate/ac2dc.c ../miner_gate/spond_debug.cpp -o ac2dcvpd ${LINK_LIB} -I../miner_gate
+
+
+# cd hammer_reg
+# ./make_me
+# cd ../
+
+
+mv ./ac2dcvpd ~/shared/ 
+
+

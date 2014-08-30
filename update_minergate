@@ -1,0 +1,46 @@
+#!/bin/bash
+
+if [ $# -lt 2 ] ; 
+    then echo "$0 <miner_gate_arm> <miner-IP>"
+    exit 1
+fi
+IMAGE=$1
+MINER=$2
+
+SSH_PASS=root
+
+if [ ! -e $IMAGE ] ;
+	then echo "Image file $IMAGE not found"
+	exit 2
+fi
+echo file $IMAGE exist
+ping -c 1 $MINER 
+if [ ! $? -eq 0 ] ; 
+	then echo $MINER is not accessible
+	exit 4
+fi
+
+echo " ${MINER} accessible"
+
+PINGVER=`dirname $0`/pingver
+
+
+#
+echo "spond-manager stop"
+sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} /usr/local/bin/spond-manager stop 
+sleep 4
+sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} rm /tmp/mg_event* 
+sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} rm /etc/bin/miner_gate_arm 
+echo sshpass -p ${SSH_PASS} scp -o StrictHostKeyChecking=no $IMAGE root@${MINER}:/etc/bin/ 
+sshpass -p ${SSH_PASS} scp -o StrictHostKeyChecking=no $IMAGE root@${MINER}:/etc/bin/ 
+
+echo "sync"
+sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} sync
+sleep 1
+sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} /usr/local/bin/spond-manager start 
+
+echo done
+
+
+
+
