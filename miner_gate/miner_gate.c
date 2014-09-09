@@ -1024,7 +1024,7 @@ int read_work_mode() {
     int voltage  = vm.ac2dc[PSU_0].voltage;
     int limit    = vm.ac2dc[PSU_0].ac2dc_power_limit;
     if ((psu_type != AC2DC_TYPE_UNKNOWN) &&
-        !vm.ac2dc[PSU_1].force_generic_psu) {
+        !vm.ac2dc[PSU_0].force_generic_psu) {
       psyslog("Voltage %d\n", voltage);
       if (voltage < 88) {
          exit_nicely(4,"Voltage low top");

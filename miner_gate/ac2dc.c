@@ -153,7 +153,7 @@ void ac2dc_init() {
   }
   psyslog("DISCOVERING AC2DC 1\n");
   vm.ac2dc[PSU_1].ac2dc_type = AC2DC_TYPE_UNKNOWN;
-  if (!vm.ac2dc[PSU_0].force_generic_psu) {
+  if (!vm.ac2dc[PSU_1].force_generic_psu) {
     ac2dc_init_one(&vm.ac2dc[PSU_1], PSU_1);
   } 
   
@@ -224,9 +224,8 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
   i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT , &err);
 
   if (err) {
-    fprintf(stderr, "Failed writing to I2C address 0x%X (err %d)",
-            PRIMARY_I2C_SWITCH, err);
-     pthread_mutex_unlock(&i2c_mutex);
+    fprintf(stderr, "Failed writing to I2C address 0x%X (err %d)", PRIMARY_I2C_SWITCH, err);
+    pthread_mutex_unlock(&i2c_mutex);
     return err;
   }
 
@@ -401,12 +400,14 @@ void test_fix_ac2dc_limits() {
 
 
 
-void update_single_psu(AC2DC *ac2dc, int i2c_switch, int psu_id) {
+void update_single_psu(AC2DC *ac2dc, int psu_id) {
    int p;
    int err;
    struct timeval tv;
    start_stopper(&tv);
 //   i2c_write(PRIMARY_I2C_SWITCH, i2c_switch);  
+   int i2c_switch = psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT;
+
    i2c_write(PRIMARY_I2C_SWITCH, i2c_switch);
    
    p = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_PIN_WORD, &err);
@@ -428,14 +429,7 @@ void update_single_psu(AC2DC *ac2dc, int i2c_switch, int psu_id) {
       ac2dc->ac2dc_power_last = ac2dc->ac2dc_power_now;      
       ac2dc->ac2dc_power_now = i2c_getint(p); 
       ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
-      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power, ac2dc->ac2dc_power_last_last);     
-
-
-      ac2dc->ac2dc_power_last_last_fake= ac2dc->ac2dc_power_last_fake;
-      ac2dc->ac2dc_power_last_fake = ac2dc->ac2dc_power_now_fake;      
-      ac2dc->ac2dc_power_now_fake = get_fake_power(psu_id); 
-      ac2dc->ac2dc_power_fake = MAX(ac2dc->ac2dc_power_now_fake, ac2dc->ac2dc_power_last_fake);
-      ac2dc->ac2dc_power_fake = MAX(ac2dc->ac2dc_power_fake, ac2dc->ac2dc_power_last_last_fake);     
+      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power, ac2dc->ac2dc_power_last_last);        
 
       DBG( DBG_SCALING ,"PowerOut: R:%d PM:%d [PL:%d PLL:%d PLLL:%d]\n", 
                p,
@@ -464,30 +458,32 @@ void *update_ac2dc_power_measurments_thread(void *ptr) {
   int err;  
   AC2DC *ac2dc;
   int p;
+
+  for (int psu_id = 0; psu_id < PSU_COUNT; psu_id++) {
+    ac2dc = &vm.ac2dc[psu_id];
+    ac2dc->ac2dc_power_last_last_fake= ac2dc->ac2dc_power_last_fake;
+    ac2dc->ac2dc_power_last_fake = ac2dc->ac2dc_power_now_fake;      
+    ac2dc->ac2dc_power_now_fake = get_fake_power(psu_id); 
+    ac2dc->ac2dc_power_fake = MAX(ac2dc->ac2dc_power_now_fake, ac2dc->ac2dc_power_last_fake);
+    ac2dc->ac2dc_power_fake = MAX(ac2dc->ac2dc_power_fake, ac2dc->ac2dc_power_last_last_fake);  
+     
+    if (ac2dc->ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+        update_single_psu(ac2dc, psu_id);
+    } else {
+      ac2dc->ac2dc_power_last_last= ac2dc->ac2dc_power_last;
+      ac2dc->ac2dc_power_last = ac2dc->ac2dc_power_now;      
+      ac2dc->ac2dc_power_now = ac2dc->ac2dc_power_now_fake; 
+      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
+      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power, ac2dc->ac2dc_power_last_last);
+      if (!ac2dc->force_generic_psu) {
+        
+        if (ac2dc_check_connected(psu_id)) {
+          exit_nicely(10,"AC2DC connected");
+        }
+      }
+    }
+  }
   
-  ac2dc = &vm.ac2dc[PSU_0];
-  if (!vm.ac2dc[PSU_0].force_generic_psu) {
-    if (ac2dc->ac2dc_type != AC2DC_TYPE_UNKNOWN) {
-      update_single_psu(ac2dc, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT, PSU_0);
-    } else {
-      if (ac2dc_check_connected(PSU_0)) {
-        exit_nicely(10,"AC2DC connected top");
-      }
-    }
-  }
-
-
-  if (!vm.ac2dc[PSU_1].force_generic_psu) {
-    ac2dc = &vm.ac2dc[PSU_1];
-    if (ac2dc->ac2dc_type != AC2DC_TYPE_UNKNOWN) {
-      update_single_psu(ac2dc, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN | PRIMARY_I2C_SWITCH_DEAULT, PSU_1);
-    } else {
-      if (ac2dc_check_connected(PSU_1)) {
-        exit_nicely(10, "AC2DC connected bottom");
-      }
-    }
-  }
- 
   pthread_mutex_unlock(&i2c_mutex);
   //pthread_exit(NULL);
   return NULL;
