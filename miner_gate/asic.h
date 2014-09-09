@@ -252,7 +252,8 @@ typedef struct {
   // Guessing added current
 } DC2DC;
 
-#define IS_TOP_ASIC(ADDR) (ADDR<15)
+
+
 typedef struct {
   // asic present and used
   // If loop not enabled set to false
@@ -296,15 +297,26 @@ typedef struct {
 
 typedef struct {
   int voltage;
+  int board_cooling_now;    
+  int psu_present;  
+  int fet;    
   int ac2dc_type;  // DISABLED=4
   int ac2dc_temp;
   int ac2dc_power_last_last;    
   int ac2dc_power_last;  
   int ac2dc_power_now;  
   int ac2dc_power;  
+
+  int ac2dc_power_last_last_fake;    
+  int ac2dc_power_last_fake;  
+  int ac2dc_power_now_fake;  
+  int ac2dc_power_fake;  
+  
   int ac2dc_in_power;  
   int ac2dc_power_limit;
-  int ac2dc_no_i2c;
+  int force_generic_psu;
+  int voltage_start; 
+  int vtrim_start;
 } AC2DC;
 
 
@@ -342,11 +354,10 @@ typedef struct {
 #define BIST_SM_CHANGE_FREQ2  3
 #define BIST_SM_DO_BIST_AGAIN 4
 
-#define PSU_BOTTOM 1
-#define PSU_TOP    0
 
-#define BOARD_BOTTOM 1
-#define BOARD_TOP    0
+#define PSU_0     0
+#define PSU_1     1
+#define PSU_COUNT 2
 
 
 #define FET_T_72A            0
@@ -407,10 +418,12 @@ typedef struct {
   // jobs right one after another
   int consecutive_jobs;
 
+/*
   int voltage_start_top;
   int voltage_start_bottom; 
   int vtrim_start_top;
   int vtrim_start_bottom;  
+  */
   int voltage_max;
 
  
@@ -442,13 +455,9 @@ typedef struct {
   LOOP loop[LOOP_COUNT];
   AC2DC ac2dc[2]; 
   int exiting;
-  int board_cooling_now[2];    
-  int board_cooling_ever;      
-  int board_present[2];  
-  int fet[2];    
+  int board_cooling_ever;   
   int asic_count;
-  int i2c_busy_with_bug;  
-  int bad_ac2dc[2];  
+
   int this_min_failed_bist;
   int idle_asic_cycles_sec; 
   int idle_asic_cycles_this_min;  

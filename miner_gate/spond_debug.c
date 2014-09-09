@@ -82,16 +82,16 @@ int end_stopper(struct timeval *tv, const char *name) {
 
 
 
-void mg_event(const char *s) {
+void mg_event(const char *s, int nl) {
    time_t rawtime;
-   struct tm * timeinfo;
    char buffer[80];
-  psyslog("Critical: %s\n", s);
-   time (&rawtime);
-   timeinfo = localtime(&rawtime);
-  
-   strftime(buffer,80,"%d/%m %H:%M:%S",timeinfo);
-
+   psyslog("Critical: %s\n", s);
+   if (nl) {
+     struct tm * timeinfo;    
+     time (&rawtime);
+     timeinfo = localtime(&rawtime);
+     strftime(buffer,80,"%d/%m %H:%M:%S",timeinfo);
+   }
 
   
 	  FILE *f = fopen("/tmp/mg_event", "a"); 
@@ -108,7 +108,12 @@ void mg_event(const char *s) {
        unlink("/tmp/mg_event");
        f = fopen("/tmp/mg_event", "a");
     }    
-    fprintf(f, "%s:%s\n", buffer, s);
+
+    if (nl) {
+      fprintf(f, "%s:%s\n", buffer, s);
+    } else {
+      fprintf(f, "%s", s);
+    }
     fclose(f);
 
     f = fopen("/tmp/mg_event_log", "a");
@@ -124,9 +129,16 @@ void mg_event(const char *s) {
       unlink("/tmp/mg_event_log");
       f = fopen("/tmp/mg_event_log", "a");
     }    
-    fprintf(f, "%s:%s\n", buffer, s);
+
+    if (nl) {
+      fprintf(f, "%s:%s\n", buffer, s);
+    } else {
+      fprintf(f, "%s", s);
+    }
     fclose(f);
 }
+
+
 
 void mg_status(const char *s) {
 	FILE *f = fopen("/tmp/mg_status", "w");

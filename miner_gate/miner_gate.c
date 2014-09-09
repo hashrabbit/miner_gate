@@ -172,11 +172,6 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   //set_light(LIGHT_YELLOW, LIGHT_MODE_OFF);
   usleep(1000*1000);
   int ii = 0;
-  while(vm.i2c_busy_with_bug && (ii++) < 100) {
-    psyslog("Waiting i2c_busy_with_bug\n");
-    usleep(100000);
-  }
-  vm.i2c_busy_with_bug=0;
   psyslog("Here comes unexpected death, lights off!\n");
 
 /*
@@ -626,7 +621,7 @@ void discover_good_loops() {
     psyslog("ADDR_SQUID_LOOP_BYPASS = %x\n", bypass_loops);
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
     if ((vm.loop[i].user_disabled == 0) &&
-       (vm.board_present[LOOP_TO_BOARD_ID(i)]) &&
+       (vm.ac2dc[LOOP_TO_BOARD_ID(i)].psu_present) &&
       test_serial(i)
     ) {
       vm.loop[i].enabled_loop = 1;
@@ -644,15 +639,23 @@ void discover_good_loops() {
       good_loops_cnt++;
     } else {
       vm.loop[i].enabled_loop = 0;
-      if (vm.ac2dc[ASIC_TO_PSU_ID(i)].ac2dc_type == AC2DC_TYPE_NONE) {
+      if (vm.ac2dc[LOOP_TO_PSU_ID(i)].ac2dc_type == AC2DC_TYPE_UNKNOWN) {
         vm.loop[i].why_disabled = "no PSU";
       } else {
         vm.loop[i].why_disabled = 
-          (!(vm.board_present[LOOP_TO_BOARD_ID(i)]))?"no board i2c":last_err_loop;
+          (!(vm.ac2dc[LOOP_TO_BOARD_ID(i)].psu_present))?"no board i2c":last_err_loop;
       }
       printf("loop %d disabled\n", i);
       for (int h = i * ASICS_PER_LOOP; h < (i + 1) * ASICS_PER_LOOP; h++) {
         int err;
+        int overcurrent_err, overcurrent_warning;
+        dc2dc_get_all_stats(
+              i,
+              &overcurrent_err,
+              &overcurrent_warning,
+              &vm.asic[i].dc2dc.dc_temp,
+              &vm.asic[i].dc2dc.dc_current_16s,
+              &err);
         dc2dc_disable_dc2dc(h,&err);
         if (vm.loop[i].user_disabled) {
           vm.asic[h].why_disabled = "Loop user disabled!";
@@ -660,7 +663,11 @@ void discover_good_loops() {
         if (err) {
           vm.asic[h].why_disabled = "i2c BAD, btw!";
         } else {
-          vm.asic[h].why_disabled = "i2c good";
+          if (overcurrent_err) {
+            vm.asic[h].why_disabled = "i2c good but OC!!";
+          } else {
+            vm.asic[h].why_disabled = "i2c good, no OC";
+          }
         }
         vm.asic[h].dc2dc.dc2dc_present = 0;
         psyslog("Disabling DC2DC %d because no ASIC A\n", h);
@@ -785,32 +792,34 @@ void read_disabled_asics() {
 
 
 void read_generic_ac2dc() {
-  FILE* file = fopen ("/etc/generic_psu", "r");
+  FILE* file = fopen ("/etc/mg_generic_psu", "r");
   if (file != 0) {
-    int res = fscanf (file, "TOP:%d BOTTOM:%d",            
-              &vm.ac2dc[BOARD_TOP].ac2dc_no_i2c,
-              &vm.ac2dc[BOARD_BOTTOM].ac2dc_no_i2c);
+    int res = fscanf (file, "0:%d 1:%d",            
+              &vm.ac2dc[PSU_0].force_generic_psu,
+              &vm.ac2dc[PSU_1].force_generic_psu);
     fclose (file);
-    psyslog("Generic i2c %d/%d\n",vm.ac2dc[BOARD_TOP].ac2dc_no_i2c,vm.ac2dc[BOARD_BOTTOM].ac2dc_no_i2c);
+    psyslog("Generic i2c %d/%d\n",
+            vm.ac2dc[PSU_0].force_generic_psu,
+            vm.ac2dc[PSU_1].force_generic_psu);
     passert(res == 2);
   } 
 }
 
 
 void read_fet() {
-  FILE* file = fopen ("/etc/fet", "r");
+  FILE* file = fopen ("/tmp/mg_fet", "r");
   if (file != 0) {
-    int res = fscanf (file, "TOP:%d BOTTOM:%d",            
-              &vm.fet[BOARD_TOP],
-              &vm.fet[BOARD_BOTTOM]);
+    int res = fscanf (file, "0:%d 1:%d",            
+              &vm.ac2dc[PSU_0].fet,
+              &vm.ac2dc[PSU_1].fet);
     fclose (file);
     passert(res == 2);
   } else {
-    printf("--------/etc/fet missing-------------\n");
+    printf("--------/tmp/mg_fet missing-------------\n");
     passert(0);
   }
   psyslog("----------------------------------\n");
-  psyslog("--------FET TOP:%d BOT:%d---------\n", vm.fet[BOARD_TOP],vm.fet[BOARD_BOTTOM]);
+  psyslog("--------FET TOP:%d BOT:%d---------\n", vm.ac2dc[PSU_0].fet,vm.ac2dc[PSU_1].fet);
   psyslog("----------------------------------\n");
 }
 
@@ -820,25 +829,25 @@ int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative_
   passert(file != NULL);
 	fscanf (file, "FAN:%d VST:%d VSB:%d VMAX:%d AC_TOP:%d AC_BOT:%d DC_AMP:%d", 
     &vm.max_fan_level, 
-    &vm.voltage_start_top, 
-    &vm.voltage_start_bottom,     
+    &vm.ac2dc[PSU_0].voltage_start, 
+    &vm.ac2dc[PSU_1].voltage_start,     
     &vm.voltage_max, 
-    &vm.ac2dc[PSU_TOP].ac2dc_power_limit, 
-    &vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit,    
+    &vm.ac2dc[PSU_0].ac2dc_power_limit, 
+    &vm.ac2dc[PSU_1].ac2dc_power_limit,    
     &vm.max_dc2dc_current_16s);
 
   if (decrease_top > 0) {
-    vm.ac2dc[PSU_TOP].ac2dc_power_limit -= decrease_top;
+    vm.ac2dc[PSU_0].ac2dc_power_limit -= decrease_top;
   } 
-  if (vm.ac2dc[PSU_TOP].ac2dc_power_limit < AC2DC_POWER_DECREASE_START_VOLTAGE) {
-      vm.voltage_start_top = MIN(660,vm.voltage_start_bottom);
+  if (vm.ac2dc[PSU_0].ac2dc_power_limit < AC2DC_POWER_DECREASE_START_VOLTAGE) {
+      vm.ac2dc[PSU_0].voltage_start = MIN(660,vm.ac2dc[PSU_0].voltage_start);
   }  
 
   if (decrease_bottom > 0) {
-    vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit -= decrease_bottom;
+    vm.ac2dc[PSU_1].ac2dc_power_limit -= decrease_bottom;
   }
-  if (vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit < AC2DC_POWER_DECREASE_START_VOLTAGE) {
-    vm.voltage_start_bottom = MIN(660,vm.voltage_start_bottom) ;
+  if (vm.ac2dc[PSU_1].ac2dc_power_limit < AC2DC_POWER_DECREASE_START_VOLTAGE) {
+    vm.ac2dc[PSU_1].voltage_start = MIN(660,vm.ac2dc[PSU_1].voltage_start) ;
   }
   fclose(file);
 
@@ -850,11 +859,11 @@ int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative_
   passert(file != NULL);
   fprintf (file, "FAN:%d VST:%d VSB:%d VMAX:%d AC_TOP:%d AC_BOT:%d DC_AMP:%d", 
     vm.max_fan_level, 
-    vm.voltage_start_top, 
-    vm.voltage_start_bottom,     
+    vm.ac2dc[PSU_0].voltage_start, 
+    vm.ac2dc[PSU_1].voltage_start,     
     vm.voltage_max, 
-    vm.ac2dc[PSU_TOP].ac2dc_power_limit, 
-    vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit,    
+    vm.ac2dc[PSU_0].ac2dc_power_limit, 
+    vm.ac2dc[PSU_1].ac2dc_power_limit,    
     vm.max_dc2dc_current_16s);
   vm.max_dc2dc_current_16s *=16;
   fclose(file);
@@ -977,30 +986,30 @@ int read_work_mode() {
   passert(file != NULL);
 	fscanf (file, "FAN:%d VST:%d VSB:%d VMAX:%d AC_TOP:%d AC_BOT:%d DC_AMP:%d", 
     &vm.max_fan_level, 
-    &vm.voltage_start_top, 
-    &vm.voltage_start_bottom,     
+    &vm.ac2dc[PSU_0].voltage_start, 
+    &vm.ac2dc[PSU_1].voltage_start,     
     &vm.voltage_max, 
-    &vm.ac2dc[PSU_TOP].ac2dc_power_limit, 
-    &vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit,    
+    &vm.ac2dc[PSU_0].ac2dc_power_limit, 
+    &vm.ac2dc[PSU_1].ac2dc_power_limit,    
     &vm.max_dc2dc_current_16s);
   fclose(file);
   
   
-  //vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit = vm.ac2dc[PSU_TOP].ac2dc_power_limit;
+  //vm.ac2dc[PSU_1].ac2dc_power_limit = vm.ac2dc[PSU_0].ac2dc_power_limit;
   assert(vm.max_fan_level <= 100);
   assert(vm.max_fan_level >= 0);
-  assert(vm.voltage_start_top <= 830);
-  assert(vm.voltage_start_top >= 580);
-  assert(vm.voltage_start_bottom<= 830);
-  assert(vm.voltage_start_bottom >= 580);
+  assert(vm.ac2dc[PSU_0].voltage_start <= 830);
+  assert(vm.ac2dc[PSU_0].voltage_start >= 580);
+  assert(vm.ac2dc[PSU_1].voltage_start <= 830);
+  assert(vm.ac2dc[PSU_1].voltage_start >= 580);
   assert(vm.voltage_max <= 830);
   assert(vm.voltage_max >= 580);
-  assert(vm.voltage_max >= vm.voltage_start_top);
-  assert(vm.voltage_max >= vm.voltage_start_bottom);  
-  assert(vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit   >= 100);
-  assert(vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit   <= 1600);
-  assert(vm.ac2dc[PSU_TOP].ac2dc_power_limit   >= 100);
-  assert(vm.ac2dc[PSU_TOP].ac2dc_power_limit   <= 1600);
+  assert(vm.voltage_max >= vm.ac2dc[PSU_0].voltage_start);
+  assert(vm.voltage_max >= vm.ac2dc[PSU_1].voltage_start);  
+  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   >= 100);
+  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   <= 1600);
+  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   >= 100);
+  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   <= 1600);
   vm.max_dc2dc_current_16s*=16;
 
   FILE* ignore_fcc_file = fopen ("/etc/mg_ignore_110_fcc", "r");
@@ -1011,59 +1020,59 @@ int read_work_mode() {
     int top_fix = 0;
     int bot_fix = 0;
       
-    int psu_type = vm.ac2dc[PSU_TOP].ac2dc_type;
-    int voltage  = vm.ac2dc[PSU_TOP].voltage;
-    int limit    = vm.ac2dc[PSU_TOP].ac2dc_power_limit;
-    if ((psu_type != AC2DC_TYPE_NONE) &&
-        !vm.ac2dc[PSU_BOTTOM].ac2dc_no_i2c) {
+    int psu_type = vm.ac2dc[PSU_0].ac2dc_type;
+    int voltage  = vm.ac2dc[PSU_0].voltage;
+    int limit    = vm.ac2dc[PSU_0].ac2dc_power_limit;
+    if ((psu_type != AC2DC_TYPE_UNKNOWN) &&
+        !vm.ac2dc[PSU_1].force_generic_psu) {
       psyslog("Voltage %d\n", voltage);
       if (voltage < 88) {
          exit_nicely(4,"Voltage low top");
       }
       
       if (voltage < 105) {
-        if ((vm.voltage_start_top > 660) || (limit    > apl_105[psu_type])) {
-          top_fix = vm.ac2dc[PSU_TOP].ac2dc_power_limit - apl_105[psu_type];
+        if ((vm.ac2dc[PSU_0].voltage_start > 660) || (limit    > apl_105[psu_type])) {
+          top_fix = vm.ac2dc[PSU_0].ac2dc_power_limit - apl_105[psu_type];
           goto ddd1;
         }
       }
 
       if (voltage < 114) {
-        if ((vm.voltage_start_top > 660) || (limit    > apl_114[psu_type])) {
-          top_fix = vm.ac2dc[PSU_TOP].ac2dc_power_limit - apl_114[psu_type]; 
+        if ((vm.ac2dc[PSU_0].voltage_start > 660) || (limit    > apl_114[psu_type])) {
+          top_fix = vm.ac2dc[PSU_0].ac2dc_power_limit - apl_114[psu_type]; 
           goto ddd1;
         }
       }
 
       if (voltage < 119) {
-        if ((vm.voltage_start_top > 660) || (limit    > apl_119[psu_type])) {
-          top_fix = vm.ac2dc[PSU_TOP].ac2dc_power_limit - apl_119[psu_type]; 
+        if ((vm.ac2dc[PSU_0].voltage_start > 660) || (limit    > apl_119[psu_type])) {
+          top_fix = vm.ac2dc[PSU_0].ac2dc_power_limit - apl_119[psu_type]; 
           goto ddd1;
         }
       }
 
       if (voltage < 200) {
-        if ((vm.voltage_start_top > 660) || (limit    > apl_200[psu_type])) {
-          top_fix = vm.ac2dc[PSU_TOP].ac2dc_power_limit - apl_200[psu_type]; 
+        if ((vm.ac2dc[PSU_0].voltage_start > 660) || (limit    > apl_200[psu_type])) {
+          top_fix = vm.ac2dc[PSU_0].ac2dc_power_limit - apl_200[psu_type]; 
           goto ddd1;
         }
       }
 
       if (voltage < 210) {
-        if ((vm.voltage_start_top > 660) || (limit    > apl_210[psu_type])) {
-         top_fix = vm.ac2dc[PSU_TOP].ac2dc_power_limit - apl_210[psu_type]; 
+        if ((vm.ac2dc[PSU_0].voltage_start > 660) || (limit    > apl_210[psu_type])) {
+         top_fix = vm.ac2dc[PSU_0].ac2dc_power_limit - apl_210[psu_type]; 
          goto ddd1;
         }
       }
     }
   
 ddd1:
-    psu_type = vm.ac2dc[PSU_BOTTOM].ac2dc_type;
-    voltage  = vm.ac2dc[PSU_BOTTOM].voltage;
-    limit   =  vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit;
+    psu_type = vm.ac2dc[PSU_1].ac2dc_type;
+    voltage  = vm.ac2dc[PSU_1].voltage;
+    limit   =  vm.ac2dc[PSU_1].ac2dc_power_limit;
     psyslog("HERE Voltage %d\n", voltage);    
-    if ((psu_type != AC2DC_TYPE_NONE) &&
-        !vm.ac2dc[PSU_BOTTOM].ac2dc_no_i2c) {
+    if ((psu_type != AC2DC_TYPE_UNKNOWN) &&
+        !vm.ac2dc[PSU_1].force_generic_psu) {
       psyslog("Voltage %d\n", voltage);
       if (voltage < 88) {
          exit_nicely(4,"Voltage low bottom");
@@ -1071,28 +1080,28 @@ ddd1:
 
       
       if (voltage < 105) {
-        if ((vm.voltage_start_bottom > 660) || (limit    > apl_105[psu_type])) {
+        if ((vm.ac2dc[PSU_1].voltage_start > 660) || (limit    > apl_105[psu_type])) {
           bot_fix = limit - apl_105[psu_type]; 
           goto ddd2;
         }
       }
 
       if (voltage < 114) {
-        if ((vm.voltage_start_bottom > 660) || (limit    > apl_114[psu_type])) {
+        if ((vm.ac2dc[PSU_1].voltage_start > 660) || (limit    > apl_114[psu_type])) {
           bot_fix = limit - apl_114[psu_type]; 
           goto ddd2;            
         }
       }
 
       if (voltage < 119) {
-        if ((vm.voltage_start_bottom > 660) || (limit    > apl_119[psu_type])) {
+        if ((vm.ac2dc[PSU_1].voltage_start > 660) || (limit    > apl_119[psu_type])) {
           bot_fix = limit - apl_119[psu_type]; 
           goto ddd2;            
         }
       }
 
       if (voltage < 200) {
-        if ((vm.voltage_start_bottom > 660) || (limit    > apl_200[psu_type])) {
+        if ((vm.ac2dc[PSU_1].voltage_start > 660) || (limit    > apl_200[psu_type])) {
           bot_fix = limit - apl_200[psu_type]; 
           goto ddd2;
         }
@@ -1100,7 +1109,7 @@ ddd1:
         
 
       if (voltage < 210) {
-        if ((vm.voltage_start_bottom > 660) || (limit   > apl_210[psu_type])) {
+        if ((vm.ac2dc[PSU_1].voltage_start > 660) || (limit   > apl_210[psu_type])) {
           bot_fix =limit - apl_210[psu_type]; 
           goto ddd2;            
         }
@@ -1116,15 +1125,19 @@ ddd1:
     
   }
  
-  vm.vtrim_start_top = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_start_top);
-  vm.vtrim_start_bottom= VOLTAGE_TO_VTRIM_MILLI(vm.voltage_start_bottom);  
+  vm.ac2dc[PSU_0].vtrim_start = VOLTAGE_TO_VTRIM_MILLI(vm.ac2dc[PSU_0].voltage_start);
+  vm.ac2dc[PSU_1].vtrim_start= VOLTAGE_TO_VTRIM_MILLI(vm.ac2dc[PSU_1].voltage_start);  
   vm.vtrim_max = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_max);
   passert(vm.vtrim_max <= VTRIM_MAX);
 
   // compute VTRIM
   psyslog(
     "vm.max_fan_level: %d, vm.voltage_start: %d/%d, vm.voltage_end: %d vm.vtrim_start: %x/%x, vm.vtrim_end: %x\n"
-    ,vm.max_fan_level, vm.voltage_start_top,vm.voltage_start_bottom, vm.voltage_max, vm.vtrim_start_top,vm.vtrim_start_bottom , vm.vtrim_max);
+    ,vm.max_fan_level, 
+    vm.ac2dc[PSU_0].voltage_start,vm.ac2dc[PSU_1].voltage_start, 
+    vm.voltage_max, 
+    vm.ac2dc[PSU_0].vtrim_start,vm.ac2dc[PSU_1].vtrim_start , 
+    vm.vtrim_max);
 }
 
 void configure_mq(uint32_t interval, uint32_t increments, int pause)
@@ -1136,9 +1149,23 @@ void configure_mq(uint32_t interval, uint32_t increments, int pause)
 }
 
 
-
+void test_lost_address() {
+   // Validate all got address
+  if (read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT) != 0) {
+    mg_event_x_nonl("ASIC lost address:");
+    for (int i = 0; i < ASICS_COUNT; i++) { 
+      if (vm.asic[i].asic_present) {
+        int reg = read_reg_asic(i, NO_ENGINE,ADDR_VERSION);
+        mg_event_x_nonl("[%d %x]",i , reg);
+      } else {
+        mg_event_x_nonl("[%d NA]",i);
+      }
+    }
+  } else {
+    mg_event_x("No reset detected in ASICs");
+  }
+}
 void restart_asics_full(int reason,const char * why) {  
-
   int err;
   // Close all possible i2c devices
   i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);    
@@ -1154,7 +1181,6 @@ void restart_asics_full(int reason,const char * why) {
   vm.in_asic_reset = 1;
 
   // Test AC2DC    
-  mg_event_x("restart_asics_full start:");
   static ASIC asics[ASICS_COUNT];
   int has_chiko = -1;
   for(int i = 0; i < ASICS_COUNT; i++) {
@@ -1164,7 +1190,7 @@ void restart_asics_full(int reason,const char * why) {
       update_dc2dc_stats(i);
       if (vm.asic[i].dc2dc.dc_current_16s < 7*16) {
           has_chiko = i;
-          //mg_event_x("Lazy asic Chiko2 %d",i);
+          mg_event_x("Lazy asic %d",i);
       }
     }
   }
@@ -1178,7 +1204,7 @@ void restart_asics_full(int reason,const char * why) {
       mg_event_x("Consecutive Chiko %d", has_chiko);
       if (vm.ac2dc[ac_id].ac2dc_power_limit > 1200) {
         // We had voltage drops one after another at high wattage
-        if (ac_id == PSU_TOP) {
+        if (ac_id == PSU_0) {
           update_work_mode(5, 0, false);
         } else {
           update_work_mode(0, 5, false);
@@ -1197,14 +1223,18 @@ void restart_asics_full(int reason,const char * why) {
   vm.start_run_time = time(NULL);
   vm.err_restarted++;
   mg_event_x("restart_asics_full (%s) at watts %d-%d", 
-    why,vm.ac2dc[PSU_TOP].ac2dc_power_last, vm.ac2dc[PSU_BOTTOM].ac2dc_power_last);
+    why,vm.ac2dc[PSU_0].ac2dc_power_last, vm.ac2dc[PSU_1].ac2dc_power_last);
   
   print_stack();
   psyslog("-------- SOFT RESET 0 -----------\n");  
   
   psyslog("-------- SOFT RESET 1 -----------\n");  
   test_fix_ac2dc_limits();
-  psyslog("-------- SOFT RESET 2 -----------\n");    
+  psyslog("-------- SOFT RESET 2 -----------\n"); 
+
+  vm.ac2dc[PSU_0].board_cooling_now = 0;
+  vm.ac2dc[PSU_1].board_cooling_now = 0;  
+  
   usleep(100000);
 
   for(int i = 0; i < ASICS_COUNT; i++) {
@@ -1327,16 +1357,16 @@ int main(int argc, char *argv[]) {
   read_generic_ac2dc();
   ac2dc_init();
   set_light(LIGHT_GREEN, LIGHT_MODE_SLOW_BLINK);
-  //update_ac2dc_power_measurments(PSU_BOTTOM, &vm.ac2dc[PSU_BOTTOM]);
-  //update_ac2dc_power_measurments(PSU_TOP, &vm.ac2dc[PSU_TOP]);
-  int diff = vm.ac2dc[PSU_BOTTOM].voltage - vm.ac2dc[PSU_TOP].voltage;
+  //update_ac2dc_power_measurments(PSU_1, &vm.ac2dc[PSU_1]);
+  //update_ac2dc_power_measurments(PSU_0, &vm.ac2dc[PSU_0]);
+  int diff = vm.ac2dc[PSU_1].voltage - vm.ac2dc[PSU_0].voltage;
   //read_last_voltage();
   read_fet();  
   read_disabled_asics();
   // store voltage
   FILE* file = fopen ("/tmp/voltage", "w");
   if (file > 0) {
-     fprintf (file, "%d/%d", vm.ac2dc[PSU_TOP].voltage, vm.ac2dc[PSU_BOTTOM].voltage);
+     fprintf (file, "%d/%d", vm.ac2dc[PSU_0].voltage, vm.ac2dc[PSU_1].voltage);
      fclose(file);
   }
 
@@ -1345,15 +1375,13 @@ int main(int argc, char *argv[]) {
 
 
   vm.temp_mgmt = get_mng_board_temp();
-  if (vm.board_present[BOARD_TOP]) {
-      vm.temp_top = get_top_board_temp();
-  }
-  if (vm.board_present[BOARD_BOTTOM]) {
-      vm.temp_bottom = get_bottom_board_temp();
-  }
+  vm.temp_top = get_top_board_temp();
+  vm.temp_bottom = get_bottom_board_temp();
+
+  
   mg_event("Started!");
-  printf("%s",((vm.board_present[BOARD_TOP]))?"TOP BOARD PRESENT\n":"NO TOP BOARD\n");
-  printf("%s",((vm.board_present[BOARD_BOTTOM]))?"BOTTOM BOARD PRESENT\n":"NO BOTTOM BOARD\n");
+  psyslog("%s",((vm.ac2dc[PSU_0].psu_present))?"TOP BOARD PRESENT\n":"NO TOP BOARD\n");
+  psyslog("%s",((vm.ac2dc[PSU_1].psu_present))?"BOTTOM BOARD PRESENT\n":"NO BOTTOM BOARD\n");
   init_pwm();
   // Enable ALL dc2dc
   dc2dc_init();
