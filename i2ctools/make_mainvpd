@@ -3,7 +3,7 @@ LINK_LIB="-lpthread -static-libstdc++ -static-libgcc"
 
 TRG=mainvpd
 
-$GPP_CMD ${TRG}.cpp i2c.c  ../miner_gate/squid.cpp ../miner_gate/spond_debug.cpp -o ${TRG} ${LINK_LIB} -I../miner_gate
+$GPP_CMD ${TRG}.cpp i2c.c  ../miner_gate/squid.c ../miner_gate/spond_debug.c -o ${TRG} ${LINK_LIB} -I../miner_gate
 
 chmod +x ${TRG}
 cp ./${TRG} ~/shared/ 

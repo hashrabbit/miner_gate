@@ -11,10 +11,10 @@
 
 
 #include "ac2dc_const.h"
+#include "i2c.h"
 #include "asic.h"
 #include "ac2dc.h"
 #include "dc2dc.h"
-#include "i2c.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -144,6 +144,7 @@ void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
 }
 
 
+#ifdef MINERGATE
 
 void ac2dc_init() {
   psyslog("DISCOVERING AC2DC 0\n");
@@ -162,6 +163,7 @@ void ac2dc_init() {
   vm.ac2dc[PSU_1].psu_present = 1;//(vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN); 
   vm.ac2dc[PSU_0].psu_present = 1;//(vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN);   
 }
+#endif
 
 #ifndef MINERGATE
 
@@ -169,11 +171,11 @@ void ac2dc_init2(AC2DC * ac2dc) {
 
 	 int err;
 
-	 ac2dc[PSU_BOTTOM].ac2dc_type = AC2DC_TYPE_NONE;
-	 ac2dc[PSU_TOP].ac2dc_type = AC2DC_TYPE_NONE;
+	 ac2dc[1].ac2dc_type = AC2DC_TYPE_UNKNOWN;
+	 ac2dc[0].ac2dc_type = AC2DC_TYPE_UNKNOWN;
 
 //	 psyslog("DISCOVERING BOTTOM AC2DCs\n");
-	 i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);
+	 i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);
 
 	 if (err) {
 		 psyslog("GENERAL I2C AC2DC ERROR. EXIT\n");
@@ -181,17 +183,17 @@ void ac2dc_init2(AC2DC * ac2dc) {
 	 }
 
 
-	 ac2dc_init_one(&ac2dc[PSU_BOTTOM],PSU_BOTTOM);
+	 ac2dc_init_one(&ac2dc[1],1);
 
 //	 psyslog("DISCOVERING AC2DC TOP\n");
-	 i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);
+	 i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);
 
 	 if (err) {
 		 psyslog("GENERAL I2C AC2DC ERROR. EXIT\n");
 		 assert(0);
 	 }
 
-	 ac2dc_init_one(&ac2dc[PSU_TOP],PSU_TOP);
+	 ac2dc_init_one(&ac2dc[0],0);
 	 i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
 //	 psyslog("2 ac2dc[PSU_TOP(%d)]->type=%d , \n",PSU_TOP,ac2dc[PSU_TOP].ac2dc_type);
 //	 psyslog("2 ac2dc[PSU_BOTTOM(%d)]->type=%d , \n",PSU_BOTTOM,ac2dc[PSU_BOTTOM].ac2dc_type);
@@ -200,117 +202,112 @@ void ac2dc_init2(AC2DC * ac2dc) {
   }
 
 int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
-  if (ac2dc->ac2dc_type == AC2DC_TYPE_UNKNOWN) {
-     return 0;
-  }
 
-	int rc = 0;
-	int err = 0;
-  int pnr_offset = 0x34;
-  int pnr_size = 15;
-  int model_offset = 0x57;
-  int model_size = 4;
-  int serial_offset = 0x5b;
-  int serial_size = 10;
-  int revision_offset = 0x61;
-  int revision_size = 2;
-
-  if (ac2dc->ac2dc_type == AC2DC_TYPE_MURATA_NEW) // MURATA
-  {
-	  pnr_offset = 0x1D;
-	  pnr_size = 21;
-	  model_offset = 0x16;
-	  model_size = 6;
-	  serial_offset = 0x34;
-	  serial_size = 12;
-	  revision_offset = 0x3a;
-	  revision_size = 2;
-  }else if (ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_2) // EMRSN1200
-  {
-	  /*
-	   *
-5 (0x2c , 0x30) Vendor ID
-12 (0x32, 0x3d) Product Name
-12 (0x3F , 0x4A ) Product NR
-2  (0x4c ,0x4d) REV
-13 (0x4f , 0x5B)SNR
-	   *
-	   */
-	  pnr_offset = 0x3F;
-	  pnr_size = 12;
-	  model_offset = 0x3F;
-	  model_size = 12;
-	  serial_offset = 0x4f;
-	  serial_size = 13;
-	  revision_offset = 0x4c;
-	  revision_size = 2;
-
-  }
-
-  if (NULL == pVpd) {
-    psyslog("call ac2dc_get_vpd performed without allocating sturcture first\n");
-    return 1;
-  }
-  //psyslog("%s:%d\n",__FILE__, __LINE__);
-  
-
-  pthread_mutex_lock(&i2c_mutex);
-
-  i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT , &err);
-
-  if (err) {
-    fprintf(stderr, "Failed writing to I2C address 0x%X (err %d)",
-            PRIMARY_I2C_SWITCH, err);
-     pthread_mutex_unlock(&i2c_mutex);
-    return err;
-  }
-
-  for (int i = 0; i < pnr_size; i++) {
-    pVpd->pnr[i] = ac2dc_get_eeprom_quick(pnr_offset + i, &err);
-    if (err)
-      goto ac2dc_get_eeprom_quick_err;
-  }
-
-  for (int i = 0; i < model_size; i++) {
-    pVpd->model[i] = ac2dc_get_eeprom_quick(model_offset + i, &err);
-    if (err)
-      goto ac2dc_get_eeprom_quick_err;
-  }
-
-  for (int i = 0; i < revision_size; i++) {
-    pVpd->revision[i] = ac2dc_get_eeprom_quick(revision_offset + i, &err);
-    if (err)
-      goto ac2dc_get_eeprom_quick_err;
-  }
+	  if (ac2dc->ac2dc_type == AC2DC_TYPE_UNKNOWN) {
+	     return 0;
+	  }
 
 
-  for (int i = 0; i < serial_size; i++) {
-    pVpd->serial[i] = ac2dc_get_eeprom_quick(serial_offset + i, &err);
-    if (err)
-      goto ac2dc_get_eeprom_quick_err;
-  }
+		int rc = 0;
+		int err = 0;
+	  int pnr_offset = 0x34;
+	  int pnr_size = 15;
+	  int model_offset = 0x57;
+	  int model_size = 4;
+	  int serial_offset = 0x5b;
+	  int serial_size = 10;
+	  int revision_offset = 0x61;
+	  int revision_size = 2;
+
+	  if (ac2dc->ac2dc_type == AC2DC_TYPE_MURATA_NEW) // MURATA
+	  {
+		  pnr_offset = 0x1D;
+		  pnr_size = 21;
+		  model_offset = 0x16;
+		  model_size = 6;
+		  serial_offset = 0x34;
+		  serial_size = 12;
+		  revision_offset = 0x3a;
+		  revision_size = 2;
+	  }else if (ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_2) // EMRSN1200
+	  {
+		  /*
+		   *
+	5 (0x2c , 0x30) Vendor ID
+	12 (0x32, 0x3d) Product Name
+	12 (0x3F , 0x4A ) Product NR
+	2  (0x4c ,0x4d) REV
+	13 (0x4f , 0x5B)SNR
+		   *
+		   */
+		  pnr_offset = 0x3F;
+		  pnr_size = 12;
+		  model_offset = 0x3F;
+		  model_size = 12;
+		  serial_offset = 0x4f;
+		  serial_size = 13;
+		  revision_offset = 0x4c;
+		  revision_size = 2;
+
+	  }
+
+	  if (NULL == pVpd) {
+	    psyslog("call ac2dc_get_vpd performed without allocating sturcture first\n");
+	    return 1;
+	  }
+	  //psyslog("psu_id %d\n",psu_id);
 
 
-ac2dc_get_eeprom_quick_err:
+	  pthread_mutex_lock(&i2c_mutex);
 
-  if (err) {
-    fprintf(stderr, RED            "Failed reading AC2DC eeprom (err %d)\n" RESET, err);
-    rc =  err;
-  }
+	  i2c_write(PRIMARY_I2C_SWITCH, ((psu_id == 0)?PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN:PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN) | PRIMARY_I2C_SWITCH_DEAULT , &err);
 
-  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-  pthread_mutex_unlock(&i2c_mutex);
+	  if (err) {
+	    fprintf(stderr, "Failed writing to I2C address 0x%X (err %d)",
+	            PRIMARY_I2C_SWITCH, err);
+	     pthread_mutex_unlock(&i2c_mutex);
+	    return err;
+	  }
 
-  return rc;
+	  for (int i = 0; i < pnr_size; i++) {
+	    pVpd->pnr[i] = ac2dc_get_eeprom_quick(pnr_offset + i,ac2dc, &err);
+	    if (err)
+	      goto ac2dc_get_eeprom_quick_err;
+	  }
+
+	  for (int i = 0; i < model_size; i++) {
+	    pVpd->model[i] = ac2dc_get_eeprom_quick(model_offset + i, ac2dc, &err);
+	    if (err)
+	      goto ac2dc_get_eeprom_quick_err;
+	  }
+
+	  for (int i = 0; i < revision_size; i++) {
+	    pVpd->revision[i] = ac2dc_get_eeprom_quick(revision_offset + i, ac2dc, &err);
+	    if (err)
+	      goto ac2dc_get_eeprom_quick_err;
+	  }
+
+
+	  for (int i = 0; i < serial_size; i++) {
+	    pVpd->serial[i] = ac2dc_get_eeprom_quick(serial_offset + i, ac2dc, &err);
+	    if (err)
+	      goto ac2dc_get_eeprom_quick_err;
+	  }
+
+
+	ac2dc_get_eeprom_quick_err:
+
+	  if (err) {
+	    fprintf(stderr, RED            "Failed reading AC2DC eeprom (err %d)\n" RESET, err);
+	    rc =  err;
+	  }
+
+	  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
+	  pthread_mutex_unlock(&i2c_mutex);
+
+	  return rc;
 }
-#endif
 
-// this function assumes as a precondition
-// that the i2c bridge is already pointing to the correct device
-// needed to read ac2dc eeprom
-// no side effect either
-// use this funtion when performing serial multiple reads
-#ifndef MINERGATE
 unsigned char ac2dc_get_eeprom_quick(int offset, AC2DC *ac2dc, int *pError) {
 
   if (ac2dc->ac2dc_type == AC2DC_TYPE_UNKNOWN) {
@@ -324,13 +321,7 @@ unsigned char ac2dc_get_eeprom_quick(int offset, AC2DC *ac2dc, int *pError) {
 
   return b;
 }
-#endif
 
-// no precondition as per i2c
-// and thus sets switch first,
-// and then sets it back
-// side effect - it closes the i2c bridge when finishes.
-#ifndef MINERGATE
 int ac2dc_get_eeprom(int offset, int psu_id, AC2DC *ac2dc, int *pError) {
   // Stub for remo
   if (ac2dc->ac2dc_type == AC2DC_TYPE_UNKNOWN) {
