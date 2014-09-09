@@ -23,19 +23,20 @@ typedef struct {
 } ac2dc_vpd_info_t;
 
 //int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd);
-int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc);
 
 void ac2dc_init();
 
 #ifndef MINERGATE
+int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc);
 void ac2dc_init2(AC2DC * ac2dc);
+unsigned char ac2dc_get_eeprom_quick(int offset,AC2DC *ac2dc, int *pError = 0);
 #endif
 
-unsigned char ac2dc_get_eeprom_quick(int offset,AC2DC *ac2dc, int *pError = 0);
 char* psu_get_name(int type);
 void test_fix_ac2dc_limits();
 bool ac2dc_check_connected(int top_or_bottom);
-
+void PSU12vON (int psu);
+void PSU12vOFF (int psu);
 // PSU types.
 #define AC2DC_TYPE_UNKNOWN     0
 #define AC2DC_TYPE_MURATA_NEW  1
