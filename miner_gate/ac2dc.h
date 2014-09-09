@@ -22,8 +22,15 @@ typedef struct {
   unsigned char serial[32]; // WW[2]+SER[4]+REV[2]+PLANT[2]
 } ac2dc_vpd_info_t;
 
-int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd);
+//int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd);
+int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc);
+
 void ac2dc_init();
+
+#ifndef MINERGATE
+void ac2dc_init2(AC2DC * ac2dc);
+#endif
+
 unsigned char ac2dc_get_eeprom_quick(int offset, int *pError = 0);
 char* psu_get_name(int type);
 void test_fix_ac2dc_limits();

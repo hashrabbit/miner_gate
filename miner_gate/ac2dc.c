@@ -11,10 +11,10 @@
 
 
 #include "ac2dc_const.h"
+#include "asic.h"
 #include "ac2dc.h"
 #include "dc2dc.h"
 #include "i2c.h"
-#include "asic.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -182,6 +182,41 @@ void ac2dc_init() {
 }
 
 #ifndef MINERGATE
+
+void ac2dc_init2(AC2DC * ac2dc) {
+
+	 int err;
+
+	 ac2dc[PSU_BOTTOM].ac2dc_type = AC2DC_TYPE_NONE;
+	 ac2dc[PSU_TOP].ac2dc_type = AC2DC_TYPE_NONE;
+
+//	 psyslog("DISCOVERING BOTTOM AC2DCs\n");
+	 i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);
+
+	 if (err) {
+		 psyslog("GENERAL I2C AC2DC ERROR. EXIT\n");
+		 assert(0);
+	 }
+
+
+	 ac2dc_init_one(&ac2dc[PSU_BOTTOM],PSU_BOTTOM);
+
+//	 psyslog("DISCOVERING AC2DC TOP\n");
+	 i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);
+
+	 if (err) {
+		 psyslog("GENERAL I2C AC2DC ERROR. EXIT\n");
+		 assert(0);
+	 }
+
+	 ac2dc_init_one(&ac2dc[PSU_TOP],PSU_TOP);
+	 i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
+//	 psyslog("2 ac2dc[PSU_TOP(%d)]->type=%d , \n",PSU_TOP,ac2dc[PSU_TOP].ac2dc_type);
+//	 psyslog("2 ac2dc[PSU_BOTTOM(%d)]->type=%d , \n",PSU_BOTTOM,ac2dc[PSU_BOTTOM].ac2dc_type);
+
+
+  }
+
 int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
 
   if (ac2dc->ac2dc_type == AC2DC_TYPE_NONE) {
