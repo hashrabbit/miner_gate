@@ -71,6 +71,7 @@ void print_chiko(int with_asics);
 void ping_watchdog();
 void set_initial_voltage_freq();
 void set_initial_voltage_freq_on_restart();
+int get_fake_power(int psu_id); // get ACDC power by calculation
 
 
 

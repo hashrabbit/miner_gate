@@ -30,11 +30,10 @@ void test_fix_ac2dc_limits();
 bool ac2dc_check_connected(int top_or_bottom);
 
 // PSU types.
-#define AC2DC_TYPE_NONE        0
+#define AC2DC_TYPE_UNKNOWN     0
 #define AC2DC_TYPE_MURATA_NEW  1
 #define AC2DC_TYPE_MURATA_OLD  2
 #define AC2DC_TYPE_EMERSON_1_2 3
-#define AC2DC_TYPE_GENERIC     4
 
 
 #endif

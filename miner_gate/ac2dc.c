@@ -20,18 +20,22 @@
 #include <sys/types.h>
 #include <sys/wait.h> 
 
+
 extern MINER_BOX vm;
 extern pthread_mutex_t i2c_mutex;
-static int mgmt_addr[5] = {0, AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, 0};
-static int eeprom_addr[5] = {0, AC2DC_MURATA_NEW_I2C_EEPROM_DEVICE, AC2DC_MURATA_OLD_I2C_EEPROM_DEVICE, AC2DC_EMERSON_1200_I2C_EEPROM_DEVICE, 0};
-static int revive_code[5] = {0, 0x0, 0x0, 0x40,0};
+static int mgmt_addr[4] = {0, AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_EMERSON_1200_I2C_MGMT_DEVICE};
+static int eeprom_addr[4] = {0, AC2DC_MURATA_NEW_I2C_EEPROM_DEVICE, AC2DC_MURATA_OLD_I2C_EEPROM_DEVICE, AC2DC_EMERSON_1200_I2C_EEPROM_DEVICE};
+static int revive_code[4] = {0, 0x0, 0x0, 0x40};
+static int psu_addr[PSU_COUNT]  = {PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN}; 
+int get_fake_power(int psu_id);
 
 
 
-static char psu_names[5][20] = {"NONE","NEW-MURATA","OLD-MURATA","EMERSON1200", "GENERIC"};
+
+static char psu_names[4][20] = {"UNKNOWN","NEW-MURATA","OLD-MURATA","EMERSON1200"};
 
 char* psu_get_name(int type) {
-  passert(type < 5);
+  passert(type < 4);
   return psu_names[type];
 }
 
@@ -42,10 +46,6 @@ static int ac2dc_get_power(AC2DC *ac2dc, int psu_id) {
   int err = 0;
   static int warned = 0;
   int r;
-
-#ifdef DUMMY_I2C_EMERSON_FIX
-  emerson_workaround();  
-#endif  
 
   if (err) {
     psyslog("RESET I2C BUS?\n");  
@@ -72,12 +72,10 @@ static int ac2dc_get_power(AC2DC *ac2dc, int psu_id) {
 */
 
 
-bool ac2dc_check_connected(int top_or_bottom) {
-
+bool ac2dc_check_connected(int psu_id) {
   int err;
   bool ret = false;
-  i2c_write(PRIMARY_I2C_SWITCH, 
-   ((top_or_bottom == PSU_TOP)? PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN : PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN) | PRIMARY_I2C_SWITCH_DEAULT, &err);  
+  i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
   i2c_read_word(AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
   if (!err) {
     ret= true;
@@ -85,26 +83,26 @@ bool ac2dc_check_connected(int top_or_bottom) {
 
   
   i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
-    if (!err) {
-     ret= true;
-    }
+  if (!err) {
+   ret= true;
+  }
 
   i2c_read_word(AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
-    if (!err) {
-      ret= true;
-    }
+  if (!err) {
+    ret= true;
+  }
+    
   return ret;
 
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err);  
 }
 
 
-void ac2dc_init_one(AC2DC* ac2dc, int top_or_bottom) {
+void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
   
  int err;
  
- i2c_write(PRIMARY_I2C_SWITCH, 
-   ((top_or_bottom == PSU_TOP)? PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN : PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN) | PRIMARY_I2C_SWITCH_DEAULT, &err);  
+ i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
  
      int res = i2c_read_word(AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
       if (!err) {
@@ -129,65 +127,47 @@ void ac2dc_init_one(AC2DC* ac2dc, int top_or_bottom) {
            ac2dc->ac2dc_type = AC2DC_TYPE_MURATA_NEW;
           } else {
             // NOT MURATA 1200
-            psyslog("UNKNOWN AC2DC - DISABLE AC2DC\n");
-            ac2dc->ac2dc_type = AC2DC_TYPE_NONE;
+            psyslog("UNKNOWN AC2DC\n");
+            ac2dc->ac2dc_type = AC2DC_TYPE_UNKNOWN;
             ac2dc->voltage = 0;
           }
         }
       }
-    i2c_write(PRIMARY_I2C_SWITCH, 
-      ((top_or_bottom == PSU_TOP)? PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN : PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN) | PRIMARY_I2C_SWITCH_DEAULT, &err);  
+    i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
     ac2dc->voltage = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_VIN_WORD, &err);
-#ifdef DUMMY_I2C_EMERSON_FIX
-    emerson_workaround();  
-#endif    
-    ac2dc->voltage = i2c_getint(ac2dc->voltage );
-  
+    ac2dc->voltage = i2c_getint(ac2dc->voltage );  
 #ifdef MINERGATE
     psyslog("INPUT VOLTAGE=%d\n", ac2dc->voltage);
 #endif
     // Fix Emerson BUG
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err);  
-    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err);  
-
 }
 
 
 
 void ac2dc_init() {
-  psyslog("DISCOVERING AC2DC BOTTOM\n");
-  if(vm.ac2dc[PSU_TOP].ac2dc_no_i2c) {
-    vm.ac2dc[PSU_TOP].ac2dc_type = AC2DC_TYPE_GENERIC;
-  } else {
-    vm.ac2dc[PSU_TOP].ac2dc_type = AC2DC_TYPE_NONE;
-    psyslog("DISCOVERING AC2DC TOP\n");  
-    ac2dc_init_one(&vm.ac2dc[PSU_TOP], PSU_TOP);
+  psyslog("DISCOVERING AC2DC 0\n");
+  vm.ac2dc[PSU_0].ac2dc_type = AC2DC_TYPE_UNKNOWN;
+  if (!vm.ac2dc[PSU_0].force_generic_psu) {
+    ac2dc_init_one(&vm.ac2dc[PSU_0], PSU_0);
   }
-
-
-  if(vm.ac2dc[PSU_BOTTOM].ac2dc_no_i2c) {
-    vm.ac2dc[PSU_BOTTOM].ac2dc_type = AC2DC_TYPE_GENERIC;
-  } else {
-    vm.ac2dc[PSU_BOTTOM].ac2dc_type = AC2DC_TYPE_NONE;
-    ac2dc_init_one(&vm.ac2dc[PSU_BOTTOM], PSU_BOTTOM);
-  }
+  psyslog("DISCOVERING AC2DC 1\n");
+  vm.ac2dc[PSU_1].ac2dc_type = AC2DC_TYPE_UNKNOWN;
+  if (!vm.ac2dc[PSU_0].force_generic_psu) {
+    ac2dc_init_one(&vm.ac2dc[PSU_1], PSU_1);
+  } 
   
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
   // Disable boards if no DC2DC
-  vm.board_present[BOARD_BOTTOM] = (vm.ac2dc[PSU_BOTTOM].ac2dc_type != AC2DC_TYPE_NONE); 
-  vm.board_present[BOARD_TOP] = (vm.ac2dc[PSU_TOP].ac2dc_type != AC2DC_TYPE_NONE); 
-
-
-  
+  vm.ac2dc[PSU_1].psu_present = 1;//(vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN); 
+  vm.ac2dc[PSU_0].psu_present = 1;//(vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN);   
 }
 
 #ifndef MINERGATE
 int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
-
-  if (ac2dc->ac2dc_type == AC2DC_TYPE_NONE) {
+  if (ac2dc->ac2dc_type == AC2DC_TYPE_UNKNOWN) {
      return 0;
   }
-
 
 	int rc = 0;
 	int err = 0;
@@ -241,7 +221,7 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
 
   pthread_mutex_lock(&i2c_mutex);
 
-  i2c_write(PRIMARY_I2C_SWITCH, ((psu_id == PSU_TOP)?PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN:PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN) | PRIMARY_I2C_SWITCH_DEAULT , &err);
+  i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT , &err);
 
   if (err) {
     fprintf(stderr, "Failed writing to I2C address 0x%X (err %d)",
@@ -298,7 +278,7 @@ ac2dc_get_eeprom_quick_err:
 #ifndef MINERGATE
 unsigned char ac2dc_get_eeprom_quick(int offset, AC2DC *ac2dc, int *pError) {
 
-  if (ac2dc->ac2dc_type == AC2DC_TYPE_NONE) {
+  if (ac2dc->ac2dc_type == AC2DC_TYPE_UNKNOWN) {
      return 0;
   }
 
@@ -318,13 +298,13 @@ unsigned char ac2dc_get_eeprom_quick(int offset, AC2DC *ac2dc, int *pError) {
 #ifndef MINERGATE
 int ac2dc_get_eeprom(int offset, int psu_id, AC2DC *ac2dc, int *pError) {
   // Stub for remo
-  if (ac2dc->ac2dc_type == AC2DC_TYPE_NONE) {
+  if (ac2dc->ac2dc_type == AC2DC_TYPE_UNKNOWN) {
     return 0;
   }
   //printf("%s:%d\n",__FILE__, __LINE__);
   pthread_mutex_lock(&i2c_mutex);
   int b;
-  i2c_write(PRIMARY_I2C_SWITCH, ((psu_id == PSU_TOP)?PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN:PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN) | PRIMARY_I2C_SWITCH_DEAULT, pError);
+  i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, pError);
   if (pError && *pError) {
      pthread_mutex_unlock(&i2c_mutex);
     return *pError;
@@ -348,19 +328,19 @@ static pthread_t ac2dc_thread;
 
 void test_fix_ac2dc_limits() {
   int err;
-  if (vm.ac2dc[PSU_TOP].ac2dc_type != AC2DC_TYPE_NONE) {
-    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
-    AC2DC* ac2dc = &vm.ac2dc[PSU_TOP];
+  if (vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
+    AC2DC* ac2dc = &vm.ac2dc[PSU_0];
     int p = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_STATUS_IOUT, &err);
     if (!err) {
       int q = 0x1f;
       if (ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_2) {
         q = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_FAULTS, &err);     
       }
-      psyslog("TOP PSU STAT:%x %x\n", p, q);
+      psyslog("0 PSU STAT:%x %x\n", p, q);
       if ((p & (AC2DC_I2C_READ_STATUS_IOUT_OP_ERR | AC2DC_I2C_READ_STATUS_IOUT_OC_ERR)) ||
               ((ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_2) && (q != 0x1f))) {            
-        psyslog("AC2DC OVERCURRENT TOP:%x\n",p);
+        psyslog("AC2DC OVERCURRENT 0:%x\n",p);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_WRITE_PROTECT,0x0,&err);
         usleep(3000000);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,revive_code[ac2dc->ac2dc_type],&err);
@@ -368,12 +348,11 @@ void test_fix_ac2dc_limits() {
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,0x80,&err);
 
          if ((p & AC2DC_I2C_READ_STATUS_IOUT_OC_ERR) &&
-            (vm.ac2dc[PSU_TOP].ac2dc_power_limit > 1270)) {
-          mg_event_x("update TOP work mode %d", vm.ac2dc[PSU_TOP].ac2dc_power_limit);
+            (vm.ac2dc[PSU_0].ac2dc_power_limit > 1270)) {
+          mg_event_x("update 0 work mode %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
           update_work_mode(5, 0, false);
         }     
-        mg_event_x("AC2DC top fail on %d", vm.ac2dc[PSU_TOP].ac2dc_power_limit);
-        vm.i2c_busy_with_bug = 0;    
+        mg_event_x("AC2DC top fail on %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
         i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
         exit_nicely(4,"AC2DC fail 1");
       }
@@ -383,9 +362,9 @@ void test_fix_ac2dc_limits() {
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
 
-  if (vm.ac2dc[PSU_BOTTOM].ac2dc_type != AC2DC_TYPE_NONE) {
-    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
-    AC2DC* ac2dc = &vm.ac2dc[PSU_BOTTOM];
+  if (vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
+    AC2DC* ac2dc = &vm.ac2dc[PSU_1];
     int p = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_STATUS_IOUT, &err);
     if (!err) {
       int q = 0x1f;
@@ -402,12 +381,11 @@ void test_fix_ac2dc_limits() {
         usleep(1000000);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,0x80,&err);
         if ((p & AC2DC_I2C_READ_STATUS_IOUT_OC_ERR) &&
-            (vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit > 1270)) {
-          mg_event_x("update bottom work mode %d", vm.ac2dc[PSU_TOP].ac2dc_power_limit);
+            (vm.ac2dc[PSU_1].ac2dc_power_limit > 1270)) {
+          mg_event_x("update bottom work mode %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
           update_work_mode(0, 5, false);
         }
-        mg_event_x("AC2DC bottom fail on %d", vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit);
-        vm.i2c_busy_with_bug = 0;    
+        mg_event_x("AC2DC bottom fail on %d", vm.ac2dc[PSU_1].ac2dc_power_limit);
         i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
         exit_nicely(4,"AC2DC fail 2"); 
       }
@@ -421,7 +399,9 @@ void test_fix_ac2dc_limits() {
 }
 
 
-void update_single_psu(AC2DC *ac2dc, int i2c_switch, int top_or_bot) {
+
+
+void update_single_psu(AC2DC *ac2dc, int i2c_switch, int psu_id) {
    int p;
    int err;
    struct timeval tv;
@@ -442,19 +422,27 @@ void update_single_psu(AC2DC *ac2dc, int i2c_switch, int top_or_bot) {
 //   i2c_write(PRIMARY_I2C_SWITCH, i2c_switch);      
    p = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
    if (!err) {
-     int pp = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_STATUS_IOUT, &err);
-     DBG( DBG_SCALING ,"PSU STAT:%x\n", pp);
-     ac2dc->ac2dc_power_last_last = ac2dc->ac2dc_power_last;
-     ac2dc->ac2dc_power_last = ac2dc->ac2dc_power_now;      
-     ac2dc->ac2dc_power_now = i2c_getint(p); 
-     ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
-     ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power, ac2dc->ac2dc_power_last_last);     
-     DBG( DBG_SCALING ,"PowerOut: R:%d PM:%d [PL:%d PLL:%d PLLL:%d]\n", 
-                 p,
-                 ac2dc->ac2dc_power,
-                 ac2dc->ac2dc_power_now,
-                 ac2dc->ac2dc_power_last,
-                 ac2dc->ac2dc_power_last_last);
+      int pp = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_STATUS_IOUT, &err);
+      DBG( DBG_SCALING ,"PSU STAT:%x\n", pp);
+      ac2dc->ac2dc_power_last_last = ac2dc->ac2dc_power_last;
+      ac2dc->ac2dc_power_last = ac2dc->ac2dc_power_now;      
+      ac2dc->ac2dc_power_now = i2c_getint(p); 
+      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
+      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power, ac2dc->ac2dc_power_last_last);     
+
+
+      ac2dc->ac2dc_power_last_last_fake= ac2dc->ac2dc_power_last_fake;
+      ac2dc->ac2dc_power_last_fake = ac2dc->ac2dc_power_now_fake;      
+      ac2dc->ac2dc_power_now_fake = get_fake_power(psu_id); 
+      ac2dc->ac2dc_power_fake = MAX(ac2dc->ac2dc_power_now_fake, ac2dc->ac2dc_power_last_fake);
+      ac2dc->ac2dc_power_fake = MAX(ac2dc->ac2dc_power_fake, ac2dc->ac2dc_power_last_last_fake);     
+
+      DBG( DBG_SCALING ,"PowerOut: R:%d PM:%d [PL:%d PLL:%d PLLL:%d]\n", 
+               p,
+               ac2dc->ac2dc_power,
+               ac2dc->ac2dc_power_now,
+               ac2dc->ac2dc_power_last,
+               ac2dc->ac2dc_power_last_last);
    } else {
      DBG( DBG_SCALING ,"PowerOut: Error\n", ac2dc->ac2dc_power);
    }
@@ -463,10 +451,8 @@ void update_single_psu(AC2DC *ac2dc, int i2c_switch, int top_or_bot) {
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  
    
    int usecs = end_stopper(&tv,NULL);
-   if (vm.bad_ac2dc[top_or_bot] == 0 && (usecs > 500000)) {
-     vm.i2c_busy_with_bug = 0;    
-     vm.bad_ac2dc[top_or_bot] = 1;
-     mg_event_x("Bad PSU FW %s", (top_or_bot == PSU_TOP)?"TOP":"BOTTOM");  
+   if ((usecs > 500000)) {
+     mg_event_x("Bad PSU FW on PSU %d", psu_id);  
      exit_nicely(0,"Bad PSU Firmware");
    }
 }
@@ -474,67 +460,41 @@ void update_single_psu(AC2DC *ac2dc, int i2c_switch, int top_or_bot) {
 
 
 void *update_ac2dc_power_measurments_thread(void *ptr) {
-  //struct timeval tv;
-  //start_stopper(&tv);
   pthread_mutex_lock(&i2c_mutex);  
-  //do_stupid_i2c_workaround();
   int err;  
-  //static int    psu_id;
   AC2DC *ac2dc;
   int p;
-  ac2dc = &vm.ac2dc[PSU_TOP];
-  if (!vm.ac2dc[PSU_TOP].ac2dc_no_i2c) {
-    if (ac2dc->ac2dc_type != AC2DC_TYPE_NONE) {
-      update_single_psu(ac2dc, PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN | PRIMARY_I2C_SWITCH_DEAULT, PSU_TOP);
+  
+  ac2dc = &vm.ac2dc[PSU_0];
+  if (!vm.ac2dc[PSU_0].force_generic_psu) {
+    if (ac2dc->ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+      update_single_psu(ac2dc, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT, PSU_0);
     } else {
-      if (ac2dc_check_connected(PSU_TOP)) {
-        vm.i2c_busy_with_bug = 0;
+      if (ac2dc_check_connected(PSU_0)) {
         exit_nicely(10,"AC2DC connected top");
       }
     }
   }
 
 
-  
-  if (!vm.ac2dc[PSU_BOTTOM].ac2dc_no_i2c) {
-    ac2dc = &vm.ac2dc[PSU_BOTTOM];
-    if (ac2dc->ac2dc_type != AC2DC_TYPE_NONE) {
-      update_single_psu(ac2dc, PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN | PRIMARY_I2C_SWITCH_DEAULT, PSU_BOTTOM);
+  if (!vm.ac2dc[PSU_1].force_generic_psu) {
+    ac2dc = &vm.ac2dc[PSU_1];
+    if (ac2dc->ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+      update_single_psu(ac2dc, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN | PRIMARY_I2C_SWITCH_DEAULT, PSU_1);
     } else {
-      if (ac2dc_check_connected(PSU_BOTTOM)) {
-        vm.i2c_busy_with_bug = 0;
+      if (ac2dc_check_connected(PSU_1)) {
         exit_nicely(10, "AC2DC connected bottom");
       }
     }
   }
-  
-  //int usecs = end_stopper(&tv,"ac2dc update");
-  
+ 
   pthread_mutex_unlock(&i2c_mutex);
-  vm.i2c_busy_with_bug = 0;
   //pthread_exit(NULL);
   return NULL;
 }
 
 int update_ac2dc_power_measurments() {
-  DBG(DBG_SCALING,"update_ac2dc_power_measurments start\n");
   update_ac2dc_power_measurments_thread(NULL);
-  DBG(DBG_SCALING,"update_ac2dc_power_measurments stop\n");  
-  /*
-  struct sched_param param;
-  param.sched_priority = sched_get_priority_max(SCHED_RR);
-  
-  pthread_attr_t tattr;
-  pthread_attr_init(&tattr);
-  pthread_attr_setschedpolicy(&tattr,SCHED_RR); 
-  pthread_attr_getschedparam(&tattr, &param);
-  pthread_attr_setdetachstate(&tattr,PTHREAD_CREATE_DETACHED);
- 
-  passert(vm.i2c_busy_with_bug == 0)
-  vm.i2c_busy_with_bug = 1;
-  int ret = pthread_create(&ac2dc_thread,  &tattr, update_ac2dc_power_measurments_thread, (void *)NULL);
-  pthread_attr_destroy(&tattr); 
-  */
 }
 
 

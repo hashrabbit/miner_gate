@@ -37,11 +37,12 @@
 #define PRIMARY_I2C_SWITCH 0x70
 #define PRIMARY_I2C_SWITCH_DEAULT 0//PRIMARY_I2C_SWITCH_AC2DC_PIN
 
-#define PRIMARY_I2C_SWITCH_AC2DC_BOTTOM_PIN 0x01
+#define PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN 0x01
+#define PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN 0x10
+
 #define PRIMARY_I2C_SWITCH_TEMP_SENSOR_PIN  0x02
-#define PRIMARY_I2C_SWITCH_TOP_MAIN_PIN 0x04
+#define PRIMARY_I2C_SWITCH_BOARD0_MAIN_PIN 0x04
 #define PRIMARY_I2C_SWITCH_BOTTOM_MAIN_PIN 0x08
-#define PRIMARY_I2C_SWITCH_AC2DC_TOP_PIN 0x10
 
 
 
@@ -72,6 +73,5 @@ void i2c_write_word(uint8_t addr, uint8_t command, uint16_t value, int *pError =
 uint8_t i2c_waddr_read_byte(uint8_t addr, uint16_t dev_addr, int *pError = &ignorable_err);
 void i2c_waddr_write_byte(uint8_t addr, uint16_t dev_addr, uint8_t value, int *pError = &ignorable_err);
 uint16_t read_mgmt_temp();
-void emerson_workaround();
 
 #endif

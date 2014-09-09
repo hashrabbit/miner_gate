@@ -25,10 +25,11 @@
 #define ASICS_PER_BOARD        15 
 #define LOOPS_PER_BOARD        5 
 
-#define ASIC_TO_PSU_ID(ID)    (ID>=ASICS_PER_BOARD)   // psu_top = 0
-#define ASIC_TO_BOARD_ID(ID)  (ID>=ASICS_PER_BOARD)   // psu_top = 0
-#define LOOP_TO_PSU_ID(ID)    (ID>=LOOPS_PER_BOARD)   // psu_top = 0
-#define LOOP_TO_BOARD_ID(ID)  (ID>=LOOPS_PER_BOARD)   // psu_top = 0
+#define PSU_ID(ADDR)          (ADDR/ASICS_PER_BOARD)  
+#define ASIC_TO_PSU_ID(ID)    (ID/ASICS_PER_BOARD)   // PSU_1 = 0
+#define ASIC_TO_BOARD_ID(ID)  (ID/ASICS_PER_BOARD)   // PSU_1 = 0
+#define LOOP_TO_PSU_ID(ID)    (ID/LOOPS_PER_BOARD)   // PSU_1 = 0
+#define LOOP_TO_BOARD_ID(ID)  (ID/LOOPS_PER_BOARD)   // PSU_1 = 0
 
 #define NVM_FILE_NAME "/etc/mg_nvm.bin"
 #define ENGINES_PER_ASIC 193

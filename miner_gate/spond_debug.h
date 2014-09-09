@@ -20,7 +20,7 @@
 #define DBG_NET 0
 #define DBG_WINS 0
 #define DBG_HW 0
-#define DBG_SCALING 1
+#define DBG_SCALING 0
 #define DBG_HASH 0
 #define DBG_I2C 0
 #define DBG_IDLE 0
@@ -83,9 +83,11 @@ void print_stack();
 void start_stopper(struct timeval *tv);
 int end_stopper(struct timeval *tv, const char *name);
 extern char glob_buf_x[700];
-#define mg_event_x(S...) { sprintf(glob_buf_x, S); mg_event(glob_buf_x);} 
+#define mg_event_x(S...) { sprintf(glob_buf_x, S); mg_event(glob_buf_x, 1);} 
+#define mg_event_x_nonl(S...) { sprintf(glob_buf_x, S); mg_event(glob_buf_x, 0);} 
 
-void mg_event(const char *s);
+
+void mg_event(const char *s, int nl=1);
 void mg_status(const char *s);
 
 

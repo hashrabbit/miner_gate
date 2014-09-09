@@ -171,7 +171,7 @@ void act_on_temperature(int addr, int* can_upscale) {
           asic_down_freq_completly(addr,1,1,"too hot B");
           if (!a->cooling_down) {            
             a->cooling_down = 1;
-            vm.board_cooling_now[ASIC_TO_BOARD_ID(addr)]++;
+            vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now++;
             vm.board_cooling_ever |= (1 << addr);
           }
         } else {
@@ -191,7 +191,6 @@ void act_on_temperature(int addr, int* can_upscale) {
 
 
 void update_ac2dc_stats() {
-  passert (!vm.i2c_busy_with_bug);
   //struct timeval tv;
   //start_stopper(&tv);
   update_ac2dc_power_measurments();
@@ -445,6 +444,7 @@ void set_nonce_range_in_engines(unsigned int max_range) {
 int revive_asics_if_one_got_reset(const char *why) {
   // Validate all got address
   if (read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT) != 0) {
+      test_lost_address();
       restart_asics_full(1, "revive_asics_if_one_got_reset");
   }
   return 0;
@@ -547,6 +547,7 @@ int allocate_addresses_to_devices() {
   write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops))&SQUID_LOOPS_MASK);
 
   // Validate all got address
+ 
   if (read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT) != 0) {
     psyslog(RED "allocate_addresses_to_devices: Someone got no address?? - look:\n" RESET);
     for (int i = 0; i < ASICS_COUNT; i++) { 
@@ -727,6 +728,7 @@ done_win:
     vm.concecutive_hw_errs = 0;
     //print_chiko(1);
     vm.err_too_much_fake_wins++;      
+    test_lost_address();
     restart_asics_full(3, "consec HW errors");
     return 0;
   }
@@ -824,10 +826,6 @@ int do_bist_loop_push_job(const char* why) {
   int f;
   int i = 0;
   // Save engines needed only at minimal freq so we can disable them.
-  if (vm.i2c_busy_with_bug) {
-    psyslog(RED "SKIPPED BIST BECAUSE OF AC2DC BUG (%s)\n", why);
-    return 0;
-  }
   psyslog(YELLOW "Do BIST LOOP- %s\n" RESET, why);
   while ((f = do_bist_ok(true,true,1 , why))) {
     DBG(DBG_SCALING, "BIST %x FAILED: %x asics failed bist\n", i, f);
@@ -949,7 +947,8 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
       psyslog(RED "JOB %x stuck, killing ASIC X 2\n" RESET, reg);
       //disable_asic_forever_rt(addr, "bist cant start, stuck Y");
       print_chiko(1);
-      vm.err_stuck_bist++;        
+      vm.err_stuck_bist++; 
+      test_lost_address();
       restart_asics_full(4, "stuck ASIC");
       return 0;
     }
@@ -1167,13 +1166,13 @@ void set_initial_voltage_freq() {
        // Set voltage
        if (a->dc2dc.before_failure_vtrim) {
           int last_vtrim = a->dc2dc.before_failure_vtrim; // for heat
-          int default_vtrim = (IS_TOP_ASIC(i))?vm.vtrim_start_top:vm.vtrim_start_bottom;
+          int default_vtrim = vm.ac2dc[PSU_ID(i)].vtrim_start;
           dc2dc_set_vtrim(i, 
                           MAX(last_vtrim, default_vtrim), 
                           1, &err, "Initial custom vtrim per loop");
        } else {
          dc2dc_set_vtrim(i, 
-                          (IS_TOP_ASIC(i))?vm.vtrim_start_top:vm.vtrim_start_bottom, 
+                          vm.ac2dc[PSU_ID(i)].vtrim_start, 
                           1, &err, "Initial vtrim per loop");
        }
        a->dc2dc.max_vtrim_user = VOLTAGE_TO_VTRIM_MILLI(vm.voltage_max);
@@ -1304,11 +1303,9 @@ int best_asic_to_upvolt(int psu_id) {
   if (vm.ac2dc[psu_id].ac2dc_power_limit - vm.ac2dc[psu_id].ac2dc_power < 5) {
     return -1;
   }
-  int delta = (psu_id == PSU_TOP)?0:ASICS_PER_BOARD;
+  int delta = (psu_id * ASICS_PER_BOARD);
   for (int i = delta; i<delta+ASICS_PER_BOARD; i++) {
-    //printf("Who better of (%d %d)?", best, i);    
     best =  better_asic_to_upvolt(i, best);
-    //printf(" %d\n", best);        
   }
   return best;
 }
@@ -1318,11 +1315,9 @@ int best_asic_to_upvolt(int psu_id) {
 
 int best_asic_to_downvolt(int psu_id) {
   int best = -1;
-  int delta = (psu_id == PSU_TOP)?0:ASICS_PER_BOARD;
+  int delta = (psu_id * ASICS_PER_BOARD);
   for (int i = delta; i<delta+ASICS_PER_BOARD; i++) {
-    //printf("Who better of (%d %d)?", best, i);    
-    best =  better_asic_to_downvolt(i, best);
-    //printf(" %d\n", best);        
+    best = better_asic_to_downvolt(i, best);
   }
   return best;
 }
@@ -1372,7 +1367,6 @@ void once_second_scaling_logic() {
         ((one_sec_counter  % BIST_PERIOD_SECS_LONG) == 5)
        )
       {
-      passert((!vm.i2c_busy_with_bug));
       DBG(DBG_SCALING,"BIST!\n");
       int i=0; 
 
@@ -1381,37 +1375,24 @@ void once_second_scaling_logic() {
       }
       
       //end_stopper(&tv, "UPVOLT1");
-      if (vm.board_cooling_now[PSU_TOP] == 0) {
-        while(i < DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD) {
-          // Find most optimal to up-volt
-          int best = best_asic_to_upvolt(PSU_TOP);
-          if ((best == -1) || (!dc2dc_can_up(best))) {
-            DBG(DBG_SCALING,"CANNOT UPSCALE %d\n", best);
-            break;
-          } else {
-            i++;
-            ASIC *a = &vm.asic[best];
-            DBG(DBG_SCALING,"UPSCALE %d\n", best);
-            dc2dc_up(best,&err,"upvolt time 1");
-          }
-        }
-      }
-      //end_stopper(&tv, "UPVOLT2");
-      i=0; 
-      if (vm.board_cooling_now[PSU_BOTTOM] == 0) {
-        while(i < DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD) {
+      for (int psu = 0 ; psu < PSU_COUNT ; psu++) {
+        if (vm.ac2dc[psu].board_cooling_now == 0) {
+          while(i < DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD) {
             // Find most optimal to up-volt
-            int best = best_asic_to_upvolt(PSU_BOTTOM);
+            int best = best_asic_to_upvolt(psu);
             if ((best == -1) || (!dc2dc_can_up(best))) {
               DBG(DBG_SCALING,"CANNOT UPSCALE %d\n", best);
               break;
             } else {
               i++;
               ASIC *a = &vm.asic[best];
-              dc2dc_up(best,&err,"upvolt time 2");
+              DBG(DBG_SCALING,"UPSCALE %d\n", best);
+              dc2dc_up(best,&err,"upvolt time");
             }
-         }
+          }
+        }
       }
+     
       start_stopper(&tv);      
       do_bist_loop_push_job("BIST_PERIOD_SECS");
       end_stopper(&tv, "BIST");     
@@ -1422,56 +1403,42 @@ void once_second_scaling_logic() {
     ASIC *a = &vm.asic[xx];
     if ((a->asic_present) && (a->dc2dc.dc_current_16s < (7*16))) {
         needs_reset = 1;
-        psyslog("Lazy ASIC %d\n", xx);
+        mg_event_x_nonl("Lazy: %d", xx);
     } 
     vm.asic[xx].dc2dc.revolted = 0;
   }
 
   if (needs_reset) {
+    mg_event_x("Doing restart");
+    test_lost_address();
     restart_asics_full(5, "Lazy asic");
     return;
   }
   
   // If AC2DC too high - reduce voltage on ASIC
-  if ((!vm.i2c_busy_with_bug)) {
+  for (int psu = 0 ; psu < PSU_COUNT ; psu++) {
     int do_bist = 0;
-    if ((vm.ac2dc[PSU_TOP].ac2dc_power_limit+4) < (vm.ac2dc[PSU_TOP].ac2dc_power_now
-                                                  +vm.ac2dc[PSU_TOP].ac2dc_power_last)/2) {
+    if ((vm.ac2dc[psu].ac2dc_power_limit+4) < (vm.ac2dc[psu].ac2dc_power_now
+                                               +vm.ac2dc[psu].ac2dc_power_last)/2) {
       // down random DC2DC
       int i = 5;
       do_bist = 1;
-      vm.ac2dc[PSU_TOP].ac2dc_power_last = vm.ac2dc[PSU_TOP].ac2dc_power_now;
-      vm.ac2dc[PSU_TOP].ac2dc_power_now = 0;
+      vm.ac2dc[psu].ac2dc_power_last = vm.ac2dc[psu].ac2dc_power_now;
+      vm.ac2dc[psu].ac2dc_power_now = 0;
       while(i) {
-        int addr = best_asic_to_downvolt(PSU_TOP);  
+        int addr = best_asic_to_downvolt(psu);  
         ASIC *a = &vm.asic[addr];
         if (a->asic_present) {
           if (dc2dc_can_down(addr)) {
-            dc2dc_down(addr,&err,"TOP AC2DC too high A");
+            dc2dc_down(addr,&err,"AC2DC too high A");
             i--;
           }
         }
       }
     }
 
-    if ((vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit+4) < (vm.ac2dc[PSU_BOTTOM].ac2dc_power_now +
-                                                     vm.ac2dc[PSU_BOTTOM].ac2dc_power_last)/2) {
-      // down random DC2DC
-      int i = 5;
-      do_bist = 1;
-      vm.ac2dc[PSU_BOTTOM].ac2dc_power_last = vm.ac2dc[PSU_BOTTOM].ac2dc_power_now;
-      vm.ac2dc[PSU_BOTTOM].ac2dc_power_now = 0;
-      while(i) {
-        int addr = best_asic_to_downvolt(PSU_BOTTOM);  
-        ASIC *a = &vm.asic[addr];
-        if (a->asic_present) {
-          if (dc2dc_can_down(addr)) {
-            dc2dc_down(addr,&err,"TOP AC2DC too high B");
-            i--;
-          }
-        }
-      }
-    }
+
+   
     
     for (int xx = 0; xx < ASICS_COUNT ; xx++) {
         vm.asic[xx].dc2dc.revolted = 0;
@@ -1487,7 +1454,7 @@ void once_second_scaling_logic() {
   for (int i = 0 ; i < ASICS_COUNT; i++) {
     ASIC *a = &vm.asic[i];
     
-    if (a->asic_present && (!vm.i2c_busy_with_bug)) {
+    if (a->asic_present) {
       act_on_temperature(i, &can_upscale);
     }
 
@@ -1506,6 +1473,15 @@ void once_second_scaling_logic() {
 
 
 
+int get_fake_power(int psu_id) {
+  int fake_power = 0;
+  for (int i = psu_id*ASICS_PER_BOARD; i < psu_id*ASICS_PER_BOARD + ASICS_PER_BOARD; i++) {
+    if (vm.asic[i].dc2dc.dc2dc_present) {
+      fake_power += vm.asic[i].dc2dc.dc_power_watts_16s;
+    }
+  } 
+  return (fake_power*133/1600);
+}
 
 
 
@@ -1542,20 +1518,17 @@ void print_production() {
   }
   
   fprintf(f,  "PSU-TOP[%s]: %dw, %dv\n",
-      psu_get_name(vm.ac2dc[PSU_TOP].ac2dc_type),
-      vm.ac2dc[PSU_TOP].ac2dc_power,
-      vm.ac2dc[PSU_TOP].voltage
+      psu_get_name(vm.ac2dc[PSU_0].ac2dc_type),
+      vm.ac2dc[PSU_0].ac2dc_power,
+      vm.ac2dc[PSU_0].voltage
     );
   fprintf(f,  "PSU-BOT[%s]: %dw, %dv\n",
-      psu_get_name(vm.ac2dc[PSU_BOTTOM].ac2dc_type),
-      vm.ac2dc[PSU_BOTTOM].ac2dc_power,
-      vm.ac2dc[PSU_BOTTOM].voltage
+      psu_get_name(vm.ac2dc[PSU_1].ac2dc_type),
+      vm.ac2dc[PSU_1].ac2dc_power,
+      vm.ac2dc[PSU_1].voltage
     );
 
-  fprintf(f,  "OH: 0x%x\n",
-    vm.board_cooling_ever);
-
-  fprintf(f,  "AC2DCBUG: %x %x\n", vm.bad_ac2dc[PSU_TOP], vm.bad_ac2dc[PSU_BOTTOM]);
+  fprintf(f,  "OH: 0x%x\n",vm.board_cooling_ever);
 
 
   int good_loops = 0;
@@ -1645,47 +1618,38 @@ void print_scaling() {
   fprintf(f, GREEN "Uptime:%d | FPGA ver:%d\n" , time(NULL) - vm.start_run_time, vm.fpga_ver);
 
 
+  
+  for (int psu = 0 ; psu < PSU_COUNT; psu++) {
+    //printf("XXX %d %d\n",__LINE__, psu);
+    fprintf(f,  "%s-----BOARD-%d-----\n"
+      "PSU[%s]: %d->%dw[%d %d %d] (->%dw[%d %d %d]) (lim=%d) %dc cooling:%d/0x%x\n" RESET,
+        ((vm.ac2dc[psu].ac2dc_type == AC2DC_TYPE_UNKNOWN)?RED:GREEN),
+        psu,        
+        psu_get_name(vm.ac2dc[psu].ac2dc_type),
+        vm.ac2dc[psu].ac2dc_in_power,
+        vm.ac2dc[psu].ac2dc_power, 
+        vm.ac2dc[psu].ac2dc_power_now, 
+        vm.ac2dc[psu].ac2dc_power_last, 
+        vm.ac2dc[psu].ac2dc_power_last_last,       
 
-  fprintf(f,  "%s-----TOP-BOARD-----\n"
-    "PSU-TOP[%s]: %d->%dw[%d %d %d] (lim=%d) %dc cooling:%d/0x%x\n" RESET,
-      ((vm.ac2dc[PSU_TOP].ac2dc_type == AC2DC_TYPE_NONE)?RED:GREEN),
-      psu_get_name(vm.ac2dc[PSU_TOP].ac2dc_type),
-      vm.ac2dc[PSU_TOP].ac2dc_in_power,
-      vm.ac2dc[PSU_TOP].ac2dc_power, 
-      vm.ac2dc[PSU_TOP].ac2dc_power_now, 
-      vm.ac2dc[PSU_TOP].ac2dc_power_last, 
-      vm.ac2dc[PSU_TOP].ac2dc_power_last_last,       
-      vm.ac2dc[PSU_TOP].ac2dc_power_limit,
-      vm.ac2dc[PSU_TOP].ac2dc_temp,
-      vm.board_cooling_now[PSU_TOP],
-      vm.board_cooling_ever
-      
-    );
+        vm.ac2dc[psu].ac2dc_power_fake, 
+        vm.ac2dc[psu].ac2dc_power_now_fake, 
+        vm.ac2dc[psu].ac2dc_power_last_fake, 
+        vm.ac2dc[psu].ac2dc_power_last_last_fake,     
 
-
-  int total_watt=0;
-
-  for (int l = 0; l < LOOP_COUNT; l++) {
-    if (l == LOOP_COUNT/2) {
-      fprintf(f, "%s----BOTTOM BOARD------\n"
-      "PSU-BOT[%s]: %d->%dw[%d %d %d] (lim=%d) %dc cooling:%d/0x%x\n" RESET,
-      ((vm.ac2dc[PSU_BOTTOM].ac2dc_type == AC2DC_TYPE_NONE)?RED:GREEN),
-        psu_get_name(vm.ac2dc[PSU_BOTTOM].ac2dc_type),
-        vm.ac2dc[PSU_BOTTOM].ac2dc_in_power,
-        vm.ac2dc[PSU_BOTTOM].ac2dc_power,
-        vm.ac2dc[PSU_BOTTOM].ac2dc_power_now, 
-        vm.ac2dc[PSU_BOTTOM].ac2dc_power_last, 
-        vm.ac2dc[PSU_BOTTOM].ac2dc_power_last_last,              
-        vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit,
-        vm.ac2dc[PSU_BOTTOM].ac2dc_temp,
-        vm.board_cooling_now[PSU_BOTTOM],
+    
+        vm.ac2dc[psu].ac2dc_power_limit,
+        vm.ac2dc[psu].ac2dc_temp,
+        vm.ac2dc[psu].board_cooling_now,
         vm.board_cooling_ever
       );
+  }
 
-    }
+  int total_watt=0;
+  //printf("XXX %d %d\n",__LINE__, 0);
 
-
-
+  for (int l = 0; l < LOOP_COUNT; l++) {
+    //printf("XXX %d %d\n",__LINE__, l);
     if (vm.loop[l].enabled_loop) {
       fprintf(f,GREEN "LOOP[%d] ON\n" RESET,l);
     } else {
@@ -1747,7 +1711,7 @@ void print_scaling() {
   // print last loop
   // print total hash power
   fprintf(f, RESET "\n[H:HW:%dGh[%d+%d],W:%d,L:%d,A:%d,MMtmp:%d TMP:(%d)=>=>=>(%d,%d)]\n",
-                (vm.total_mhash)/1000,total_hash[BOARD_TOP]/1000, total_hash[BOARD_BOTTOM]/1000,
+                (vm.total_mhash)/1000,total_hash[PSU_0]/1000, total_hash[PSU_1]/1000,
                 total_watt/16,
                 total_loops,
                 total_asics,
@@ -1769,25 +1733,25 @@ void print_scaling() {
            vm.idle_asic_cycles_sec*10/100000, (vm.idle_asic_cycles_last_min*10) / 6000000, 
            vm.last_minute_rate_mb/1000);
    fprintf(f, "Fan:%d, conseq:%d\n", vm.fan_level, vm.consecutive_jobs);
-   fprintf(f, "AC2DC BAD: %d %d\n" , vm.bad_ac2dc[PSU_TOP], vm.bad_ac2dc[PSU_BOTTOM]);
+   fprintf(f, "AC2DC BAD: %d %d\n" , 0, 0);
    fprintf(f, "R/NR: %d/%d\n", vm.mining_time, vm.not_mining_time);
    fprintf(f, "RTF asics: %d\n",vm.run_time_failed_asics);
 
-   fprintf(f, "%d err_restarted\n", vm.err_restarted);  
-   fprintf(f, "%d err_unexpected_reset\n", vm.err_unexpected_reset);  
-   fprintf(f, "%d err_unexpected_reset2\n", vm.err_unexpected_reset2);  
-   fprintf(f, "%d err_too_much_fake_wins\n", vm.err_too_much_fake_wins);  
-   fprintf(f, "%d err_stuck_bist\n", vm.err_stuck_bist);  
-   fprintf(f, "%d err_low_power_chiko\n", vm.err_low_power_chiko);  
-   fprintf(f, "%d err_stuck_pll\n", vm.err_stuck_pll);  
-   fprintf(f, "%d err_runtime_disable\n", vm.err_runtime_disable);  
-   fprintf(f, "%d err_purge_queue\n", vm.err_purge_queue);  
-   fprintf(f, "%d err_read_timeouts\n", vm.err_read_timeouts);    
-   fprintf(f, "%d err_dc2dc_oc\n", vm.err_dc2dc_oc);    
-   fprintf(f, "%d err_read_timeouts2\n", vm.err_read_timeouts2);  
-   fprintf(f, "%d err_read_corruption\n", vm.err_read_corruption);  
-   fprintf(f, "%d err_purge_queue3\n", vm.err_purge_queue3);  
-   fprintf(f, "%d err_bad_idle\n", vm.err_bad_idle);     
+   fprintf(f, " %d restarted     ", vm.err_restarted);  
+   fprintf(f, " %d reset         ", vm.err_unexpected_reset);  
+   fprintf(f, " %d reset2        ", vm.err_unexpected_reset2);  
+   fprintf(f, " %d fake_wins \n", vm.err_too_much_fake_wins);  
+   fprintf(f, " %d stuck_bist    ", vm.err_stuck_bist);  
+   fprintf(f, " %d low_power     ", vm.err_low_power_chiko);  
+   fprintf(f, " %d stuck_pll     ", vm.err_stuck_pll);  
+   fprintf(f, " %d runtime_dsble\n", vm.err_runtime_disable);  
+   fprintf(f, " %d purge_queue   ", vm.err_purge_queue);  
+   fprintf(f, " %d read_timeouts ", vm.err_read_timeouts);    
+   fprintf(f, " %d dc2dc_oc      ", vm.err_dc2dc_oc);    
+   fprintf(f, " %d read_tmout2   ", vm.err_read_timeouts2);  
+   fprintf(f, " %d read_crptn \n", vm.err_read_corruption);  
+   fprintf(f, " %d purge_queue3  ", vm.err_purge_queue3);  
+   fprintf(f, " %d bad_idle\n", vm.err_bad_idle);     
    
 
    
@@ -1805,29 +1769,18 @@ void dump_watts() {
       return;
     }
     fprintf(f, "T:%d[%d], B:%d[%d]\n", 
-      vm.ac2dc[PSU_TOP].ac2dc_power, vm.ac2dc[PSU_TOP].ac2dc_power_limit,
-      vm.ac2dc[PSU_BOTTOM].ac2dc_power, vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit);
+      vm.ac2dc[PSU_0].ac2dc_power, vm.ac2dc[PSU_0].ac2dc_power_limit,
+      vm.ac2dc[PSU_1].ac2dc_power, vm.ac2dc[PSU_1].ac2dc_power_limit);
     fclose(f);
 }
 
 void ten_second_tasks() {
-  /*
- printf("vm.consecutive_jobs = %d\n", vm.consecutive_jobs);
- printf("vm.last_second_jobs = %d\n", vm.last_second_jobs);
- printf("vm.cur_leading_zeroes = %d\n", vm.cur_leading_zeroes);
- printf("vm.needs_bist = %d\n", vm.needs_bist);
-  printf("vm.mining_time = %d\n", vm.mining_time);
-  printf("vm.not_mining_time = %d\n", vm.not_mining_time);
-  printf("vm.asics_shut_down_powersave = %d\n", vm.asics_shut_down_powersave);
-  printf("vm.start_mine_time = %d\n", vm.start_mine_time);
-*/
-
   static char x[200]; 
   
   psyslog("MQ 10sec:%d\n", read_spi(ADDR_SQUID_MQ_SENT));
   sprintf(x, "uptime:%d lim:%d/%d rst:%d\n", 
     time(NULL) - vm.start_run_time, 
-    vm.ac2dc[PSU_TOP].ac2dc_power_limit,vm.ac2dc[PSU_BOTTOM].ac2dc_power_limit,
+    vm.ac2dc[PSU_0].ac2dc_power_limit,vm.ac2dc[PSU_1].ac2dc_power_limit,
     vm.err_restarted);
   mg_status(x);
   store_last_voltage();
@@ -1838,10 +1791,10 @@ void ten_second_tasks() {
   revive_asics_if_one_got_reset("ten_second_tasks");
 
  vm.temp_mgmt = get_mng_board_temp();
- if (vm.board_present[BOARD_TOP]) {
+ if (vm.ac2dc[PSU_0].psu_present) {
     vm.temp_top = get_top_board_temp();
  }
- if (vm.board_present[BOARD_BOTTOM]) {
+ if (vm.ac2dc[PSU_1].psu_present) {
     vm.temp_bottom = get_bottom_board_temp();
  }
 
@@ -1930,7 +1883,7 @@ void asic_up_freq_max(int i, int wait_pll_lock, int disable_enable_engines,  con
   if (wanted_hz <= allowed_hz) {
     if (vm.asic[i].cooling_down) {
       vm.asic[i].cooling_down = 0;
-      vm.board_cooling_now[ASIC_TO_BOARD_ID(i)]--;
+      vm.ac2dc[ASIC_TO_BOARD_ID(i)].board_cooling_now--;
     }
     DBG(DBG_SCALING, "%d Full upscaling from %d by %d\n", i, vm.asic[i].freq_hw, (wanted_hz)); 
   } else {
@@ -1985,6 +1938,7 @@ void update_dc2dc_stats(int i) {
     if (err) {
         vm.err_dc2dc_oc++;  
         if ((vm.err_dc2dc_oc % 10) == 0) {
+          test_lost_address();
           restart_asics_full(6, "Dc2Dc i2c error");
           return;
         }
@@ -2008,9 +1962,7 @@ void update_dc2dc_stats(int i) {
 
 void once_33milli_tasks_rt() {
   static int counter = 0;
-  if (!vm.i2c_busy_with_bug) {
-    update_dc2dc_stats(counter%ASICS_COUNT);
-  }
+  update_dc2dc_stats(counter%ASICS_COUNT);
   counter++;
 }
 
@@ -2058,6 +2010,7 @@ void once_second_tasks_rt() {
   if ((vm.idle_asic_cycles_sec/100000 > 90) && 
       (vm.consecutive_jobs == MAX_CONSECUTIVE_JOBS_TO_COUNT)) {
     vm.err_bad_idle++;
+    test_lost_address();
     restart_asics_full(17,"Asic IDLE should not be");
     return;
   }

@@ -439,6 +439,7 @@ void wait_dll_ready(int a_addr,const char* why) {
         } else {
           print_chiko(1);
           vm.err_stuck_pll++;  
+          test_lost_address();
           restart_asics_full(8,"stuck PLL");
         }
         //
@@ -507,6 +508,7 @@ void disable_asic_forever_rt(int addr, const char* why) {
   if (!vm.in_asic_reset) {
     mg_event_x("Run time failed crutial %d", addr);
     vm.err_runtime_disable++;  
+    test_lost_address();
     restart_asics_full(9,"disable asic while running");
     return;
   }
@@ -524,7 +526,7 @@ void disable_asic_forever_rt(int addr, const char* why) {
   mg_event_x("Asic disable %d: %s",addr,why);
   disable_engines_asic(addr, 1);
   if (vm.asic[addr].cooling_down) {
-    vm.board_cooling_now[ASIC_TO_BOARD_ID(addr)]--;
+    vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now--;
   }
   // dc2dc_disable_dc2dc(addr,&err);
 

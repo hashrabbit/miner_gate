@@ -18,6 +18,7 @@ int test_serial(int loopid);
 void configure_mq(uint32_t interval, uint32_t increments, int pause);
 void restart_asics_part(const char* why);
 void restart_asics_full(int reason, const char* why);
+void test_lost_address();
 
 
 

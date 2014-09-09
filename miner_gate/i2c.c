@@ -277,18 +277,6 @@ void i2c_write_byte(uint8_t addr, uint8_t command, uint8_t value, int *pError) {
   pthread_mutex_unlock(&i2cm);
 }
 
-void emerson_workaround() {
-/*  struct timeval tv;
-   start_stopper(&tv);
-   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-   end_stopper(&tv,"emerson_workaround B");
-   start_stopper(&tv);  
-   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-   end_stopper(&tv,"emerson_workaround C");
-   //reset_i2c();
-*/
-}
-
 
 
 uint16_t i2c_read_word(uint8_t addr, uint8_t command, int *pError) {
