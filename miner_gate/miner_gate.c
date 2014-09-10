@@ -97,6 +97,11 @@ int test_serial(int loopid) {
   int i = 0;
   int val1;
 
+  /*if (loopid == 5 || loopid == 6) {
+    last_err_loop = "fake bad"; 
+    return 0;
+  }*/
+
 
   while ((val1 = read_spi(ADDR_SQUID_STATUS)) &
          BIT_STATUS_SERIAL_Q_RX_NOT_EMPTY) {
@@ -600,7 +605,7 @@ return -1;
 
 
 
-void discover_good_loops() {
+void discover_good_loops_restart_12v() {
   DBG(DBG_NET, "RESET SQUID\n");
 
   uint32_t good_loops = 0;
@@ -622,7 +627,7 @@ void discover_good_loops() {
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
     if ((vm.loop[i].user_disabled == 0) &&
        (vm.ac2dc[LOOP_TO_BOARD_ID(i)].psu_present) &&
-      test_serial(i)
+       test_serial(i)
     ) {
       vm.loop[i].enabled_loop = 1;
       vm.loop[i].why_disabled = "All good, Rodrigez";
@@ -639,13 +644,20 @@ void discover_good_loops() {
       good_loops_cnt++;
     } else {
       vm.loop[i].enabled_loop = 0;
-      if (vm.ac2dc[LOOP_TO_PSU_ID(i)].ac2dc_type == AC2DC_TYPE_UNKNOWN) {
-        vm.loop[i].why_disabled = "no PSU";
-      } else {
-        vm.loop[i].why_disabled = 
-          (!(vm.ac2dc[LOOP_TO_BOARD_ID(i)].psu_present))?"no board i2c":last_err_loop;
-      }
+      vm.loop[i].why_disabled = "test serial failed";        
       printf("loop %d disabled\n", i);
+
+      if (!vm.tryed_power_cycle_to_revive_loops) {
+        mg_event_x("Bad loop %d = trying power cycle");
+        vm.tryed_power_cycle_to_revive_loops = 1;
+        PSU12vPowerCycleALL();
+        discover_good_loops_restart_12v();
+        return;
+      } else {
+        mg_event_x("Bad loop %d = set loop as disabled");
+      }
+
+      
       for (int h = i * ASICS_PER_LOOP; h < (i + 1) * ASICS_PER_LOOP; h++) {
         int err;
         int overcurrent_err, overcurrent_warning;
@@ -1171,7 +1183,6 @@ void restart_asics_full(int reason,const char * why) {
   i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);    
   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err);    
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-
   
   if(vm.in_asic_reset != 0) {
     print_stack();
@@ -1245,7 +1256,7 @@ void restart_asics_full(int reason,const char * why) {
   psyslog("-------- SOFT RESET 3 -----------\n");  
   // Wait
   usleep(300000);
-  discover_good_loops();
+  discover_good_loops_restart_12v();
   psyslog("-------- SOFT RESET 4 -----------\n");    
   init_asics(ANY_ASIC);
   usleep(700000);
@@ -1402,7 +1413,7 @@ int main(int argc, char *argv[]) {
   // Find good loops
   // Update vm.good_loops
   // Set ASICS on all disabled loops to asic_ok=0
-  discover_good_loops();
+  discover_good_loops_restart_12v();
 
   psyslog("enable_good_loops_ok done %d\n", __LINE__);
   // Allocates addresses, sets nonce range.

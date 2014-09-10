@@ -25,8 +25,8 @@ extern MINER_BOX vm;
 extern pthread_mutex_t i2c_mutex;
 static int mgmt_addr[4] = {0, AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_EMERSON_1200_I2C_MGMT_DEVICE};
 static int eeprom_addr[4] = {0, AC2DC_MURATA_NEW_I2C_EEPROM_DEVICE, AC2DC_MURATA_OLD_I2C_EEPROM_DEVICE, AC2DC_EMERSON_1200_I2C_EEPROM_DEVICE};
-static int revive_code[4] = {0, 0x0, 0x0, 0x40};
-static int revive_code_ON[4] = {0, 0x80, 0x80, 0x80};
+static int revive_code_off[4] = {0, 0x0, 0x0, 0x40};
+static int revive_code_on[4] = {0, 0x80, 0x80, 0x80};
 static int psu_addr[PSU_COUNT]  = {PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN}; 
 int get_fake_power(int psu_id);
 
@@ -361,7 +361,7 @@ void test_fix_ac2dc_limits() {
         psyslog("AC2DC OVERCURRENT 0:%x\n",p);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_WRITE_PROTECT,0x0,&err);
         usleep(3000000);
-        i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,revive_code[ac2dc->ac2dc_type],&err);
+        i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,revive_code_off[ac2dc->ac2dc_type],&err);
         usleep(1000000);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,0x80,&err);
 
@@ -372,7 +372,7 @@ void test_fix_ac2dc_limits() {
         }     
         mg_event_x("AC2DC top fail on %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
         i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-        exit_nicely(4,"AC2DC fail 1");
+        exit_nicely(4,"AC2DC fail, restart minergate please");
       }
     }else {
       mg_event("top i2c miss");
@@ -395,7 +395,7 @@ void test_fix_ac2dc_limits() {
         psyslog("AC2DC OVERCURRENT BOTTOM:%x\n",p);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_WRITE_PROTECT,0x0,&err);
         usleep(3000000);
-        i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,revive_code[ac2dc->ac2dc_type],&err);
+        i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,revive_code_off[ac2dc->ac2dc_type],&err);
         usleep(1000000);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,0x80,&err);
         if ((p & AC2DC_I2C_READ_STATUS_IOUT_OC_ERR) &&
@@ -405,7 +405,7 @@ void test_fix_ac2dc_limits() {
         }
         mg_event_x("AC2DC bottom fail on %d", vm.ac2dc[PSU_1].ac2dc_power_limit);
         i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-        exit_nicely(4,"AC2DC fail 2"); 
+        exit_nicely(4,"AC2DC fail, restart minergate please");
       }
     } else {
       mg_event("bottom i2c miss");
@@ -516,7 +516,7 @@ int update_ac2dc_power_measurments() {
 static void PSU12vONOFF (int psu , bool ON){
 	int err = 0;
 
-	int * cmd_code_arr = ON ? revive_code_ON : revive_code;
+	int * cmd_code_arr = ON ? revive_code_on : revive_code_off;
 
 	if (psu >= PSU_COUNT || psu < 0)
 	{
@@ -545,35 +545,31 @@ static void PSU12vONOFF (int psu , bool ON){
 }
 
 void PSU12vON (int psu){
-
 	PSU12vONOFF(psu , true);
 	return;
 }
 
 
 void PSU12vOFF (int psu){
-
 	PSU12vONOFF(psu , false);
 	return;
 }
 void PSU12vPowerCycle (int psu){
 	PSU12vOFF(psu );
-	usleep(2000 * 1000);
+	usleep(3000 * 1000);
 	PSU12vON(psu );
 	return;
 }
-void PSU12vPowerCycleALL (){
 
+void PSU12vPowerCycleALL() {
 	for (int psu = 0 ; psu < PSU_COUNT ; psu++){
 		PSU12vOFF(psu );
 	}
-
-	usleep(2000 * 1000);
-
+	usleep(3000 * 1000);
 	for (int psu = 0 ; psu < PSU_COUNT ; psu++){
 		PSU12vON(psu );
 	}
-
+  usleep(2000 * 1000);
 	return;
 }
 #endif

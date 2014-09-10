@@ -375,6 +375,7 @@ typedef struct {
   int start_mine_time;
   int start_run_time;  
   // pll can be changed
+  int tryed_power_cycle_to_revive_loops;
 
   int last_chiko_time;
   int err_restarted;  

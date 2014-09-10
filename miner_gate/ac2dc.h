@@ -35,10 +35,10 @@ unsigned char ac2dc_get_eeprom_quick(int offset,AC2DC *ac2dc, int *pError = 0);
 char* psu_get_name(int type);
 void test_fix_ac2dc_limits();
 bool ac2dc_check_connected(int top_or_bottom);
-void PSU12vON (int psu);
-void PSU12vOFF (int psu);
-void PSU12vPowerCycle (int psu);
-void PSU12vPowerCycleALL ();
+void PSU12vON(int psu);
+void PSU12vOFF(int psu);
+void PSU12vPowerCycle(int psu);
+void PSU12vPowerCycleALL();
 
 // PSU types.
 #define AC2DC_TYPE_UNKNOWN     0
