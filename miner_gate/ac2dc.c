@@ -543,6 +543,7 @@ static void PSU12vONOFF (int psu , bool ON){
 	pthread_mutex_unlock(&i2c_mutex);
 
 }
+#endif
 
 void PSU12vON (int psu){
 
@@ -556,4 +557,24 @@ void PSU12vOFF (int psu){
 	PSU12vONOFF(psu , false);
 	return;
 }
-#endif
+void PSU12vPowerCycle (int psu){
+	PSU12vOFF(psu );
+	usleep(2000 * 1000);
+	PSU12vON(psu );
+	return;
+}
+void PSU12vPowerCycleALL (){
+
+	for (int psu = 0 ; psu < PSU_COUNT ; psu++){
+		PSU12vOFF(psu );
+	}
+
+	usleep(2000 * 1000);
+
+	for (int psu = 0 ; psu < PSU_COUNT ; psu++){
+		PSU12vON(psu );
+	}
+
+	return;
+}
+
