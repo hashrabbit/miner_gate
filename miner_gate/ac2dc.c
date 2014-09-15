@@ -35,9 +35,13 @@ int get_fake_power(int psu_id);
 
 static char psu_names[4][20] = {"UNKNOWN","NEW-MURATA","OLD-MURATA","EMERSON1200"};
 
-char* psu_get_name(int type) {
-  passert(type < 4);
-  return psu_names[type];
+char* psu_get_name(int id, int type) {
+  if(type < 4) {
+      return psu_names[type];
+  } else {
+      psyslog("ILEGAL PSU %d TYPE %d\n", id, type);
+      passert(0);
+  } 
 }
 
 
@@ -146,23 +150,16 @@ void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
 
 
 #ifdef MINERGATE
-
 void ac2dc_init() {
-  psyslog("DISCOVERING AC2DC 0\n");
-  vm.ac2dc[PSU_0].ac2dc_type = AC2DC_TYPE_UNKNOWN;
-  if (!vm.ac2dc[PSU_0].force_generic_psu) {
-    ac2dc_init_one(&vm.ac2dc[PSU_0], PSU_0);
+  for (int i = 0 ; i < PSU_COUNT; i++) {
+    psyslog("DISCOVERING AC2DC %i\n",i);
+    vm.ac2dc[i].ac2dc_type = AC2DC_TYPE_UNKNOWN;
+    if (!vm.ac2dc[i].force_generic_psu) {
+      ac2dc_init_one(&vm.ac2dc[i], i);
+    }
   }
-  psyslog("DISCOVERING AC2DC 1\n");
-  vm.ac2dc[PSU_1].ac2dc_type = AC2DC_TYPE_UNKNOWN;
-  if (!vm.ac2dc[PSU_1].force_generic_psu) {
-    ac2dc_init_one(&vm.ac2dc[PSU_1], PSU_1);
-  } 
-  
+ 
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-  // Disable boards if no DC2DC
-  vm.ac2dc[PSU_1].psu_present = 1;//(vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN); 
-  vm.ac2dc[PSU_0].psu_present = 1;//(vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN);   
 }
 #endif
 
@@ -345,6 +342,8 @@ void exit_nicely(int seconds_sleep_before_exit, const char* p);
 static pthread_t ac2dc_thread;
 
 void test_fix_ac2dc_limits() {
+#ifdef SP2x
+#else
   int err;
   if (vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
@@ -412,8 +411,7 @@ void test_fix_ac2dc_limits() {
     }
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  
-
-
+#endif
 }
 
 
@@ -565,11 +563,11 @@ void PSU12vPowerCycleALL() {
 	for (int psu = 0 ; psu < PSU_COUNT ; psu++){
 		PSU12vOFF(psu );
 	}
-	usleep(3000 * 1000);
+	usleep(4000 * 1000);
 	for (int psu = 0 ; psu < PSU_COUNT ; psu++){
 		PSU12vON(psu );
 	}
-  usleep(2000 * 1000);
+  usleep(5000 * 1000);
 	return;
 }
 #endif

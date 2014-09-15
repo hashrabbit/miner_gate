@@ -298,8 +298,6 @@ typedef struct {
 typedef struct {
   int voltage;
   int board_cooling_now;    
-  int psu_present;  
-  int fet;    
   int ac2dc_type;  // DISABLED=4
   int ac2dc_temp;
   int ac2dc_power_last_last;    
@@ -354,11 +352,24 @@ typedef struct {
 #define BIST_SM_CHANGE_FREQ2  3
 #define BIST_SM_DO_BIST_AGAIN 4
 
+#define BOARD_0     0
+#define BOARD_1     1
 
+
+
+#ifndef SP2x
 #define PSU_0     0
 #define PSU_1     1
 #define PSU_COUNT 2
-
+#else 
+/*
+#define PSU_0     0
+#define PSU_1     1
+#define PSU_2     0
+#define PSU_3     1
+*/
+#define PSU_COUNT 4
+#endif
 
 #define FET_T_72A            0
 #define FET_T_72B            1
@@ -454,7 +465,9 @@ typedef struct {
   
   // our loop and dc2dc data
   LOOP loop[LOOP_COUNT];
-  AC2DC ac2dc[2]; 
+  int fet[BOARD_COUNT];
+  int board_not_present[BOARD_COUNT];  
+  AC2DC ac2dc[PSU_COUNT]; 
   int exiting;
   int board_cooling_ever;   
   int asic_count;

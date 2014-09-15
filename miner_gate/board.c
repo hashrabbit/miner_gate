@@ -41,15 +41,23 @@ int get_top_board_temp() {
    int temp;
    int reg;  
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_BOARD0_MAIN_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);    
+#ifdef SP2x
+   i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0x80, &err);
+#else
    i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0x80, &err);
+#endif
    if (err) {
     psyslog(RED "NO TOP BOARD x!\n" RESET);
    }
-   vm.ac2dc[PSU_0].psu_present = (err == 0);
+   vm.board_not_present[0] = (err != 0);
    reg = i2c_read_word(I2C_MAIN_THERMAL_SENSOR, 0x0, &err);
    reg = (reg&0xFF)<<4 | (reg&0xF000)>>12;
    temp = (reg*625)/10000;
-   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0);      
+#ifdef SP2x
+   i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0);
+#else
+   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0);
+#endif   
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);   
    return temp;
 }
@@ -58,16 +66,26 @@ int get_bottom_board_temp() {
    int err;
    int temp;
    int reg;  
-   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_BOTTOM_MAIN_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);   
-   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0x80, &err);   
+   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_BOARD1_MAIN_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err);   
+#ifdef SP2x
+      i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0x80, &err);
+#else
+      i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0x80, &err);
+#endif
+
    if (err) {
     psyslog(RED "NO BOTTOM BOARD x!\n" RESET);
    }   
-   vm.ac2dc[PSU_1].psu_present = (err == 0);      
+   vm.board_not_present[1] = (err != 0);      
    reg = i2c_read_word(I2C_MAIN_THERMAL_SENSOR, 0x0, &err);
    reg = (reg&0xFF)<<4 | (reg&0xF000)>>12;
    temp = (reg*625)/10000;
-   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0);      
+#ifdef SP2x
+      i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0);
+#else
+      i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0);
+#endif  
+
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);   
    return temp;
 }

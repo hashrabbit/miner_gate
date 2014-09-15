@@ -19,16 +19,33 @@
 #define NVM_VERSION (0xCAF10000 + sizeof(SPONDOOLIES_NVM))
 #define RECOMPUTE_NVM_TIME_SEC (60 * 60 * 24 * 7) // once every 24 hours
 
-#define LOOP_COUNT 10
-#define ASICS_PER_LOOP 3
-#define ASICS_COUNT (LOOP_COUNT *ASICS_PER_LOOP)
-#define ASICS_PER_BOARD        15 
-#define LOOPS_PER_BOARD        5 
 
-#define PSU_ID(ADDR)          (ADDR/ASICS_PER_BOARD)  
-#define ASIC_TO_PSU_ID(ID)    (ID/ASICS_PER_BOARD)   // PSU_1 = 0
+#ifdef SP2x 
+#define BOARD_COUNT             2
+#define LOOP_COUNT             4
+#define ASICS_PER_LOOP         2
+#define ASICS_COUNT (LOOP_COUNT * ASICS_PER_LOOP)
+#define ASICS_PER_PSU          2 
+#define LOOPS_PER_PSU          1 
+#define LOOPS_PER_BOARD        2 
+#define ASICS_PER_BOARD        4
+#else // SP3x
+#define BOARD_COUNT             2
+#define LOOP_COUNT             10
+#define ASICS_PER_LOOP         3
+#define ASICS_COUNT (LOOP_COUNT * ASICS_PER_LOOP)
+#define ASICS_PER_PSU        15 
+#define ASICS_PER_BOARD      15
+#define LOOPS_PER_PSU        5 
+#define LOOPS_PER_BOARD      5 
+
+
+#endif
+
+#define PSU_ID(ADDR)          (ADDR/ASICS_PER_PSU)  
+#define ASIC_TO_PSU_ID(ID)    (ID/ASICS_PER_PSU)   // PSU_1 = 0
 #define ASIC_TO_BOARD_ID(ID)  (ID/ASICS_PER_BOARD)   // PSU_1 = 0
-#define LOOP_TO_PSU_ID(ID)    (ID/LOOPS_PER_BOARD)   // PSU_1 = 0
+#define LOOP_TO_PSU_ID(ID)    (ID/LOOPS_PER_PSU)   // PSU_1 = 0
 #define LOOP_TO_BOARD_ID(ID)  (ID/LOOPS_PER_BOARD)   // PSU_1 = 0
 
 #define NVM_FILE_NAME "/etc/mg_nvm.bin"

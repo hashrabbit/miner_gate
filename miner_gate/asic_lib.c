@@ -1303,8 +1303,8 @@ int best_asic_to_upvolt(int psu_id) {
   if (vm.ac2dc[psu_id].ac2dc_power_limit - vm.ac2dc[psu_id].ac2dc_power < 5) {
     return -1;
   }
-  int delta = (psu_id * ASICS_PER_BOARD);
-  for (int i = delta; i<delta+ASICS_PER_BOARD; i++) {
+  int delta = (psu_id * ASICS_PER_PSU);
+  for (int i = delta; i<delta+ASICS_PER_PSU; i++) {
     best =  better_asic_to_upvolt(i, best);
   }
   return best;
@@ -1315,8 +1315,8 @@ int best_asic_to_upvolt(int psu_id) {
 
 int best_asic_to_downvolt(int psu_id) {
   int best = -1;
-  int delta = (psu_id * ASICS_PER_BOARD);
-  for (int i = delta; i<delta+ASICS_PER_BOARD; i++) {
+  int delta = (psu_id * ASICS_PER_PSU);
+  for (int i = delta; i<delta+ASICS_PER_PSU; i++) {
     best = better_asic_to_downvolt(i, best);
   }
   return best;
@@ -1475,7 +1475,7 @@ void once_second_scaling_logic() {
 
 int get_fake_power(int psu_id) {
   int fake_power = 0;
-  for (int i = psu_id*ASICS_PER_BOARD; i < psu_id*ASICS_PER_BOARD + ASICS_PER_BOARD; i++) {
+  for (int i = psu_id*ASICS_PER_PSU; i < psu_id*ASICS_PER_PSU + ASICS_PER_PSU; i++) {
     if (vm.asic[i].dc2dc.dc2dc_present) {
       fake_power += vm.asic[i].dc2dc.dc_power_watts_16s;
     }
@@ -1516,17 +1516,16 @@ void print_production() {
     psyslog("Failed to save ASIC production state\n");
     return;
   }
-  
-  fprintf(f,  "PSU-TOP[%s]: %dw, %dv\n",
-      psu_get_name(vm.ac2dc[PSU_0].ac2dc_type),
-      vm.ac2dc[PSU_0].ac2dc_power,
-      vm.ac2dc[PSU_0].voltage
-    );
-  fprintf(f,  "PSU-BOT[%s]: %dw, %dv\n",
-      psu_get_name(vm.ac2dc[PSU_1].ac2dc_type),
-      vm.ac2dc[PSU_1].ac2dc_power,
-      vm.ac2dc[PSU_1].voltage
-    );
+
+  for (int p = 0; p < PSU_COUNT; p++) {
+    fprintf(f,  "PSU-%i[%s]: %dw, %dv\n",
+        p,
+        psu_get_name(p, vm.ac2dc[p].ac2dc_type),
+        vm.ac2dc[p].ac2dc_power,
+        vm.ac2dc[p].voltage
+      );
+  }
+
 
   fprintf(f,  "OH: 0x%x\n",vm.board_cooling_ever);
 
@@ -1625,7 +1624,7 @@ void print_scaling() {
       "PSU[%s]: %d->%dw[%d %d %d] (->%dw[%d %d %d]) (lim=%d) %dc cooling:%d/0x%x\n" RESET,
         ((vm.ac2dc[psu].ac2dc_type == AC2DC_TYPE_UNKNOWN)?RED:GREEN),
         psu,        
-        psu_get_name(vm.ac2dc[psu].ac2dc_type),
+        psu_get_name(psu, vm.ac2dc[psu].ac2dc_type),
         vm.ac2dc[psu].ac2dc_in_power,
         vm.ac2dc[psu].ac2dc_power, 
         vm.ac2dc[psu].ac2dc_power_now, 
@@ -1710,8 +1709,8 @@ void print_scaling() {
   }
   // print last loop
   // print total hash power
-  fprintf(f, RESET "\n[H:HW:%dGh[%d+%d],W:%d,L:%d,A:%d,MMtmp:%d TMP:(%d)=>=>=>(%d,%d)]\n",
-                (vm.total_mhash)/1000,total_hash[PSU_0]/1000, total_hash[PSU_1]/1000,
+  fprintf(f, RESET "\n[H:HW:%dGh,W:%d,L:%d,A:%d,MMtmp:%d TMP:(%d)=>=>=>(%d,%d)]\n",
+                (vm.total_mhash)/1000,
                 total_watt/16,
                 total_loops,
                 total_asics,
@@ -1720,6 +1719,9 @@ void print_scaling() {
                 vm.temp_top,
                 vm.temp_bottom
   );
+
+
+  
 
    fprintf(f, "Pushed %d jobs , in HW queue %d jobs (sw:%d, hw:%d)!\n",
              vm.last_second_jobs, rt_queue_size, rt_queue_sw_write, rt_queue_hw_done);
@@ -1768,9 +1770,11 @@ void dump_watts() {
       psyslog("Failed to create watts file\n");
       return;
     }
-    fprintf(f, "T:%d[%d], B:%d[%d]\n", 
-      vm.ac2dc[PSU_0].ac2dc_power, vm.ac2dc[PSU_0].ac2dc_power_limit,
-      vm.ac2dc[PSU_1].ac2dc_power, vm.ac2dc[PSU_1].ac2dc_power_limit);
+    for ( int p = 0 ; p < PSU_COUNT; p++) {
+      fprintf(f, "PSU-%i:%d[%d]\n", 
+        p,
+        vm.ac2dc[p].ac2dc_power, vm.ac2dc[p].ac2dc_power_limit);
+    }
     fclose(f);
 }
 
@@ -1778,9 +1782,8 @@ void ten_second_tasks() {
   static char x[200]; 
   
   psyslog("MQ 10sec:%d\n", read_spi(ADDR_SQUID_MQ_SENT));
-  sprintf(x, "uptime:%d lim:%d/%d rst:%d\n", 
+  sprintf(x, "uptime:%d rst:%d\n", 
     time(NULL) - vm.start_run_time, 
-    vm.ac2dc[PSU_0].ac2dc_power_limit,vm.ac2dc[PSU_1].ac2dc_power_limit,
     vm.err_restarted);
   mg_status(x);
   store_last_voltage();
@@ -1791,12 +1794,8 @@ void ten_second_tasks() {
   revive_asics_if_one_got_reset("ten_second_tasks");
 
  vm.temp_mgmt = get_mng_board_temp();
- if (vm.ac2dc[PSU_0].psu_present) {
-    vm.temp_top = get_top_board_temp();
- }
- if (vm.ac2dc[PSU_1].psu_present) {
-    vm.temp_bottom = get_bottom_board_temp();
- }
+ vm.temp_top = get_top_board_temp();
+ vm.temp_bottom = get_bottom_board_temp();
 
 
  save_rate_temp(vm.temp_top, vm.temp_bottom,  vm.temp_mgmt, (vm.consecutive_jobs)?vm.total_mhash:0);
@@ -2106,6 +2105,7 @@ void once_second_tasks_rt() {
 
   if (one_sec_counter % (60*60) == 3) {
     // once per hour forget scaling data
+    vm.tryed_power_cycle_to_revive_loops = 0;
     forget_all_limits();
   }
   //psyslog("One-secs done 1\n")

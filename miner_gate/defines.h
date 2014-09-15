@@ -12,6 +12,15 @@
 #ifndef _____DC2DEFINES__45R_H____
 #define _____DC2DEFINES__45R_H____
 
+#define SP2x 
+
+#ifdef SP2x
+#define MG_CUSTOM_MODE_FILE "/etc/mg_custom_mode_sp2x"
+#else
+#define MG_CUSTOM_MODE_FILE "/etc/mg_custom_mode"
+#endif
+
+
 // compilation flags
 #define CHECK_GARBAGE_READ
 #define RESET_MQ_ON_BIST
@@ -29,10 +38,11 @@
 #define SQUID_LOOPS_MASK 0xFFFFFFF
 
 
+
 //#define ENABLED_ENGINES_MASK   0xFFFFFFFF
 #define ENABLED_ENGINES_MASK     0xFFFFFFFF
 #define ALLOWED_BIST_FAILURE_ENGINES    2
-#define LEADER_ASIC_ADDR             18        
+#define LEADER_ASIC_ADDR             3        
 
 
 
