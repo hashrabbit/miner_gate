@@ -7,7 +7,8 @@ LIBS = -L./ -lpthread
 SRCS = $(wildcard *.c)
 INCLUDES = -I./
 FILE_DEPS = $(wildcard *.[hc])
-TARGET = miner_gate_arm
+TARGET30 = miner_gate_sp30
+TARGET20 = miner_gate_sp20
 
 #ifeq ($(shell whoami),zvisha)
 #	CFLAGS += -D ZVISHA
@@ -17,10 +18,10 @@ TARGET = miner_gate_arm
 .PHONY: all clean depend
 
 # --- targets
-all: $(TARGET)
+all: $(FILE_DEPS) Makefile
+	$(CC) -o $(TARGET20) $(SRCS) $(CFLAGS) $(INCLUDES)
+	$(CC) -o $(TARGET30) $(SRCS) $(CFLAGS) $(INCLUDES) -DSP2x
 
-$(TARGET): $(FILE_DEPS) Makefile
-	$(CC) -o $(TARGET) $(SRCS) $(CFLAGS) $(INCLUDES)
 
 # --- remove binary and executable files
 clean:

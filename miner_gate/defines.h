@@ -12,7 +12,7 @@
 #ifndef _____DC2DEFINES__45R_H____
 #define _____DC2DEFINES__45R_H____
 
-#define SP2x 
+//#define SP2x 
 
 #ifdef SP2x
 #define MG_CUSTOM_MODE_FILE "/etc/mg_custom_mode_sp2x"
