@@ -19,8 +19,8 @@ TARGET20 = miner_gate_sp20
 
 # --- targets
 all: $(FILE_DEPS) Makefile
-	$(CC) -o $(TARGET20) $(SRCS) $(CFLAGS) $(INCLUDES)
-	$(CC) -o $(TARGET30) $(SRCS) $(CFLAGS) $(INCLUDES) -DSP2x
+	$(CC) -o $(TARGET20) $(SRCS) $(CFLAGS) $(INCLUDES) -DSP2x
+	$(CC) -o $(TARGET30) $(SRCS) $(CFLAGS) $(INCLUDES)
 
 
 # --- remove binary and executable files
