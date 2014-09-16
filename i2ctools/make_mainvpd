@@ -1,11 +1,16 @@
 GPP_CMD="arm-none-linux-gnueabi-g++ -g -O0 -fpermissive -rdynamic"
 LINK_LIB="-lpthread -static-libstdc++ -static-libgcc"
 
+
 TRG=mainvpd
+TRG1=mainvpd_sp3x
+TRG2=mainvpd_sp2x
 
-$GPP_CMD ${TRG}.cpp i2c.c  ../miner_gate/squid.c ../miner_gate/spond_debug.c -o ${TRG} ${LINK_LIB} -I../miner_gate
+$GPP_CMD ${TRG}.cpp i2c.c  ../miner_gate/squid.c ../miner_gate/spond_debug.c -o ${TRG1} ${LINK_LIB} -I../miner_gate
 
-chmod +x ${TRG}
-cp ./${TRG} ~/shared/ 
-cp ./${TRG} ~/shared/scripts
+$GPP_CMD -DSP2x ${TRG}.cpp i2c.c  ../miner_gate/squid.c ../miner_gate/spond_debug.c -o ${TRG2} ${LINK_LIB} -I../miner_gate
+
+chmod +x ${TRG}_sp?x 
+cp ./${TRG}_sp?x  ~/shared/ 
+cp ./${TRG}_sp?x ~/shared/scripts
 
