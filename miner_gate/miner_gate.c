@@ -830,7 +830,10 @@ void read_fet() {
               &vm.fet[BOARD_0],
               &vm.fet[BOARD_1]);
     fclose (file);
-    passert(res == 2);
+    if(res < 2) {
+      mg_event("Failed to parse fet\n");
+      passert(0);
+    }
   } else {
     printf("--------/tmp/mg_fet missing-------------\n");
     passert(0);
@@ -1027,7 +1030,7 @@ int read_work_mode() {
      assert(vm.ac2dc[p].voltage_start >= 580);
      assert(vm.voltage_max >= vm.ac2dc[p].voltage_start);
      assert(vm.ac2dc[p].ac2dc_power_limit   >= 100);
-     assert(vm.ac2dc[p].ac2dc_power_limit   <= 1600);
+     assert(vm.ac2dc[p].ac2dc_power_limit   <= 1800);
      vm.ac2dc[p].vtrim_start = VOLTAGE_TO_VTRIM_MILLI(vm.ac2dc[p].voltage_start);
      
    }
@@ -1072,10 +1075,10 @@ int read_work_mode() {
   assert(vm.voltage_max >= 580);
   assert(vm.voltage_max >= vm.ac2dc[PSU_0].voltage_start);
   assert(vm.voltage_max >= vm.ac2dc[PSU_1].voltage_start);  
-  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   >= 100);
-  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   <= 1600);
-  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   >= 100);
-  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   <= 1600);
+  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   >= 70);
+  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   <= 2000);
+  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   >= 70);
+  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   <= 2000);
   vm.max_dc2dc_current_16s*=16;
 
   FILE* ignore_fcc_file = fopen ("/etc/mg_ignore_110_fcc", "r");
