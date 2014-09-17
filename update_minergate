@@ -30,7 +30,7 @@ echo "spond-manager stop"
 sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} /usr/local/bin/spond-manager stop 
 sleep 4
 sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} rm /tmp/mg_event* 
-sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} rm /etc/bin/miner_gate_arm 
+sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} rm /etc/bin/miner_gate_*
 echo sshpass -p ${SSH_PASS} scp -o StrictHostKeyChecking=no $IMAGE root@${MINER}:/etc/bin/ 
 sshpass -p ${SSH_PASS} scp -o StrictHostKeyChecking=no $IMAGE root@${MINER}:/etc/bin/ 
 
