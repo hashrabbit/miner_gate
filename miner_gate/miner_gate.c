@@ -714,6 +714,7 @@ void read_disabled_asics() {
     passert(0);
     return;
   }
+#ifndef SP2x  
   r = fscanf (file,  "0:%d 1:%d 2:%d\n", 
             &vm.asic[0].user_disabled,
             &vm.asic[1].user_disabled,            
@@ -800,6 +801,39 @@ void read_disabled_asics() {
   }
   passert(r == 3);
 
+#else  // SP20
+  r = fscanf (file,  "0:%d 1:%d\n", 
+            &vm.asic[0].user_disabled,
+            &vm.asic[1].user_disabled);
+  passert(r == 2);
+  if (vm.asic[0].user_disabled && vm.asic[1].user_disabled) {
+    vm.loop[0].user_disabled = 1;
+  }
+
+  r = fscanf (file,  "2:%d 3:%d\n", 
+            &vm.asic[2].user_disabled,
+            &vm.asic[3].user_disabled);
+  passert(r == 2);
+  if (vm.asic[2].user_disabled && vm.asic[3].user_disabled) {
+    vm.loop[1].user_disabled = 1;
+  }
+
+  r = fscanf (file,  "4:%d 5:%d\n", 
+            &vm.asic[4].user_disabled,
+            &vm.asic[5].user_disabled);
+  passert(r == 2);
+  if (vm.asic[4].user_disabled && vm.asic[5].user_disabled) {
+    vm.loop[2].user_disabled = 1;
+  }
+  
+  r = fscanf (file,  "6:%d 7:%d\n", 
+            &vm.asic[6].user_disabled,
+            &vm.asic[7].user_disabled);
+  passert(r == 2);
+  if (vm.asic[6].user_disabled && vm.asic[7].user_disabled) {
+    vm.loop[3].user_disabled = 1;
+  }
+#endif
   fclose (file);
 }
 

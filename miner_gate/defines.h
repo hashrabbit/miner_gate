@@ -14,11 +14,7 @@
 
 //#define SP2x 
 
-#ifdef SP2x
-#define MG_CUSTOM_MODE_FILE "/etc/mg_custom_mode_sp2x"
-#else
 #define MG_CUSTOM_MODE_FILE "/etc/mg_custom_mode"
-#endif
 
 
 // compilation flags
