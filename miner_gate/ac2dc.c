@@ -23,20 +23,20 @@
 
 extern MINER_BOX vm;
 extern pthread_mutex_t i2c_mutex;
-static int mgmt_addr[4] = {0, AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_EMERSON_1200_I2C_MGMT_DEVICE};
-static int eeprom_addr[4] = {0, AC2DC_MURATA_NEW_I2C_EEPROM_DEVICE, AC2DC_MURATA_OLD_I2C_EEPROM_DEVICE, AC2DC_EMERSON_1200_I2C_EEPROM_DEVICE};
-static int revive_code_off[4] = {0, 0x0, 0x0, 0x40};
-static int revive_code_on[4] = {0, 0x80, 0x80, 0x80};
+static int mgmt_addr[5] = {0, AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_EMERSON_1600_I2C_MGMT_DEVICE};
+static int eeprom_addr[5] = {0, AC2DC_MURATA_NEW_I2C_EEPROM_DEVICE, AC2DC_MURATA_OLD_I2C_EEPROM_DEVICE, AC2DC_EMERSON_1200_I2C_EEPROM_DEVICE,AC2DC_EMERSON_1600_I2C_EEPROM_DEVICE};
+static int revive_code_off[5] = {0, 0x0, 0x0, 0x40, 0x40};
+static int revive_code_on[5] = {0, 0x80, 0x80, 0x80, 0x80};
 static int psu_addr[PSU_COUNT]  = {PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN}; 
 int get_fake_power(int psu_id);
 
 
 
 
-static char psu_names[4][20] = {"UNKNOWN","NEW-MURATA","OLD-MURATA","EMERSON1200"};
+static char psu_names[5][20] = {"UNKNOWN","NEW-MURATA","OLD-MURATA","EMERSON1200","EMERSON1600"};
 
 char* psu_get_name(int id, int type) {
-  if(type < 4) {
+  if(type < 5) {
       return psu_names[type];
   } else {
       psyslog("ILEGAL PSU %d TYPE %d\n", id, type);
@@ -96,10 +96,14 @@ bool ac2dc_check_connected(int psu_id) {
   if (!err) {
     ret= true;
   }
-    
-  return ret;
 
-  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err);  
+  i2c_read_word(AC2DC_EMERSON_1600_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
+  if (!err) {
+    ret= true;
+  }
+
+  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err);          
+  return ret;
 }
 
 
@@ -131,6 +135,14 @@ void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
 #endif
            ac2dc->ac2dc_type = AC2DC_TYPE_MURATA_NEW;
           } else {
+          // NOT EMERSON 1200
+          i2c_read_word(AC2DC_EMERSON_1600_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
+          if (!err) {
+#ifdef MINERGATE
+           psyslog("EMERSON 1600 AC2DC LOCATED\n");
+#endif
+           ac2dc->ac2dc_type = AC2DC_TYPE_EMERSON_1_6;
+          } else {
             // NOT MURATA 1200
             psyslog("UNKNOWN AC2DC\n");
             ac2dc->ac2dc_type = AC2DC_TYPE_UNKNOWN;
@@ -138,6 +150,7 @@ void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
           }
         }
       }
+    }
     i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
     ac2dc->voltage = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_VIN_WORD, &err);
     ac2dc->voltage = i2c_getint(ac2dc->voltage );  
@@ -485,6 +498,7 @@ void *update_ac2dc_power_measurments_thread(void *ptr) {
     ac2dc->ac2dc_power_fake = MAX(ac2dc->ac2dc_power_fake, ac2dc->ac2dc_power_last_last_fake);  
      
     if (ac2dc->ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+        psyslog("Update PSU %d\n", psu_id);
         update_single_psu(ac2dc, psu_id);
     } else {
       ac2dc->ac2dc_power_last_last= ac2dc->ac2dc_power_last;

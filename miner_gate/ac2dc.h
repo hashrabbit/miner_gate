@@ -45,6 +45,7 @@ void PSU12vPowerCycleALL();
 #define AC2DC_TYPE_MURATA_NEW  1
 #define AC2DC_TYPE_MURATA_OLD  2
 #define AC2DC_TYPE_EMERSON_1_2 3
+#define AC2DC_TYPE_EMERSON_1_6 4
 
 int update_ac2dc_power_measurments();
 

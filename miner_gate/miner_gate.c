@@ -719,6 +719,7 @@ void read_disabled_asics() {
     passert(0);
     return;
   }
+#ifndef SP2x  
   r = fscanf (file,  "0:%d 1:%d 2:%d\n", 
             &vm.asic[0].user_disabled,
             &vm.asic[1].user_disabled,            
@@ -825,6 +826,39 @@ void read_disabled_asics() {
   }
   passert(r == 3);
 
+#else  // SP20
+  r = fscanf (file,  "0:%d 1:%d\n", 
+            &vm.asic[0].user_disabled,
+            &vm.asic[1].user_disabled);
+  passert(r == 2);
+  if (vm.asic[0].user_disabled && vm.asic[1].user_disabled) {
+    vm.loop[0].user_disabled = 1;
+  }
+
+  r = fscanf (file,  "2:%d 3:%d\n", 
+            &vm.asic[2].user_disabled,
+            &vm.asic[3].user_disabled);
+  passert(r == 2);
+  if (vm.asic[2].user_disabled && vm.asic[3].user_disabled) {
+    vm.loop[1].user_disabled = 1;
+  }
+
+  r = fscanf (file,  "4:%d 5:%d\n", 
+            &vm.asic[4].user_disabled,
+            &vm.asic[5].user_disabled);
+  passert(r == 2);
+  if (vm.asic[4].user_disabled && vm.asic[5].user_disabled) {
+    vm.loop[2].user_disabled = 1;
+  }
+  
+  r = fscanf (file,  "6:%d 7:%d\n", 
+            &vm.asic[6].user_disabled,
+            &vm.asic[7].user_disabled);
+  passert(r == 2);
+  if (vm.asic[6].user_disabled && vm.asic[7].user_disabled) {
+    vm.loop[3].user_disabled = 1;
+  }
+#endif
   fclose (file);
 }
 
@@ -1101,9 +1135,9 @@ int read_work_mode() {
   assert(vm.voltage_max >= vm.ac2dc[PSU_0].voltage_start);
   assert(vm.voltage_max >= vm.ac2dc[PSU_1].voltage_start);  
   assert(vm.ac2dc[PSU_1].ac2dc_power_limit   >= 70);
-  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   <= 2000);
+  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   <= 2500);
   assert(vm.ac2dc[PSU_0].ac2dc_power_limit   >= 70);
-  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   <= 2000);
+  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   <= 2500);
   vm.max_dc2dc_current_16s*=16;
 
   FILE* ignore_fcc_file = fopen ("/etc/mg_ignore_110_fcc", "r");
@@ -1478,8 +1512,16 @@ int main(int argc, char *argv[]) {
 
   
   mg_event("Started!");
+  int bp = 0;
   for (int p = 0; p < BOARD_COUNT; p++) {
+    if (!vm.board_not_present[p]) {
+      bp = 1;
+    }
     psyslog("BOARD %d PRESENT:%d\n",p, !vm.board_not_present[p]);
+  }
+  if(!bp) { // at least 1 board must be present
+    mg_event("NO BOARDS PRESENT");
+    passert(0);
   }
   init_pwm();
   // Enable ALL dc2dc
