@@ -607,7 +607,7 @@ return -1;
 
 
 
-void discover_good_loops_restart_12v() {
+int discover_good_loops_restart_12v() {
   DBG(DBG_NET, "RESET SQUID\n");
 
   uint32_t good_loops = 0;
@@ -650,12 +650,11 @@ void discover_good_loops_restart_12v() {
       printf("loop %d disabled\n", i);
 
 #ifndef SP2x
-      if (!vm.tryed_power_cycle_to_revive_loops) {
+      if (vm.try_12v_fix && !vm.tryed_power_cycle_to_revive_loops) {
         mg_event_x("Bad loop %d = trying power cycle");
         vm.tryed_power_cycle_to_revive_loops = 1;
         PSU12vPowerCycleALL();
-        discover_good_loops_restart_12v();
-        return;
+        return -1;
       } else {
         mg_event_x("Bad loop %d = set loop as disabled");
       }
@@ -698,6 +697,7 @@ void discover_good_loops_restart_12v() {
   vm.good_loops = good_loops;
   test_serial(-3);
   psyslog("Found %d good loops\n", good_loops_cnt);
+  return 0;
   passert(good_loops_cnt);
 }
 
@@ -838,11 +838,22 @@ void read_disabled_asics() {
 }
 
 
+void read_try_12v_fix() {
+  FILE* file = fopen ("/etc/mg_try_12v_fix", "r");
+  if (file == 0) {
+    vm.try_12v_fix = 1;
+  } else {
+    int res = fscanf (file, "%d", &vm.try_12v_fix);
+    fclose (file);
+    passert(res == 1);
+  } 
+  psyslog("Try_12v_fix: %d\n", vm.try_12v_fix);
+}
 
 
 void read_generic_ac2dc() {
-  FILE* file = fopen ("/etc/mg_generic_psu", "r");
 #ifndef  SP2x
+  FILE* file = fopen ("/etc/mg_generic_psu", "r");
   if (file != 0) {
     int res = fscanf (file, "0:%d 1:%d",            
               &vm.ac2dc[PSU_0].force_generic_psu,
@@ -1351,7 +1362,10 @@ void restart_asics_full(int reason,const char * why) {
   psyslog("-------- SOFT RESET 3 -----------\n");  
   // Wait
   usleep(300000);
-  discover_good_loops_restart_12v();
+  if (discover_good_loops_restart_12v() != 0) {
+    // second attempt
+    discover_good_loops_restart_12v();
+  }
   psyslog("-------- SOFT RESET 4 -----------\n");    
   init_asics(ANY_ASIC);
   usleep(700000);
@@ -1423,7 +1437,7 @@ int main(int argc, char *argv[]) {
   vm.start_run_time = time(NULL);
   int s;
   vm.in_asic_reset = 1;
-  srand (time(NULL));
+  srand(time(NULL));
   //enable_reg_debug = 1;
   setlogmask(LOG_UPTO(LOG_INFO));
   openlog("minergate", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
@@ -1449,12 +1463,13 @@ int main(int argc, char *argv[]) {
   socklen_t address_length = sizeof(address);
   pthread_t main_thread;
   // pthread_t conn_pth;
-  load_nvm_ok();
+  load_nvm_ok(); // legacy call, not relevant anymore
   psyslog("reset_squid\n");
   reset_squid();
   psyslog("init_spi\n");
   init_spi();
   psyslog("ac2dc_init\n");
+  read_try_12v_fix();
   int pError;
   vm.fpga_ver = read_spi(ADDR_SQUID_REVISION);
   vm.vtrim_max = VTRIM_MAX;
@@ -1510,7 +1525,9 @@ int main(int argc, char *argv[]) {
   // Find good loops
   // Update vm.good_loops
   // Set ASICS on all disabled loops to asic_ok=0
-  discover_good_loops_restart_12v();
+  if (discover_good_loops_restart_12v() != 0) {
+     discover_good_loops_restart_12v();
+  }
 
   psyslog("enable_good_loops_ok done %d\n", __LINE__);
   // Allocates addresses, sets nonce range.
