@@ -1121,9 +1121,9 @@ int read_work_mode() {
   assert(vm.voltage_max >= vm.ac2dc[PSU_0].voltage_start);
   assert(vm.voltage_max >= vm.ac2dc[PSU_1].voltage_start);  
   assert(vm.ac2dc[PSU_1].ac2dc_power_limit   >= 70);
-  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   <= 2000);
+  assert(vm.ac2dc[PSU_1].ac2dc_power_limit   <= 2500);
   assert(vm.ac2dc[PSU_0].ac2dc_power_limit   >= 70);
-  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   <= 2000);
+  assert(vm.ac2dc[PSU_0].ac2dc_power_limit   <= 2500);
   vm.max_dc2dc_current_16s*=16;
 
   FILE* ignore_fcc_file = fopen ("/etc/mg_ignore_110_fcc", "r");
@@ -1502,8 +1502,16 @@ int main(int argc, char *argv[]) {
 
   
   mg_event("Started!");
+  int bp = 0;
   for (int p = 0; p < BOARD_COUNT; p++) {
+    if (!vm.board_not_present[p]) {
+      bp = 1;
+    }
     psyslog("BOARD %d PRESENT:%d\n",p, !vm.board_not_present[p]);
+  }
+  if(!bp) { // at least 1 board must be present
+    mg_event("NO BOARDS PRESENT");
+    passert(0);
   }
   init_pwm();
   // Enable ALL dc2dc

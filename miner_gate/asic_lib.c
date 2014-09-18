@@ -204,7 +204,7 @@ int current_reading = ASIC_TEMP_125;
 void temp_measure_next() {
     current_reading = current_reading + 1;
     if (current_reading >= ASIC_TEMP_COUNT) {
-       current_reading = MAX_ASIC_TEMPERATURE-2;
+       current_reading = ASIC_TEMP_90;
     }
 }
 
@@ -1475,8 +1475,8 @@ void once_second_scaling_logic() {
 
 int get_fake_power(int psu_id) {
   int fake_power = 0;
-  int psu_count = 0;
-#ifdef SP2X  
+  int psu_count = 2;
+#ifdef SP2x  
   psu_count = 4;
 #endif  
   for (int i = psu_id*ASICS_PER_PSU; i < psu_id*ASICS_PER_PSU + ASICS_PER_PSU; i++) {
