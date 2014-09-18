@@ -355,6 +355,10 @@ typedef struct {
 #define BOARD_0     0
 #define BOARD_1     1
 
+// ASIC status per /etc/mg_disabled 0=enabled , 1=disabled , 2=removed
+#define ASIC_STATUS_ENABLED 0
+#define ASIC_STATUS_DISABLED 1
+#define ASIC_STATUS_REMOVED 2
 
 
 #ifndef SP2x

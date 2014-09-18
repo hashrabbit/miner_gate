@@ -485,6 +485,10 @@ int allocate_addresses_to_devices() {
         vm.asic[addr].address = addr;
         vm.asic[addr].loop_address = l;
         vm.asic[addr].stacked_interrupt_mask = 0xcafebabe;
+
+        if (dc2dc_is_removed(addr))
+          	continue;
+
         if (  vm.asic[addr].dc2dc.dc2dc_present &&
               read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT)) {
           write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_CHIP_ADDR, addr << 8);
@@ -507,7 +511,6 @@ int allocate_addresses_to_devices() {
 
           vm.asic[addr].asic_present = 1;
           vm.asic[addr].freq_bist_limit =    (ASIC_FREQ_MAX); // todo - discover
-   
         } else {
           if (!vm.asic[addr].dc2dc.dc2dc_present) {
               write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_CHIP_ADDR, addr << 8);
@@ -523,12 +526,9 @@ int allocate_addresses_to_devices() {
           //vm.asic[addr].dc2dc.dc2dc_present = 0;
           psyslog("Disabling asic %d dc2dc present: (%d)\n", 
             addr, vm.asic[addr].dc2dc.dc2dc_present);
-
         }
       }
 
-
-      
       // Dont remove this print - used by scripts!!!!
       psyslog("%s ASICS in loop %d: %d%s\n",
              (asics_in_loop == 3) ? RESET : RED, l,

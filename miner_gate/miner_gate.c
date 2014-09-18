@@ -181,16 +181,9 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   int ii = 0;
   psyslog("Here comes unexpected death, lights off!\n");
 
-/*
   for (i = 0; i < ASICS_COUNT ; i++) {
-    //psyslog("Test DC2DC %d\n", i);
-    if (vm.asic[i].dc2dc.dc2dc_present) {
-      //update_dc2dc_stats(i);
-    }
-  }
-  */
-  for (i = 0; i < ASICS_COUNT ; i++) {
-    dc2dc_disable_dc2dc(i, &err2);
+    if(! dc2dc_is_removed(i))
+	  dc2dc_disable_dc2dc(i, &err2);
   }
   psyslog("Dye (%s)!\n", why);
   //set_light(LIGHT_GREEN, LIGHT_MODE_OFF);
@@ -634,12 +627,20 @@ void discover_good_loops_restart_12v() {
       vm.loop[i].enabled_loop = 1;
       vm.loop[i].why_disabled = "All good, Rodrigez";
       for (int h = i * ASICS_PER_LOOP; h < (i + 1) * ASICS_PER_LOOP; h++) {
-        vm.asic[h].asic_present = 1;
-     
-        for (int x = 0; x < ENGINE_BITMASCS-1; x++) {
-          vm.asic[h].not_brocken_engines[x] = ENABLED_ENGINES_MASK;
-        }
-        vm.asic[h].not_brocken_engines[ENGINE_BITMASCS-1] = 0x1;
+    	  if (! dc2dc_is_removed(h)){
+    		  vm.asic[h].asic_present = 1;
+    		  for (int x = 0; x < ENGINE_BITMASCS-1; x++) {
+    			  vm.asic[h].not_brocken_engines[x] = ENABLED_ENGINES_MASK;
+    		  }
+    		  vm.asic[h].not_brocken_engines[ENGINE_BITMASCS-1] = 0x1;
+    	  } else {
+  			vm.asic[h].dc2dc.dc2dc_present = 0;
+  			psyslog("Disabling ASIC %d because REMOVED\n", h);
+  			vm.asic[h].asic_present = 0;
+  			for (int j = 0; j < ENGINE_BITMASCS; j++) {
+  			  vm.asic[h].not_brocken_engines[j] = 0;
+  			}
+    	  }
       }
       printf("loop %d enabled\n", i);
       good_loops |= 1 << i;
@@ -664,31 +665,35 @@ void discover_good_loops_restart_12v() {
       for (int h = i * ASICS_PER_LOOP; h < (i + 1) * ASICS_PER_LOOP; h++) {
         int err;
         int overcurrent_err, overcurrent_warning;
-        dc2dc_get_all_stats(
-              i,
-              &overcurrent_err,
-              &overcurrent_warning,
-              &vm.asic[i].dc2dc.dc_temp,
-              &vm.asic[i].dc2dc.dc_current_16s,
-              &err);
-        dc2dc_disable_dc2dc(h,&err);
-        if (vm.loop[i].user_disabled) {
-          vm.asic[h].why_disabled = "Loop user disabled!";
-        }
-        if (err) {
-          vm.asic[h].why_disabled = "i2c BAD, btw!";
-        } else {
-          if (overcurrent_err) {
-            vm.asic[h].why_disabled = "i2c good but OC!!";
-          } else {
-            vm.asic[h].why_disabled = "i2c good, no OC";
-          }
-        }
-        vm.asic[h].dc2dc.dc2dc_present = 0;
-        psyslog("Disabling DC2DC %d because no ASIC A\n", h);
-        vm.asic[h].asic_present = 0;
-        for (int i = 0; i < ENGINE_BITMASCS; i++) {
-          vm.asic[h].not_brocken_engines[i] = 0;
+
+        if (! dc2dc_is_removed(h))
+        {
+			dc2dc_get_all_stats(
+				  h,
+				  &overcurrent_err,
+				  &overcurrent_warning,
+				  &vm.asic[h].dc2dc.dc_temp,
+				  &vm.asic[h].dc2dc.dc_current_16s,
+				  &err);
+			dc2dc_disable_dc2dc(h,&err);
+			if (vm.loop[h].user_disabled) {
+			  vm.asic[h].why_disabled = "Loop user disabled!";
+			}
+			if (err) {
+			  vm.asic[h].why_disabled = "i2c BAD, btw!";
+			} else {
+			  if (overcurrent_err) {
+				vm.asic[h].why_disabled = "i2c good but OC!!";
+			  } else {
+				vm.asic[h].why_disabled = "i2c good, no OC";
+			  }
+			}
+			vm.asic[h].dc2dc.dc2dc_present = 0;
+			psyslog("Disabling DC2DC %d because no ASIC A\n", h);
+			vm.asic[h].asic_present = 0;
+			for (int j = 0; j < ENGINE_BITMASCS; j++) {
+			  vm.asic[h].not_brocken_engines[j] = 0;
+			}
         }
       }
     }
@@ -719,7 +724,9 @@ void read_disabled_asics() {
             &vm.asic[1].user_disabled,            
             &vm.asic[2].user_disabled);
   passert(r == 3);
-  if (vm.asic[0].user_disabled && vm.asic[1].user_disabled && vm.asic[2].user_disabled) {
+  if (	vm.asic[0].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[1].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[2].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[0].user_disabled = 1;
   }
   r = fscanf (file,  "3:%d 4:%d 5:%d\n" ,
@@ -727,7 +734,9 @@ void read_disabled_asics() {
             &vm.asic[4].user_disabled,            
             &vm.asic[5].user_disabled);
   passert(r == 3);  
-  if (vm.asic[3].user_disabled && vm.asic[4].user_disabled && vm.asic[5].user_disabled) {
+  if (	vm.asic[3].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[4].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[5].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[1].user_disabled = 1;
   }
   
@@ -735,7 +744,9 @@ void read_disabled_asics() {
             &vm.asic[6].user_disabled,
             &vm.asic[7].user_disabled,            
             &vm.asic[8].user_disabled);
-  if (vm.asic[6].user_disabled && vm.asic[7].user_disabled && vm.asic[8].user_disabled) {
+  if (	vm.asic[6].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[7].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[8].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[2].user_disabled = 1;
   }
   passert(r == 3);    
@@ -744,7 +755,9 @@ void read_disabled_asics() {
             &vm.asic[10].user_disabled,            
             &vm.asic[11].user_disabled);
   
-  if (vm.asic[9].user_disabled && vm.asic[10].user_disabled && vm.asic[11].user_disabled) {
+  if (	vm.asic[9].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[10].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[11].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[3].user_disabled = 1;
   }
   passert(r == 3);  
@@ -753,7 +766,9 @@ void read_disabled_asics() {
             &vm.asic[13].user_disabled,            
             &vm.asic[14].user_disabled);
   
-  if (vm.asic[12].user_disabled && vm.asic[13].user_disabled && vm.asic[14].user_disabled) {
+  if (	vm.asic[12].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[13].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[14].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[4].user_disabled = 1;
   }
   passert(r == 3);  
@@ -762,7 +777,9 @@ void read_disabled_asics() {
             &vm.asic[16].user_disabled,            
             &vm.asic[17].user_disabled);
   
-  if (vm.asic[15].user_disabled && vm.asic[16].user_disabled && vm.asic[17].user_disabled) {
+  if (	vm.asic[15].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[16].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[17].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[5].user_disabled = 1;
   }
   passert(r == 3);  
@@ -771,7 +788,9 @@ void read_disabled_asics() {
             &vm.asic[19].user_disabled,            
             &vm.asic[20].user_disabled);
   
-  if (vm.asic[18].user_disabled && vm.asic[19].user_disabled && vm.asic[20].user_disabled) {
+  if (	vm.asic[18].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[19].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[20].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[6].user_disabled = 1;
   }
   passert(r == 3);  
@@ -779,7 +798,9 @@ void read_disabled_asics() {
             &vm.asic[21].user_disabled,
             &vm.asic[22].user_disabled,            
             &vm.asic[23].user_disabled);
-  if (vm.asic[21].user_disabled && vm.asic[22].user_disabled && vm.asic[23].user_disabled) {
+  if (	vm.asic[21].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[22].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[23].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[7].user_disabled = 1;
   }
   passert(r == 3);  
@@ -787,7 +808,9 @@ void read_disabled_asics() {
             &vm.asic[24].user_disabled,
             &vm.asic[25].user_disabled,            
             &vm.asic[26].user_disabled);
-  if (vm.asic[24].user_disabled && vm.asic[25].user_disabled && vm.asic[26].user_disabled) {
+  if (	vm.asic[24].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[25].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[26].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[8].user_disabled = 1;
   }
   passert(r == 3);  
@@ -795,7 +818,9 @@ void read_disabled_asics() {
             &vm.asic[27].user_disabled,
             &vm.asic[28].user_disabled,            
             &vm.asic[29].user_disabled);
-  if (vm.asic[27].user_disabled && vm.asic[28].user_disabled && vm.asic[29].user_disabled) {
+  if (	vm.asic[27].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[28].user_disabled != ASIC_STATUS_ENABLED &&
+		vm.asic[29].user_disabled != ASIC_STATUS_ENABLED ) {
     vm.loop[9].user_disabled = 1;
   }
   passert(r == 3);
@@ -1497,7 +1522,7 @@ int main(int argc, char *argv[]) {
 
   printf("Disabling ASICs:\n");
   for (int x = 0; x < ASICS_COUNT; x++) {
-    if (vm.asic[x].user_disabled) {
+    if (vm.asic[x].user_disabled == ASIC_STATUS_DISABLED) {
        printf("Disabling ASIC %d:\n", x);      
        disable_asic_forever_rt(x,"User disabled");
     }
