@@ -2107,7 +2107,7 @@ void once_second_tasks_rt() {
     one_minute_tasks();
   }
 
-  if (one_sec_counter % (60*60) == 3) {
+  if (one_sec_counter % (60*60*3) == 3) {
     // once per hour forget scaling data
     vm.tryed_power_cycle_to_revive_loops = 0;
     forget_all_limits();

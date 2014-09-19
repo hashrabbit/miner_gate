@@ -45,7 +45,11 @@
 
 // System parameters
 // Above this not allowed
+#ifdef SP2x
+#define MAX_ASIC_TEMPERATURE ASIC_TEMP_125
+#else
 #define MAX_ASIC_TEMPERATURE ASIC_TEMP_120
+#endif
 #define MAX_FAN_LEVEL                   100
 
 #define TIME_FOR_DLL_USECS  1000
