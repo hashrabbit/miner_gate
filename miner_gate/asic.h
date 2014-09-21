@@ -454,6 +454,7 @@ typedef struct {
   int this_minute_wins;  
   int hw_errs;
   int fpga_ver;
+  int try_12v_fix;
   
   int cur_leading_zeroes;
   // We give less LZ then needed to do faster scaling.
