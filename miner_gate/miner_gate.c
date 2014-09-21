@@ -697,8 +697,8 @@ int discover_good_loops_restart_12v() {
   vm.good_loops = good_loops;
   test_serial(-3);
   psyslog("Found %d good loops\n", good_loops_cnt);
-  return 0;
   passert(good_loops_cnt);
+  return 0;
 }
 
 int get_print_win(int winner_device, int winner_engine);
