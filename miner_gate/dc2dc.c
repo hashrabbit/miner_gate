@@ -593,11 +593,11 @@ int dc2dc_get_current_16s_of_amper_channel(
 //  psyslog("CURRENT %d:%d =%d\n",addr, chanel_id*2 ,(*current)/16);
   int gen_stat = i2c_read_byte(dc2dc_channel_i2c_addr, 0x78);
   if (gen_stat & 0x08) {
-     mg_event_x("gen_stat %d = %x", addr ,gen_stat);
+     // mg_event_x("gen_stat %d = %x", addr ,gen_stat);
   }
   int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A);
   if (gen_stat2 & 0x10) {
-      mg_event_x("gen_stat2 %d = %x", addr ,gen_stat2);
+     // mg_event_x("gen_stat2 %d = %x", addr ,gen_stat2);
   }
 
   

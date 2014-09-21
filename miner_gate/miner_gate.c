@@ -1421,7 +1421,7 @@ void restart_asics_full(int reason,const char * why) {
          (vm.asic[i].user_disabled)) {
       psyslog("Disable ASIC %d\n", i);
       vm.asic[i].asic_present = 1;
-      disable_asic_forever_rt(i,"resisable after reset");
+      disable_asic_forever_rt(i,NULL);
     }
   }
   psyslog("-------- SOFT RESET 10.5 -----------\n");  

@@ -517,13 +517,15 @@ void disable_asic_forever_rt(int addr, const char* why) {
   memset(vm.asic[addr].not_brocken_engines, 0, sizeof(vm.asic[addr].not_brocken_engines));
   vm.asic[addr].asic_present = 0;
   //vm.asic[addr].dc2dc.dc2dc_present = 0; 
-  vm.asic[addr].why_disabled = why;
+  if (why) {
+    vm.asic[addr].why_disabled = why;
+  }
   int err;
   write_reg_asic(addr, NO_ENGINE,ADDR_GLOBAL_HASH_RESETN,0);
   write_reg_asic(addr, NO_ENGINE,ADDR_GLOBAL_CLK_EN,0);
   write_reg_asic(addr, NO_ENGINE,ADDR_INTR_MASK,0xFFFF);
   flush_spi_write();
-  mg_event_x("Asic disable %d: %s",addr,why);
+  mg_event_x("Asic disable %d: %s",addr,vm.asic[addr].why_disabled);
   disable_engines_asic(addr, 1);
   if (vm.asic[addr].cooling_down) {
     vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now--;
