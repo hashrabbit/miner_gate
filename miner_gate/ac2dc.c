@@ -144,7 +144,9 @@ void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
            ac2dc->ac2dc_type = AC2DC_TYPE_EMERSON_1_6;
           } else {
             // NOT MURATA 1200
-            psyslog("UNKNOWN AC2DC\n");
+#ifdef MINERGATE
+              psyslog("UNKNOWN AC2DC\n");
+#endif
             ac2dc->ac2dc_type = AC2DC_TYPE_UNKNOWN;
             ac2dc->voltage = 0;
           }
