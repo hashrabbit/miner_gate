@@ -31,7 +31,6 @@
 #include "ac2dc.h"
 #include "dc2dc.h"
 
-
 using namespace std;
 //pthread_mutex_t network_hw_mutex = PTHREAD_MUTEX_INITIALIZER;
 

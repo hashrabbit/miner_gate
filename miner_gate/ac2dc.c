@@ -223,13 +223,14 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
 
 	  if (ac2dc->ac2dc_type == AC2DC_TYPE_MURATA_NEW) // MURATA
 	  {
-		  pnr_offset = 0x1D;
-		  pnr_size = 21;
+		  fprintf(stderr, "MURATA_NEW\n");
+		  pnr_offset = 0x1C;
+		  pnr_size = 23;
 		  model_offset = 0x16;
-		  model_size = 6;
-		  serial_offset = 0x34;
+		  model_size = 5;
+		  serial_offset = 0x35;
 		  serial_size = 12;
-		  revision_offset = 0x3a;
+		  revision_offset = 0x39;
 		  revision_size = 2;
 	  }else if (ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_2) // EMRSN1200
 	  {
