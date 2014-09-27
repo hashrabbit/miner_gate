@@ -371,7 +371,6 @@ void enable_engines_asic(int addr, uint32_t engines_mask[7], int with_unreset, i
 
 
 int enable_good_engines_all_asics_ok(int with_reset) {
-
     int i = 0;
     int reg;
     int killed_pll=0;
@@ -417,7 +416,7 @@ int enable_good_engines_all_asics_ok(int with_reset) {
 }
 
 
-void wait_dll_ready(int a_addr,const char* why) {
+int wait_dll_ready(int a_addr,const char* why) {
    int dll;
    int i = 0;
    do {
@@ -427,27 +426,30 @@ void wait_dll_ready(int a_addr,const char* why) {
 
    if (dll != 0) {
       int addr = BROADCAST_READ_ADDR(dll);
-      psyslog(RED "Error::: PLL stuck:%x asic(%d) (%s), %d\n" RESET,dll, a_addr, why,i);      
+      psyslog(RED "Error::: PLL stuck:%x asic(%d/%d) LOOP:%d (%s), %d\n" RESET,dll, a_addr,addr,addr/ASICS_PER_LOOP,why,i);      
       write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x0);
       write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x1);
       usleep(10000);
       dll = read_reg_asic(addr, NO_ENGINE, ADDR_INTR_BC_PLL_NOT_READY);
       if (dll != 0) {
-        psyslog(RED "Exiting because of stuck PLL\n" RESET);
-        if (a_addr != ANY_ASIC) {
-          disable_asic_forever_rt(a_addr,"Stuck PLL");
+        psyslog(RED "Discovered stuck PLL %x\n" RESET, dll);
+        if (addr >= 0 && addr < ASICS_COUNT) {
+          disable_asic_forever_rt(a_addr,"Stuck PLL A");
+          // Try again          
+          return -1;
         } else {
           print_chiko(1);
-          vm.err_stuck_pll++;  
+          vm.err_stuck_pll++;
           test_lost_address();
-          restart_asics_full(8,"stuck PLL");
+          restart_asics_full(8,"stuck PLL B");
+          return 0;
         }
         //
       } else {
         psyslog(RED "PLL %d looks ok now.\n" RESET, addr);
-
       }
    }
+   return 0;
 }
 
 
@@ -492,6 +494,9 @@ void set_pll(int addr, int freq, int wait_dll_lock, int disable_enable_engines, 
 
   if (wait_dll_lock) {
     wait_dll_ready(addr, why);
+    while (wait_dll_ready(addr, why) != 0) {
+       psyslog("DLL STUCK, TRYING AGAIN c5432\n");
+    }    
   }
 
   if (disable_enable_engines) {
@@ -500,6 +505,7 @@ void set_pll(int addr, int freq, int wait_dll_lock, int disable_enable_engines, 
 }
 
 void disable_asic_forever_rt(int addr, const char* why) {
+  psyslog("Called disable ASIC reset in_reset:%d\n", vm.in_asic_reset);
   if (!vm.asic[addr].asic_present) {
     return;
   }
@@ -524,6 +530,7 @@ void disable_asic_forever_rt(int addr, const char* why) {
   write_reg_asic(addr, NO_ENGINE,ADDR_GLOBAL_HASH_RESETN,0);
   write_reg_asic(addr, NO_ENGINE,ADDR_GLOBAL_CLK_EN,0);
   write_reg_asic(addr, NO_ENGINE,ADDR_INTR_MASK,0xFFFF);
+  write_reg_asic(addr, NO_ENGINE,ADDR_DEBUG_CONTROL,BIT_ADDR_DEBUG_DISABLE_TRANSMIT);
   flush_spi_write();
   mg_event_x("Asic disable %d: %s",addr,vm.asic[addr].why_disabled);
   disable_engines_asic(addr, 1);

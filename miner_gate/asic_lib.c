@@ -362,9 +362,6 @@ void print_state() {
 void push_to_hw_queue_rt(RT_JOB *work) {
   //flush_spi_write();
   int i;
-  // printf("Push!\n");
-  //
-   
 
   //PUSH_JOB(ADDR_COMMAND,BIT_ADDR_COMMAND_END_CURRENT_JOB_IF_FIFO_FULL);
   PUSH_JOB(ADDR_TIMESTEMP, work->timestamp);
@@ -831,9 +828,12 @@ int do_bist_loop_push_job(const char* why) {
     DBG(DBG_SCALING, "BIST %x FAILED: %x asics failed bist\n", i, f);
     i++;
   }
-
-   try_push_job_to_mq();
-   try_push_job_to_mq();  
+#ifdef SLOW_START_WORK
+   // Disable some engines to prevent pick in power
+   vm.all_engines_enable_countdown = ALL_ENGINE_COUNTDOWN_TIMER;
+#endif   
+  try_push_job_to_mq();
+  try_push_job_to_mq();  
 }
 
 
@@ -984,8 +984,24 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
 #endif
   write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_BIST_CRC_EXPECTED, 0xbde23fff);
   write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_BIST_ALLOWED_FAILURE_NUM, ALLOWED_BIST_FAILURE_ENGINES);
+
+#ifndef SLOW_START_WORK  
   write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
   flush_spi_write();
+#else
+  if (vm.asic[0].asic_present) write_reg_asic(0, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+  if (vm.asic[2].asic_present) write_reg_asic(2, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+  if (vm.asic[4].asic_present) write_reg_asic(4, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+  if (vm.asic[6].asic_present) write_reg_asic(6, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);  
+  flush_spi_write();  
+  usleep(1000);
+  if (vm.asic[1].asic_present) write_reg_asic(1, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+  if (vm.asic[3].asic_present) write_reg_asic(3, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+  if (vm.asic[5].asic_present) write_reg_asic(5, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+  if (vm.asic[7].asic_present) write_reg_asic(7, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);  
+  flush_spi_write();  
+#endif
+
 
    while ((reg = read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_CONDUCTOR_BUSY)) != 0) {
     if (i++ > 10000) {
@@ -1145,7 +1161,9 @@ void set_initial_voltage_freq_on_restart() {
    }
    //usleep(50000);
    read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT);
-   wait_dll_ready(ANY_ASIC, "after initial");
+   while (wait_dll_ready(ANY_ASIC, "after initial") != 0) {
+     psyslog("DLL STUCK, TRYING AGAIN x4367\n");
+   }
   
    // 2) Those who fail - disable failed engines
    do_bist_ok(true,true, 0, "restart bist");
@@ -1196,7 +1214,9 @@ void set_initial_voltage_freq() {
   }
   //usleep(50000);
   read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT);
-  wait_dll_ready(ANY_ASIC, "after initial");
+  while (wait_dll_ready(ANY_ASIC, "after initial2") != 0) {
+    psyslog("DLL STUCK, TRYING AGAIN c454785\n");
+  }
 
   // 2) Those who fail - disable failed engines
   int jj = 0;
@@ -2087,6 +2107,9 @@ void once_second_tasks_rt() {
     set_light(LIGHT_GREEN, LIGHT_MODE_FAST_BLINK);
     vm.start_mine_time = 0;
     vm.not_mining_time++;
+#ifdef SLOW_START_WORK
+    vm.all_engines_enable_countdown = ALL_ENGINE_COUNTDOWN_TIMER;
+#endif
     vm.mining_time = 0;
   } else {
     set_light(LIGHT_GREEN, LIGHT_MODE_ON);
@@ -2197,7 +2220,33 @@ void try_push_job_to_mq() {
   if (has_request) {
     // Update leading zeroes?
     vm.not_mining_time = 0;
-    // TODO - every time 
+#ifdef SLOW_START_WORK
+   if (vm.all_engines_enable_countdown == ALL_ENGINE_COUNTDOWN_TIMER) {   
+     psyslog("Slowstart\n")
+     //write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_0,0);
+     for (int h = 0; h < ASICS_COUNT ; h++) {
+       if ((vm.asic[h].asic_present) && ((h%2) == 0)) {
+        write_reg_asic(h, ANY_ENGINE, ADDR_CONTROL_SET0, BIT_ADDR_CONTROL_FIFO_RESET_N);
+       }
+     }
+   }
+   
+   if (vm.all_engines_enable_countdown == 1) {    
+     psyslog("Slowstart end\n")
+     // enable disabled engines for slow-start
+     for (int h = 0; h < ASICS_COUNT ; h++) {
+       if ((vm.asic[h].asic_present) && ((h%2) == 0)) {
+        write_reg_asic(h, ANY_ENGINE, ADDR_CONTROL_SET1, BIT_ADDR_CONTROL_FIFO_RESET_N);
+       }
+     }
+   }
+
+   if (vm.all_engines_enable_countdown) {
+     vm.all_engines_enable_countdown--;
+   }
+#endif
+      
+
     //flush_spi_write();
     actual_work = add_to_sw_rt_queue(&work);
     //DBG(DBG_WINS,"<PUSH> work.timestamp %x, job_id %x, queue_id %x\n",actual_work->timestamp,actual_work->work_id_in_hw,actual_work->work_id_in_hw/MQ_INCREMENTS)
@@ -2251,8 +2300,8 @@ void once_2_msec_tasks_rt() {
   
   if ((counter % ((JOB_TRY_PUSH_MILLI*1000)/RT_THREAD_PERIOD)) == 0) {
     if ((mqsize < MQ_TOO_FULL)) {
-#ifdef INFILOOP_TEST      
-      printf("\n<%d OK>\n",mqsize);      
+#ifdef INFILOOP_TEST
+      printf("\n<%d OK>\n",mqsize);
 #endif
       try_push_job_to_mq();
     } else {

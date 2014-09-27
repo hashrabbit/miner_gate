@@ -225,7 +225,8 @@ void set_pll(int addr, int freq, int wait_dll_lock, int disale_enable_engines, c
 int enable_good_engines_all_asics_ok(int with_reset);
 void disable_asic_forever_rt(int addr, const char* why);
 void enable_all_engines_all_asics(int with_reset);
-void wait_dll_ready(int addr, const char* why);
+// return -1 if there is a problem
+int wait_dll_ready(int addr, const char* why);
 
 //void set_asic_freq(int addr, int new_freq);
 

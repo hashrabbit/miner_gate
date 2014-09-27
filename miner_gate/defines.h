@@ -21,6 +21,11 @@
 #define CHECK_GARBAGE_READ
 #define RESET_MQ_ON_BIST
 #define RUNTIME_BIST
+#ifdef SP2x
+#define SLOW_START_WORK
+#endif
+//#define LIQUID_COOLING
+
 //#define REMO_STRESS
 
 //#define DOWNSCALE_ON_ERRORS
@@ -38,7 +43,7 @@
 //#define ENABLED_ENGINES_MASK   0xFFFFFFFF
 #define ENABLED_ENGINES_MASK     0xFFFFFFFF
 #define ALLOWED_BIST_FAILURE_ENGINES    2
-#define LEADER_ASIC_ADDR             3        
+#define LEADER_ASIC_ADDR                3        
 
 
 
@@ -66,10 +71,15 @@
   Error!
 #endif
 
-
+#ifndef LIQUID_COOLING
 #define MAX_BOTTOM_TEMP 95
 #define MAX_TOP_TEMP 95
 #define MAX_MGMT_TEMP 50
+#else
+#define MAX_BOTTOM_TEMP 95
+#define MAX_TOP_TEMP 95
+#define MAX_MGMT_TEMP 90
+#endif
 
 #define AC2DC_POWER_DECREASE_START_VOLTAGE     (1270)
 #define AC2DC_POWER_LIMIT_105_EM  (800)

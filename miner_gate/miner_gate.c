@@ -1467,6 +1467,20 @@ int main(int argc, char *argv[]) {
   setlogmask(LOG_UPTO(LOG_INFO));
   openlog("minergate", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
   syslog(LOG_NOTICE, "minergate started");
+  
+    
+#ifdef LIQUID_COOLING  
+      psyslog( "------------------------\n");
+      psyslog( "------------------------\n");
+      psyslog( "--LIQUID COOLING----\n");
+      psyslog( "------------------------\n");
+      psyslog( "------------------------\n");
+      psyslog( "------------------------\n"); 
+      mg_event_x("---- RUNNING LIQUID COOLING VERSION -----");
+#endif
+
+
+  
 #ifdef REMO_STRESS  
   psyslog( "------------------------\n");
   psyslog( "------------------------\n");
@@ -1475,6 +1489,19 @@ int main(int argc, char *argv[]) {
   psyslog( "------------------------\n");
   psyslog( "------------------------\n"); 
   mg_event_x("---- RUNNING REMOSTRESS -----");
+#endif
+psyslog( "------------------------\n");
+ psyslog( "------------------------\n");
+ psyslog( "--RUNNING SLOWSTART----\n");
+ psyslog( "------------------------\n");
+ psyslog( "------------------------\n");
+ psyslog( "------------------------\n"); 
+ mg_event_x("---- RUNNING SLOWSTART -----");
+
+
+#ifdef SLOW_START_WORK
+
+
 #endif
 
   enable_sinal_handler();

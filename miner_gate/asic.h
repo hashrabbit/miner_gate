@@ -383,6 +383,10 @@ typedef struct {
 #define FET_T_72B_I50        5
 
 
+#ifdef SLOW_START_WORK
+#define ALL_ENGINE_COUNTDOWN_TIMER 12
+#endif
+
 typedef struct {
   // Fans set to high
   int fan_level;
@@ -424,6 +428,7 @@ typedef struct {
   uint8_t asics_shut_down_powersave;
   uint32_t not_mining_time; // in seconds how long we are not mining
   uint32_t mining_time; 
+  uint32_t all_engines_enable_countdown;
 
   
   int temp_mgmt;
