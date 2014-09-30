@@ -25,6 +25,7 @@
 
 //#include "scaling_manager.h"
 #include "spond_debug.h"
+#include "dc2dc.h"
 
 
 
@@ -532,13 +533,25 @@ void disable_asic_forever_rt(int addr, const char* why) {
   write_reg_asic(addr, NO_ENGINE,ADDR_INTR_MASK,0xFFFF);
   write_reg_asic(addr, NO_ENGINE,ADDR_DEBUG_CONTROL,BIT_ADDR_DEBUG_DISABLE_TRANSMIT);
   flush_spi_write();
-  mg_event_x("Asic disable %d: %s",addr,vm.asic[addr].why_disabled);
+  mg_event_x("Asic disable %d: %s, left:%d",addr,vm.asic[addr].why_disabled, vm.asic_count);
+
+  for (int i = 0; i < ENGINE_BITMASCS; i++) {
+     vm.asic[addr].not_brocken_engines[i] = 0;
+  }
+  vm.asic[addr].not_brocken_engines[ENGINE_BITMASCS-1] = 0;  
   disable_engines_asic(addr, 1);
+
+/*
+  if (!dc2dc_is_removed(addr)) {
+    int err;
+    //dc2dc_disable_dc2dc(addr,&err);
+  }
+  */
+  
   if (vm.asic[addr].cooling_down) {
     vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now--;
   }
   // dc2dc_disable_dc2dc(addr,&err);
-
   vm.asic_count--;
   psyslog("Disabing ASIC forever %d (0x%x) from loop %d (%s), count %d\n", addr, addr, addr/ASICS_PER_LOOP, why, vm.asic_count);
   if (vm.asic_count == 0) {

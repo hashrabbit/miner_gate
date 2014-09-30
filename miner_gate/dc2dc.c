@@ -77,8 +77,8 @@ static int dc2dc_init_rb(int addr) {
     assert(addr < ASICS_COUNT);
     assert(addr >= 0);
 
-    if (dc2dc_is_removed(addr)){
-    	psyslog("skipping DC2DC %d, REMOVED\n",addr);
+    if (dc2dc_is_user_disabled(addr)){
+    	psyslog("skipping DC2DC %d, REMOVED/DISABLED\n",addr);
     	passert(0);
     	return 0;
     }
@@ -304,7 +304,7 @@ void dc2dc_init() {
    psyslog("DC2DC stop all\n");
    for (int addr = 0; addr < ASICS_COUNT; addr++) {
     if (!vm.board_not_present[ASIC_TO_BOARD_ID(addr)]) {
-      if (! dc2dc_is_removed(addr))
+      if (! dc2dc_is_user_disabled(addr))
     	dc2dc_disable_dc2dc(addr,&err);
     }
   }
@@ -317,8 +317,8 @@ void dc2dc_init() {
   
   for (int addr = 0; addr < ASICS_COUNT; addr++) {
     int success = 0;
-    if (dc2dc_is_removed(addr)) {
-        printf("dc2dc %d skipped (REMOVED)\n", addr);
+    if (dc2dc_is_user_disabled(addr)) {
+        printf("dc2dc %d skipped (REMOVED/DISABLED)\n", addr);
         success = 0;
     } else if (!vm.board_not_present[ASIC_TO_BOARD_ID(addr)]) {
       success = dc2dc_init_rb(addr);
@@ -329,11 +329,11 @@ void dc2dc_init() {
       success = 0;
     }
     
-    if (dc2dc_is_removed(addr)) {
-    	printf("dc2dc %d REMOVED - setting accordingly\n", addr);
+    if (dc2dc_is_user_disabled(addr)) {
+    	printf("dc2dc %d REMOVED/DISABLED - setting accordingly\n", addr);
     	vm.asic[addr].dc2dc.dc2dc_present = 0;
     	vm.asic[addr].asic_present = 0;
-    	vm.asic[addr].why_disabled = "REMOVED";
+    	vm.asic[addr].why_disabled = "REMOVED/DISABLED";
     } else if (!success) {
       pthread_mutex_unlock(&i2c_mutex);
       dc2dc_disable_dc2dc(addr,&err);
@@ -357,7 +357,7 @@ static void dc2dc_set_phase(int phase_addr, int channel_mask, int *err) {
 
 void dc2dc_disable_dc2dc(int addr, int *err) {  
    //printf("%s:%d\n",__FILE__, __LINE__);
-  passert(!dc2dc_is_removed(addr));
+  passert(!dc2dc_is_user_disabled(addr));
   pthread_mutex_lock(&i2c_mutex);
   //printf("%s:%d\n",__FILE__, __LINE__);
   dc2dc_select_i2c(addr, err);
@@ -366,18 +366,31 @@ void dc2dc_disable_dc2dc(int addr, int *err) {
   pthread_mutex_unlock(&i2c_mutex);
 }
 
-int dc2dc_is_removed(int addr){
-	passert(addr >= 0);
-	passert(addr < ASICS_COUNT);
-
+int dc2dc_is_removed(int addr) {
 	return (vm.asic[addr].user_disabled == ASIC_STATUS_REMOVED ? 1 : 0);
 }
 
+int dc2dc_is_removed_or_disabled(int addr) {
+	return (vm.asic[addr].user_disabled != ASIC_STATUS_ENABLED ? 1 : 0);
+}
 
+int dc2dc_is_user_disabled(int addr) {
+	return (vm.asic[addr].user_disabled == ASIC_STATUS_DISABLED? 1 : 0);
+}
+
+int loop_is_removed_or_disabled(int l) {
+  int loop_enabled = 0;
+	for (int i = 0 ; i < ASICS_PER_LOOP; i++) {
+    if (vm.asic[l*ASICS_PER_LOOP + i].user_disabled == ASIC_STATUS_ENABLED) {
+      loop_enabled = 1;
+    }
+	}
+  return !loop_enabled;
+}
 
 
 void dc2dc_enable_dc2dc(int addr, int *err) {
-	passert(!dc2dc_is_removed(addr));
+	passert(!dc2dc_is_user_disabled(addr));
 // disengage from scale manager if not needed
 #ifdef MINERGATE
   if (vm.asic[addr].dc2dc.dc2dc_present) {
@@ -504,7 +517,7 @@ int dc2dc_set_dcr_inductor_cat(int addr,int value){
 
 
 static void dc2dc_select_i2c(int addr, int *err) { // 1 or 0
-  passert(!dc2dc_is_removed(addr));
+  passert(!dc2dc_is_user_disabled(addr));
 
   int top = (addr < ASICS_PER_BOARD);
 #ifndef SP2x
@@ -529,7 +542,7 @@ static void dc2dc_select_i2c(int addr, int *err) { // 1 or 0
 
 void dc2dc_set_vtrim(int addr, uint32_t vtrim, bool vmargin_75low  , int *err, const char* why) {
   DBG(DBG_SCALING, "Set VOLTAGE ASIC %d Milli:%d Vtrim:%x (%s)\n",addr, VTRIM_TO_VOLTAGE_MILLI(vtrim),vtrim, why);
-  passert(!dc2dc_is_removed(addr));
+  passert(!dc2dc_is_user_disabled(addr));
 #ifdef MINERGATE
   passert((vtrim >= VTRIM_MIN) && (vtrim <= vm.vtrim_max));
 #endif
@@ -574,7 +587,7 @@ int dc2dc_get_current_16s_of_amper_channel(
   
   uint8_t temp2;
   int temp_reg;
-  passert(!dc2dc_is_removed(addr));
+  passert(!dc2dc_is_user_disabled(addr));
   dc2dc_set_phase(dc2dc_channel_i2c_addr,0 , err);
   temp_reg = i2c_read_word(dc2dc_channel_i2c_addr, 0x8e, err);
   if ((vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72B) ||
@@ -679,7 +692,7 @@ int dc2dc_get_all_stats(
   // TODO - select addr!
   // int err = 0;
   passert(err != NULL);
-  passert(!dc2dc_is_removed(addr));
+  passert(!dc2dc_is_user_disabled(addr));
   //printf("%s:%d\n",__FILE__, __LINE__);
   *err = 0;
 

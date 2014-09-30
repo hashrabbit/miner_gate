@@ -289,7 +289,9 @@ typedef struct {
   uint32_t solved_jobs;
   uint32_t stacked_interrupt_mask; // 0xcafebabe - means not used.
 
-  // Did we already scaled up this ASIC frequency
+  uint32_t idle_asic_cycles_sec;
+  uint32_t idle_asic_cycles_this_min;  
+  uint32_t idle_asic_cycles_last_min;    
 
   DC2DC dc2dc;
 } ASIC;
@@ -384,7 +386,7 @@ typedef struct {
 
 
 #ifdef SLOW_START_WORK
-#define ALL_ENGINE_COUNTDOWN_TIMER 12
+#define ALL_ENGINE_COUNTDOWN_TIMER (ASICS_COUNT)
 #endif
 
 typedef struct {
@@ -485,9 +487,6 @@ typedef struct {
   int asic_count;
 
   int this_min_failed_bist;
-  int idle_asic_cycles_sec; 
-  int idle_asic_cycles_this_min;  
-  int idle_asic_cycles_last_min;    
   WIN last_win;
   int run_time_failed_asics;
 } MINER_BOX;

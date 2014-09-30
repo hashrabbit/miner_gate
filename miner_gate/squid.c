@@ -713,7 +713,6 @@ void write_reg_asic(ANY_ASIC, NO_ENGINE,uint8_t offset, uint32_t value) {
 uint32_t read_reg_asic(uint8_t addr, uint8_t engine, uint8_t offset) {
   uint32_t value;
   push_asic_read(addr, engine, offset, &value);
-  flush_spi_write();
   squid_wait_asic_reads();
   return value;
 }

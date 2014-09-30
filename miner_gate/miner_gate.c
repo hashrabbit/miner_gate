@@ -182,7 +182,7 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   psyslog("Here comes unexpected death, lights off!\n");
 
   for (i = 0; i < ASICS_COUNT ; i++) {
-    if(! dc2dc_is_removed(i))
+    if(! dc2dc_is_user_disabled(i))
 	  dc2dc_disable_dc2dc(i, &err2);
   }
   psyslog("Dye (%s)!\n", why);
@@ -419,13 +419,9 @@ void *connection_handler_thread(void *adptr) {
            DBG(DBG_WINS,"CANCELED2::JOB ID HW:%d, SW:%d  ---\n",work.work_id_in_hw,work.work_id_in_sw);  
            push_work_rsp(&work, 1);
          }
-         
-         
+                  
          // Give "STOP" to FPGA
-         write_spi(ADDR_SQUID_COMMAND, BIT_COMMAND_MQ_FIFO_RESET);
-         write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);
-         write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);  
-         flush_spi_write();
+         stop_all_work_rt();
        } else {
         int mqs = mq_size();
         //psyslog("%d ------------------>>Push OK:%d (%d pkts)\n",usec_stamp(), mqs, array_size);
@@ -651,13 +647,15 @@ int discover_good_loops_restart_12v() {
       printf("loop %d disabled\n", i);
 
 #ifndef SP2x
-      if (vm.try_12v_fix && !vm.tryed_power_cycle_to_revive_loops) {
-        mg_event_x("Bad loop %d = trying power cycle");
+      if ( vm.try_12v_fix && 
+          !vm.tryed_power_cycle_to_revive_loops &&
+          !loop_is_removed_or_disabled(i)) {
+        mg_event_x("Bad loop %d = trying power cycle", i);
         vm.tryed_power_cycle_to_revive_loops = 1;
         PSU12vPowerCycleALL();
         return -1;
       } else {
-        mg_event_x("Bad loop %d = set loop as disabled");
+        mg_event_x("Bad loop %d = set loop as disabled", i);
       }
 #endif
       
@@ -665,7 +663,7 @@ int discover_good_loops_restart_12v() {
         int err;
         int overcurrent_err, overcurrent_warning;
 
-        if (! dc2dc_is_removed(h))
+        if (! dc2dc_is_user_disabled(h))
         {
 			dc2dc_get_all_stats(
 				  h,
@@ -1321,6 +1319,7 @@ void restart_asics_full(int reason,const char * why) {
     passert(0);
   }
   vm.in_asic_reset = 1;
+  vm.asic_count = 0;
 
   // Test AC2DC    
   static ASIC asics[ASICS_COUNT];

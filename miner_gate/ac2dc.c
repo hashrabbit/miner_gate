@@ -584,7 +584,7 @@ void PSU12vPowerCycleALL() {
 	for (int psu = 0 ; psu < PSU_COUNT ; psu++){
 		PSU12vON(psu );
 	}
-  usleep(5000 * 1000);
+  usleep(9000 * 1000);
 	return;
 }
 #endif

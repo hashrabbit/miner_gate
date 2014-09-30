@@ -22,7 +22,7 @@
 #define RESET_MQ_ON_BIST
 #define RUNTIME_BIST
 #ifdef SP2x
-#define SLOW_START_WORK
+//#define SLOW_START_WORK
 #endif
 //#define LIQUID_COOLING
 

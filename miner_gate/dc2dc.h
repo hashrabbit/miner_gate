@@ -33,6 +33,11 @@ void dc2dc_enable_dc2dc(int addr, int *err);
 void dc2dc_init();
 void update_dc2dc_stats();
 int dc2dc_is_removed(int addr);
+int dc2dc_is_removed_or_disabled(int addr);
+int dc2dc_is_user_disabled(int addr);
+int loop_is_removed_or_disabled(int l);
+
+
 int dc2dc_get_all_stats(
       int addr, 
       int* overcurrent_err, 
