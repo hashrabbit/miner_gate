@@ -2083,7 +2083,7 @@ void once_second_tasks_rt() {
 
   for (int jj = 0; jj < ASICS_COUNT; jj++) {  
     if ((vm.asic[jj].asic_present) &&
-        (vm.asic[jj].idle_asic_cycles_sec/100000 > 25) && 
+        (vm.asic[jj].idle_asic_cycles_sec/100000 > 20) && 
         (vm.consecutive_jobs == MAX_CONSECUTIVE_JOBS_TO_COUNT)) {
       vm.err_bad_idle++;
       test_lost_address();
