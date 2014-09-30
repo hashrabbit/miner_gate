@@ -1489,18 +1489,16 @@ int main(int argc, char *argv[]) {
   psyslog( "------------------------\n"); 
   mg_event_x("---- RUNNING REMOSTRESS -----");
 #endif
-psyslog( "------------------------\n");
- psyslog( "------------------------\n");
- psyslog( "--RUNNING SLOWSTART----\n");
- psyslog( "------------------------\n");
- psyslog( "------------------------\n");
- psyslog( "------------------------\n"); 
- mg_event_x("---- RUNNING SLOWSTART -----");
 
 
 #ifdef SLOW_START_WORK
-
-
+  psyslog( "------------------------\n");
+   psyslog( "------------------------\n");
+   psyslog( "--RUNNING SLOWSTART----\n");
+   psyslog( "------------------------\n");
+   psyslog( "------------------------\n");
+   psyslog( "------------------------\n");
+   mg_event_x("---- RUNNING SLOWSTART -----");
 #endif
 
   enable_sinal_handler();
