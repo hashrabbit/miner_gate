@@ -647,9 +647,9 @@ int dc2dc_get_current_16s_of_amper_channel(
     if ((vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72B) ||
         (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72B_I50) ||
         (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72B_3PHASE)) {
-      temp2 = ((temp_reg)&0x7FF)/4 - 25;
+      temp2 = (((temp_reg)&0x7FF)/4) - 25;
     } else {
-      temp2 = ((temp_reg)&0x7FF)/4;
+      temp2 = (((temp_reg)&0x7FF)/4);
     }
      DBG(DBG_TMP,"%d: temp=%d\n",addr, temp2);  
     

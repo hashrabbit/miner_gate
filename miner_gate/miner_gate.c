@@ -411,7 +411,8 @@ void *connection_handler_thread(void *adptr) {
          while (one_done_sw_rt_queue(&work)) {
             //DBG(DBG_WINS,"CANCELED1::JOB ID HW:%d, SW:%d  ---\n",work.work_id_in_hw,work.work_id_in_sw);  
             push_work_rsp(&work,1);
-         }   
+         }
+         vm.consecutive_jobs = 0;
          pthread_mutex_unlock(&asic_mutex);
 
          

@@ -57,6 +57,8 @@
 #endif
 #define MAX_FAN_LEVEL                   100
 
+#define MAX_DC2DC_TEMP                  110
+
 #define TIME_FOR_DLL_USECS  1000
 #define MIN_COSECUTIVE_JOBS_FOR_SCALING 100
 #define MAX_CONSECUTIVE_JOBS_TO_COUNT (200)

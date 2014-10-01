@@ -202,24 +202,20 @@ void thermal_init(int addr) {
 void act_on_temperature(int addr, int* can_upscale) {
   int err;
   ASIC *a = &vm.asic[addr];
-  if ((a->asic_temp >= MAX_ASIC_TEMPERATURE)) {
+  if ((a->asic_temp >= MAX_ASIC_TEMPERATURE) ||
+      (a->dc2dc.dc_temp > MAX_DC2DC_TEMP)) {
     if (a->dc2dc.max_vtrim_temperature > VTRIM_MIN) {
       // Down 1 click on voltage, full down on FREQ 
       if (dc2dc_can_down(addr)) {
-        if ((a->dc2dc.max_vtrim_temperature > VTRIM_MIN)) {
-          a->dc2dc.max_vtrim_temperature = a->dc2dc.vtrim - 1;
-          dc2dc_down(addr,&err,"too hot A");
-          asic_down_freq_completly(addr,1,1,"too hot B");
-          if (!a->cooling_down) {            
-            a->cooling_down = 1;
-            vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now++;
-            vm.board_cooling_ever |= (1 << addr);
-          }
-        } else {
-          disable_asic_forever_rt(addr,"ASIC too hot 1");
-          return;
+        a->dc2dc.max_vtrim_temperature = a->dc2dc.vtrim - 1;
+        dc2dc_down(addr,&err,"too hot A");
+        asic_down_freq_completly(addr,1,1,"too hot B");
+        if (!a->cooling_down) {            
+          a->cooling_down = 1;
+          vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now++;
+          vm.board_cooling_ever |= (1 << addr);
         }
-      }
+      } 
     }
   } else if (a->cooling_down && *can_upscale) {
     // Cooling down complete
@@ -1801,10 +1797,11 @@ void print_scaling() {
            vm.solved_jobs_total, vm.this_minute_wins, vm.last_minute_wins,
            vm.this_min_failed_bist,
            vm.hw_errs);
-   fprintf(f, "leading-zeroes:%d idle promils[s/m]:%d/%d, rate:%dgh/s\n",            
+   fprintf(f, "leading-zeroes:%d idle promils[s/m]:%d/%d, rate:%dgh/s asic-count:%d\n",            
            vm.cur_leading_zeroes, 
            vm.asic[0].idle_asic_cycles_sec*10/100000, (vm.asic[0].idle_asic_cycles_last_min*10) / 6000000, 
-           vm.last_minute_rate_mb/1000);
+           vm.last_minute_rate_mb/1000,
+           vm.asic_count);
    fprintf(f, "Fan:%d, conseq:%d\n", vm.fan_level, vm.consecutive_jobs);
    fprintf(f, "AC2DC BAD: %d %d\n" , 0, 0);
    fprintf(f, "R/NR: %d/%d\n", vm.mining_time, vm.not_mining_time);
@@ -1852,21 +1849,21 @@ void dump_watts() {
 void ten_second_tasks() {
   static char x[200]; 
   
-  psyslog("MQ 10sec:%d\n", read_spi(ADDR_SQUID_MQ_SENT));
+  //psyslog("MQ 10sec:%d\n", read_spi(ADDR_SQUID_MQ_SENT));
   sprintf(x, "uptime:%d rst:%d\n", 
-    time(NULL) - vm.start_run_time, 
-    vm.err_restarted);
+          time(NULL) - vm.start_run_time, 
+          vm.err_restarted);
   mg_status(x);
-  store_last_voltage();
+  //store_last_voltage();
   dump_watts();
   //restart_asics();
   
   //write_reg_asic(12, NO_ENGINE,ADDR_GOT_ADDR, 0);
   revive_asics_if_one_got_reset("ten_second_tasks");
 
- vm.temp_mgmt = get_mng_board_temp();
- vm.temp_top = get_top_board_temp();
- vm.temp_bottom = get_bottom_board_temp();
+  vm.temp_mgmt = get_mng_board_temp();
+  vm.temp_top = get_top_board_temp();
+  vm.temp_bottom = get_bottom_board_temp();
 
 
  save_rate_temp(vm.temp_top, vm.temp_bottom,  vm.temp_mgmt, (vm.consecutive_jobs)?vm.total_mhash:0);
@@ -2077,33 +2074,54 @@ void once_second_tasks_rt() {
   //write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_MNG_COMMAND, BIT_ADDR_MNG_ZERO_IDLE_COUNTER);
 
   for (int jj = 0; jj < ASICS_COUNT; jj++) {
+    vm.asic[jj].idle_asic_cycles_last_sec = vm.asic[jj].idle_asic_cycles_sec;
     push_asic_read(jj, NO_ENGINE, ADDR_IDLE_COUNTER, &vm.asic[jj].idle_asic_cycles_sec);
   }
   squid_wait_asic_reads();
+  write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_MNG_COMMAND, BIT_ADDR_MNG_ZERO_IDLE_COUNTER);
+  flush_spi_write();
+  
+  static int partial_idle_this_run = 0;
+  int partial_idle_last_run = 0;
+  partial_idle_last_run = partial_idle_this_run;
+  partial_idle_this_run = 0;
+
 
   for (int jj = 0; jj < ASICS_COUNT; jj++) {  
     if ((vm.asic[jj].asic_present) &&
-        (vm.asic[jj].idle_asic_cycles_sec/100000 > 20) && 
-        (vm.consecutive_jobs == MAX_CONSECUTIVE_JOBS_TO_COUNT)) {
+        (vm.consecutive_jobs == MAX_CONSECUTIVE_JOBS_TO_COUNT) &&
+        (vm.asic[jj].idle_asic_cycles_sec/100000 > 20)) {
       vm.err_bad_idle++;
+      // if 20% idle - count how many in this state. 
+      partial_idle_this_run++;
       test_lost_address();
-      restart_asics_full(17,"Asic IDLE should not be");
-      return;
+      // if 90% idle - restart
+      if (vm.asic[jj].idle_asic_cycles_sec/100000 > 90) {
+        restart_asics_full(17,"Asic IDLE when should not be IDLE");
+        partial_idle_this_run = 0;
+        return;
+      } 
     }
     vm.asic[jj].idle_asic_cycles_this_min += vm.asic[jj].idle_asic_cycles_sec;
     
     if (vm.asic[jj].idle_asic_cycles_sec) {
-      psyslog(RED "%d IDLE:%d% (0x%d), mqsize=%d cons=%d\n" RESET, 
-        jj,
-        vm.asic[jj].idle_asic_cycles_sec/100000 , 
-        vm.asic[jj].idle_asic_cycles_sec, 
-        mq_size(),
-        vm.consecutive_jobs
-        );
-      //print_adapter(NULL, true);
+      psyslog(RED "[%d:I:%d%] mq=%d cons=%d\n" RESET, 
+          jj,
+          vm.asic[jj].idle_asic_cycles_sec/100000 , 
+          vm.asic[jj].idle_asic_cycles_sec, 
+          mq_size(),
+          vm.consecutive_jobs
+          );
     }
   }
-  write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_MNG_COMMAND, BIT_ADDR_MNG_ZERO_IDLE_COUNTER);
+
+  // twice slow ASICs
+  if (partial_idle_this_run && partial_idle_last_run) {
+     partial_idle_this_run = 0;
+     restart_asics_full(19,"Asic partial-IDLE twice");
+     return;
+  }
+
 
 
 
@@ -2302,7 +2320,7 @@ void try_push_job_to_mq() {
 
 
 void ping_watchdog() {
-    psyslog("Ping WD %d %d %d\n",vm.total_mhash, vm.consecutive_jobs, time(NULL));
+    //psyslog("Ping WD %d %d %d\n",vm.total_mhash, vm.consecutive_jobs, time(NULL));
     FILE *f = fopen("/var/run/dont_reboot", "w");
     if (!f) {
       psyslog("Failed to create watchdog file\n");

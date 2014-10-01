@@ -501,7 +501,6 @@ void *update_ac2dc_power_measurments_thread(void *ptr) {
     ac2dc->ac2dc_power_fake = MAX(ac2dc->ac2dc_power_fake, ac2dc->ac2dc_power_last_last_fake);  
      
     if (ac2dc->ac2dc_type != AC2DC_TYPE_UNKNOWN) {
-        psyslog("Update PSU %d\n", psu_id);
         update_single_psu(ac2dc, psu_id);
     } else {
       ac2dc->ac2dc_power_last_last= ac2dc->ac2dc_power_last;
@@ -510,10 +509,11 @@ void *update_ac2dc_power_measurments_thread(void *ptr) {
       ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
       ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power, ac2dc->ac2dc_power_last_last);
       if (!ac2dc->force_generic_psu) {
-        
+#ifndef SP2x        
         if (ac2dc_check_connected(psu_id)) {
           exit_nicely(10,"AC2DC connected");
         }
+#endif              
       }
     }
   }

@@ -290,6 +290,7 @@ typedef struct {
   uint32_t stacked_interrupt_mask; // 0xcafebabe - means not used.
 
   uint32_t idle_asic_cycles_sec;
+  uint32_t idle_asic_cycles_last_sec;
   uint32_t idle_asic_cycles_this_min;  
   uint32_t idle_asic_cycles_last_min;    
 
@@ -412,7 +413,7 @@ typedef struct {
   int err_purge_queue;  
   int err_read_timeouts;    
   int err_dc2dc_oc;    
-  int err_bad_idle;    
+  int err_bad_idle;
   
 
   int err_read_timeouts2;  
