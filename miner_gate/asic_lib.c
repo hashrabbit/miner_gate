@@ -2094,9 +2094,10 @@ void once_second_tasks_rt() {
       vm.err_bad_idle++;
       // if 20% idle - count how many in this state. 
       partial_idle_this_run++;
-      test_lost_address();
       // if 90% idle - restart
       if (vm.asic[jj].idle_asic_cycles_sec/100000 > 90) {
+        
+        test_lost_address();
         restart_asics_full(17,"Asic IDLE when should not be IDLE");
         partial_idle_this_run = 0;
         return;
@@ -2117,6 +2118,7 @@ void once_second_tasks_rt() {
 
   // twice slow ASICs
   if (partial_idle_this_run && partial_idle_last_run) {
+     test_lost_address();
      partial_idle_this_run = 0;
      restart_asics_full(19,"Asic partial-IDLE twice");
      return;
