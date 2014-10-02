@@ -577,6 +577,7 @@ void PSU12vPowerCycle (int psu){
 }
 
 void PSU12vPowerCycleALL() {
+  psyslog("Doing full power cycle");
 	for (int psu = 0 ; psu < PSU_COUNT ; psu++){
 		PSU12vOFF(psu );
 	}

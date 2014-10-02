@@ -1544,24 +1544,42 @@ int main(int argc, char *argv[]) {
 
   read_work_mode();
   test_fix_ac2dc_limits();
+  mg_event("Started!");
 
 
   vm.temp_mgmt = get_mng_board_temp();
   vm.temp_top = get_top_board_temp();
   vm.temp_bottom = get_bottom_board_temp();
 
-  
-  mg_event("Started!");
-  int bp = 0;
+  // Try once to see if some boards disabled.
+  int no_bp = 0;  
   for (int p = 0; p < BOARD_COUNT; p++) {
-    if (!vm.board_not_present[p]) {
-      bp = 1;
+    if (vm.board_not_present[p]) {
+      no_bp = 1;
     }
-    psyslog("BOARD %d PRESENT:%d\n",p, !vm.board_not_present[p]);
+    psyslog("TAKE ONE BOARD %d PRESENT:%d\n",p, !vm.board_not_present[p]);
   }
-  if(!bp) { // at least 1 board must be present
-    mg_event("NO BOARDS PRESENT");
-    passert(0);
+
+  if (no_bp) {
+    PSU12vPowerCycleALL();
+    
+    // Try once more...
+    vm.temp_mgmt = get_mng_board_temp();
+    vm.temp_top = get_top_board_temp();
+    vm.temp_bottom = get_bottom_board_temp();
+
+    int bp = 0;
+    for (int p = 0; p < BOARD_COUNT; p++) {
+      if (!vm.board_not_present[p]) {
+        bp = 1;
+      }
+      psyslog("TAKE TWO BOARD %d PRESENT:%d\n",p, !vm.board_not_present[p]);
+    }
+    
+    if(!bp) { // at least 1 board must be present
+      mg_event("NO BOARDS PRESENT");
+      passert(0);
+    }
   }
   init_pwm();
   // Enable ALL dc2dc
