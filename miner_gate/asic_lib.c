@@ -190,10 +190,10 @@ void thermal_init(int addr) {
   write_reg_asic(addr, NO_ENGINE,ADDR_SHUTDOWN_ACTION, 0);
   write_reg_asic(addr, NO_ENGINE,ADDR_TS_RSTN_0, 0);
   write_reg_asic(addr, NO_ENGINE,ADDR_TS_RSTN_1, 0);
-  // Set to MAX_ASIC_TEMPERATURE-1
-  write_reg_asic(addr, NO_ENGINE,ADDR_TS_SET_0, (MAX_ASIC_TEMPERATURE-2));
-  // Set to MAX_ASIC_TEMPERATURE
-  write_reg_asic(addr, NO_ENGINE,ADDR_TS_SET_1, (MAX_ASIC_TEMPERATURE-1));
+  // Set to vm.max_asic_temp-1
+  write_reg_asic(addr, NO_ENGINE,ADDR_TS_SET_0, (vm.max_asic_temp-2));
+  // Set to vm.max_asic_temp
+  write_reg_asic(addr, NO_ENGINE,ADDR_TS_SET_1, (vm.max_asic_temp-1));
   write_reg_asic(addr, NO_ENGINE,ADDR_TS_RSTN_0, 1);
   write_reg_asic(addr, NO_ENGINE,ADDR_TS_RSTN_1, 1);
   flush_spi_write();
@@ -202,8 +202,8 @@ void thermal_init(int addr) {
 void act_on_temperature(int addr, int* can_upscale) {
   int err;
   ASIC *a = &vm.asic[addr];
-  if ((a->asic_temp >= MAX_ASIC_TEMPERATURE) ||
-      (a->dc2dc.dc_temp > MAX_DC2DC_TEMP)) {
+  if ((a->asic_temp >= vm.max_asic_temp) ||
+      ((!vm.dc2dc_temp_ignore) && (a->dc2dc.dc_temp > MAX_DC2DC_TEMP))) {
     if (a->dc2dc.max_vtrim_temperature > VTRIM_MIN) {
       // Down 1 click on voltage, full down on FREQ 
       if (dc2dc_can_down(addr)) {
@@ -1749,7 +1749,7 @@ void print_scaling() {
       total_asics++;
 
       fprintf(f, GREEN RESET " ASIC:[%s%3dc%s " GREEN,
-        (a->asic_temp>=MAX_ASIC_TEMPERATURE-1)?((a->asic_temp>=MAX_ASIC_TEMPERATURE)?RED:YELLOW):GREEN,((a->asic_temp*5)+85),
+        (a->asic_temp>=vm.max_asic_temp-1)?((a->asic_temp>=vm.max_asic_temp)?RED:YELLOW):GREEN,((a->asic_temp*5)+85),
         ((a->cooling_down)?("*"):(" ")));
 
       fprintf(f, "%s%3dhz%s(BL:%4d) %4d" RESET /*"%08x%08x%08x%08x%08x%08x%08x"*/ " (E:%d) F:%x]\n",
@@ -1950,7 +1950,9 @@ void asic_up_freq_max(int i, int wait_pll_lock, int disable_enable_engines,  con
   if (wanted_hz <= allowed_hz) {
     if (vm.asic[i].cooling_down) {
       vm.asic[i].cooling_down = 0;
-      vm.ac2dc[ASIC_TO_BOARD_ID(i)].board_cooling_now--;
+      if (vm.ac2dc[ASIC_TO_BOARD_ID(i)].board_cooling_now > 0) {
+        vm.ac2dc[ASIC_TO_BOARD_ID(i)].board_cooling_now--;
+      }
     }
     DBG(DBG_SCALING, "%d Full upscaling from %d by %d\n", i, vm.asic[i].freq_hw, (wanted_hz)); 
   } else {

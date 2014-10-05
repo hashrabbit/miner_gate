@@ -414,7 +414,7 @@ typedef struct {
   int err_read_timeouts;    
   int err_dc2dc_oc;    
   int err_bad_idle;
-  
+  int dc2dc_temp_ignore;  
 
   int err_read_timeouts2;  
   int err_read_corruption;  
@@ -467,7 +467,7 @@ typedef struct {
   int hw_errs;
   int fpga_ver;
   int try_12v_fix;
-  
+  int max_asic_temp;
   int cur_leading_zeroes;
   // We give less LZ then needed to do faster scaling.
   // When system just started, search optimal speed agressively

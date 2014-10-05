@@ -549,7 +549,10 @@ void disable_asic_forever_rt(int addr, const char* why) {
   */
   
   if (vm.asic[addr].cooling_down) {
-    vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now--;
+    if (vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now > 0) {
+        vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now--;
+    }
+    vm.asic[addr].cooling_down = 0;
   }
   // dc2dc_disable_dc2dc(addr,&err);
   vm.asic_count--;

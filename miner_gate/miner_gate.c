@@ -892,6 +892,33 @@ void read_generic_ac2dc() {
 }
 
 
+
+
+void read_max_asic_temp() {
+  vm.max_asic_temp = MAX_ASIC_TEMPERATURE;
+  FILE* file = fopen ("/etc/mg_max_asic_temp", "r");
+  if (file != 0) {
+    int res = fscanf (file, "%d", &vm.max_asic_temp);
+    fclose (file);
+    passert(res == 1);
+    passert(vm.max_asic_temp >= ASIC_TEMP_100 && vm.max_asic_temp <= ASIC_TEMP_125);
+  } 
+  psyslog("DC2DC ignore temp %d\n", vm.dc2dc_temp_ignore);
+}
+
+
+void read_ignore_dc2dc_temp() {
+  FILE* file = fopen ("/etc/mg_dc2dc_temp_ignore", "r");
+  if (file != 0) {
+    int res = fscanf (file, "%d", &vm.dc2dc_temp_ignore);
+    fclose (file);
+    passert(res == 1);
+  } 
+  psyslog("DC2DC ignore temp %d\n", vm.dc2dc_temp_ignore);
+}
+
+
+
 void read_fet() {
   FILE* file = fopen ("/tmp/mg_fet", "r");
   if (file != 0) {
@@ -1149,6 +1176,17 @@ int read_work_mode() {
   assert(vm.ac2dc[PSU_0].ac2dc_power_limit   >= 70);
   assert(vm.ac2dc[PSU_0].ac2dc_power_limit   <= 2500);
   vm.max_dc2dc_current_16s*=16;
+
+  if ((vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_MURATA_NEW) && 
+      (vm.ac2dc[PSU_0].ac2dc_power_limit   >= 1300)) {
+    vm.ac2dc[PSU_0].ac2dc_power_limit = 1300;
+  }
+
+  if ((vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_MURATA_NEW) && 
+       (vm.ac2dc[PSU_1].ac2dc_power_limit   >= 1300)) {
+     vm.ac2dc[PSU_1].ac2dc_power_limit = 1300;
+  }
+  
 
   FILE* ignore_fcc_file = fopen ("/etc/mg_ignore_110_fcc", "r");
   if (ignore_fcc_file != NULL) {
@@ -1532,6 +1570,8 @@ int main(int argc, char *argv[]) {
   //update_ac2dc_power_measurments(PSU_0, &vm.ac2dc[PSU_0]);
   //read_last_voltage();
   read_fet();  
+  read_ignore_dc2dc_temp();
+  read_max_asic_temp();
   read_disabled_asics();
   // store voltage
 #ifndef SP2x
