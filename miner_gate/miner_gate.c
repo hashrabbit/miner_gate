@@ -613,12 +613,14 @@ int discover_good_loops_restart_12v() {
 
 
   for (i = 0; i < LOOP_COUNT; i++) {
+    int testing_spi = 0;
     vm.loop[i].id = i;
     unsigned int bypass_loops = ((~(1 << i)) & SQUID_LOOPS_MASK);
     psyslog("ADDR_SQUID_LOOP_BYPASS = %x\n", bypass_loops);
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
-    if ((vm.loop[i].user_disabled == 0) &&
-       (!vm.board_not_present[LOOP_TO_BOARD_ID(i)]) &&
+    if ((vm.fet[LOOP_TO_BOARD_ID(i)] != FET_ERROR) &&
+        (vm.loop[i].user_disabled == 0) &&
+       (!vm.board_not_present[LOOP_TO_BOARD_ID(i)]) && (testing_spi = 1) &&
        test_serial(i)
     ) {
       vm.loop[i].enabled_loop = 1;
@@ -644,13 +646,14 @@ int discover_good_loops_restart_12v() {
       good_loops_cnt++;
     } else {
       vm.loop[i].enabled_loop = 0;
-      vm.loop[i].why_disabled = "test serial failed";        
+      vm.loop[i].why_disabled = "test serial failed or something";        
       printf("loop %d disabled\n", i);
 
 #ifndef SP2x
       if ( vm.try_12v_fix && 
           !vm.tryed_power_cycle_to_revive_loops &&
-          !loop_is_removed_or_disabled(i)) {
+          !loop_is_removed_or_disabled(i) && 
+          (vm.fet[LOOP_TO_BOARD_ID(i)] != FET_ERROR)) {
         mg_event_x("Bad loop %d = trying power cycle", i);
         vm.tryed_power_cycle_to_revive_loops = 1;
         PSU12vPowerCycleALL();
@@ -1177,16 +1180,6 @@ int read_work_mode() {
   assert(vm.ac2dc[PSU_0].ac2dc_power_limit   <= 2500);
   vm.max_dc2dc_current_16s*=16;
 
-  if ((vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_MURATA_NEW) && 
-      (vm.ac2dc[PSU_0].ac2dc_power_limit   >= 1300)) {
-    vm.ac2dc[PSU_0].ac2dc_power_limit = 1300;
-  }
-
-  if ((vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_MURATA_NEW) && 
-       (vm.ac2dc[PSU_1].ac2dc_power_limit   >= 1300)) {
-     vm.ac2dc[PSU_1].ac2dc_power_limit = 1300;
-  }
-  
 
   FILE* ignore_fcc_file = fopen ("/etc/mg_ignore_110_fcc", "r");
   if (ignore_fcc_file != NULL) {
@@ -1195,6 +1188,19 @@ int read_work_mode() {
   } else {
     int top_fix = 0;
     int bot_fix = 0;
+
+
+    if ((vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_MURATA_NEW) && 
+         (vm.ac2dc[PSU_0].ac2dc_power_limit   >= 1300)) {
+       vm.ac2dc[PSU_0].ac2dc_power_limit = 1300;
+    }
+    
+    if ((vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_MURATA_NEW) && 
+          (vm.ac2dc[PSU_1].ac2dc_power_limit   >= 1300)) {
+        vm.ac2dc[PSU_1].ac2dc_power_limit = 1300;
+    }
+     
+
       
     int psu_type = vm.ac2dc[PSU_0].ac2dc_type;
     int voltage  = vm.ac2dc[PSU_0].voltage;

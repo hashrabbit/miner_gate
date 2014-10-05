@@ -384,6 +384,7 @@ typedef struct {
 #define FET_T_72B_3PHASE     3
 #define FET_T_72A_I50        4
 #define FET_T_72B_I50        5
+#define FET_ERROR            100
 
 
 #ifdef SLOW_START_WORK

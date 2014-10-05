@@ -77,6 +77,12 @@ static int dc2dc_init_rb(int addr) {
     assert(addr < ASICS_COUNT);
     assert(addr >= 0);
 
+    if ((vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_ERROR)) {
+      disable_asic_forever_rt(addr, "FET read error");
+      return 0;
+    }
+  
+
     if (dc2dc_is_user_disabled(addr)){
     	psyslog("skipping DC2DC %d, REMOVED/DISABLED\n",addr);
     	passert(0);
