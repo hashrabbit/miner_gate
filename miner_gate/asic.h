@@ -384,6 +384,10 @@ typedef struct {
 #define FET_T_72B_3PHASE     3
 #define FET_T_72A_I50        4
 #define FET_T_72B_I50        5
+//#define FET_T_78A_I50		 8
+#define FET_T_78B_I50		 9
+//#define FET_T_78A_3PHASE	 10
+#define FET_T_78B_3PHASE	 11
 #define FET_ERROR            100
 
 
