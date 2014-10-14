@@ -920,61 +920,7 @@ void read_ignore_dc2dc_temp() {
   psyslog("DC2DC ignore temp %d\n", vm.dc2dc_temp_ignore);
 }
 
-void read_fet() {
-
-    vm.fet[BOARD_0] = get_fet(BOARD_0);
-    vm.fet[BOARD_1] = get_fet(BOARD_1);
-    
-    check_fet_values();
-
-    psyslog("----------------------------------\n");
-    psyslog("--------FET TOP:%d BOT:%d---------\n", vm.fet[BOARD_0], vm.fet[BOARD_1]);
-    psyslog("----------------------------------\n");
-}
-
-/**
- * checks and updates values from /tmp/mg_fet file if it out of range
- * 
- * vm.fet[BOARD_0], vm.fet[BOARD_1] are global variables
- */
-void check_fet_values(){
-    int localt = vm.fet[BOARD_0];
-    int localb = vm.fet[BOARD_1];
-    
-    if (vm.fet[BOARD_0] < 0 || vm.fet[BOARD_0] > 15 || vm.fet[BOARD_1] < 0 || vm.fet[BOARD_1] > 15)
-    {
-        read_fet_values_from_file(&localt, &localb);
-    }
-    else{
-        psyslog("  --  FET TAKEN FROM EEPROM -- \n");
-        return;
-    }
-
-    
-    
-    if (vm.fet[BOARD_0] < 0 || vm.fet[BOARD_0] > 15 )
-    {
-        psyslog("  --  FET BOARD-%d TAKEN FROM FILE -- \n" , BOARD_0);
-        vm.fet[BOARD_0] = localt;
-    }
-    else
-    {
-        psyslog("  --  FET BOARD-%d TAKEN FROM EEPROM -- \n" , BOARD_0);
-    }
-    
-    if ( vm.fet[BOARD_1] < 0 || vm.fet[BOARD_1] > 15)
-    {
-        psyslog("  --  FET BOARD-%d TAKEN FROM FILE -- \n" , BOARD_1);
-        vm.fet[BOARD_1] = localb;
-    }
-    else
-    {
-        psyslog("  --  FET BOARD-%d TAKEN FROM EEPROM -- \n" , BOARD_1);
-    }
-    
-}
-
-void read_fet_values_from_file(int * topBoardFetValue, int *bottomBoardFetValue){
+void read_fet_file(int * topBoardFetValue, int *bottomBoardFetValue){
         FILE* file = fopen("/tmp/mg_fet", "r");
         if (file != 0) {
             int res = fscanf(file, "0:%d 1:%d",
@@ -990,6 +936,51 @@ void read_fet_values_from_file(int * topBoardFetValue, int *bottomBoardFetValue)
             passert(0);
         }
 }
+
+
+/**
+ * checks and updates values from /tmp/mg_fet file if it out of range
+ * 
+ * vm.fet[BOARD_0], vm.fet[BOARD_1] are global variables
+ */
+void check_fet_values(){
+    int localt = vm.fet[BOARD_0];
+    int localb = vm.fet[BOARD_1];
+    
+    if (vm.fet[BOARD_0] < 0 || vm.fet[BOARD_0] > 15 || vm.fet[BOARD_1] < 0 || vm.fet[BOARD_1] > 15)  {
+        read_fet_file(&localt, &localb);
+    }else{
+        psyslog("  --  FET TAKEN FROM EEPROM -- \n");
+        return;
+    }
+
+    if (vm.fet[BOARD_0] < 0 || vm.fet[BOARD_0] > 15 ){
+        psyslog("  --  FET BOARD-%d TAKEN FROM FILE -- \n" , BOARD_0);
+        vm.fet[BOARD_0] = localt;
+    }else{
+        psyslog("  --  FET BOARD-%d TAKEN FROM EEPROM -- \n" , BOARD_0);
+    }
+    
+    if ( vm.fet[BOARD_1] < 0 || vm.fet[BOARD_1] > 15){
+        psyslog("  --  FET BOARD-%d TAKEN FROM FILE -- \n" , BOARD_1);
+        vm.fet[BOARD_1] = localb;
+    }else{
+        psyslog("  --  FET BOARD-%d TAKEN FROM EEPROM -- \n" , BOARD_1);
+    }
+}
+
+void read_fet() {
+
+    vm.fet[BOARD_0] = get_fet(BOARD_0);
+    vm.fet[BOARD_1] = get_fet(BOARD_1);
+
+    check_fet_values();
+
+    psyslog("----------------------------------\n");
+    psyslog("--------FET TOP:%d BOT:%d---------\n", vm.fet[BOARD_0], vm.fet[BOARD_1]);
+    psyslog("----------------------------------\n");
+}
+
 
 int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative_file) {
   FILE* file = fopen (MG_CUSTOM_MODE_FILE, "r");

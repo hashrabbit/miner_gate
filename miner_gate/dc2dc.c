@@ -124,11 +124,28 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_byte(dc2dc_addr[0], 0x47, 0x3F,&err);
       i2c_write_byte(dc2dc_addr[0], 0xd7, 0x03,&err);
       i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
-      i2c_write_word(dc2dc_addr[0], 0x51, 0x0087,&err);
-      i2c_write_word(dc2dc_addr[0], 0x4f, 0x0096 ,&err);
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x006e,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x007d ,&err);
+      i2c_write_word(dc2dc_addr[0], 0xe6, 0x0007,&err);
+      i2c_write_word(dc2dc_addr[0], 0xe5, 0x7f00,&err);
+    }else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_78B_I50)  {
+      i2c_write_word(dc2dc_addr[0], 0x35, 0xf028, &err);
+      i2c_write_word(dc2dc_addr[0], 0x36, 0xf018,&err);
+      i2c_write_word(dc2dc_addr[0], 0x38, 0x8021,&err);
+      i2c_write_word(dc2dc_addr[0], 0x39, 0xe024,&err);
+      i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+      i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+      i2c_write_byte(dc2dc_addr[0], 0x47, 0x3F,&err);
+      i2c_write_byte(dc2dc_addr[0], 0xd7, 0x03,&err);
+      i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x006e,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x007d ,&err);
       i2c_write_word(dc2dc_addr[0], 0xe6, 0x0007,&err);
       i2c_write_word(dc2dc_addr[0], 0xe5, 0x7f00,&err);
     }
+
     else if ((vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72A) ||
              (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72A_I50))  {  // FET_T_72A
       i2c_write_word(dc2dc_addr[0], 0x35, 0xf028, &err);
@@ -168,7 +185,7 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_word(dc2dc_addr[0], 0x4f, 0x007d ,&err);
       i2c_write_word(dc2dc_addr[0], 0xe6, 0x0006,&err);
       i2c_write_word(dc2dc_addr[0], 0xe5, 0x7c00,&err);
-    }  else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72B_3PHASE)  {  // FET_T_72A
+    } else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72B_3PHASE)  {
       i2c_write_word(dc2dc_addr[0], 0x35, 0xf028, &err);
        i2c_write_word(dc2dc_addr[0], 0x36, 0xf018,&err);
        i2c_write_word(dc2dc_addr[0], 0x38, 0x8021,&err);
@@ -182,6 +199,22 @@ static int dc2dc_init_rb(int addr) {
        i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
        i2c_write_word(dc2dc_addr[0], 0x51, 0x0087,&err);
        i2c_write_word(dc2dc_addr[0], 0x4f, 0x0096 ,&err);
+       i2c_write_word(dc2dc_addr[0], 0xe6, 0x0006,&err);
+       i2c_write_word(dc2dc_addr[0], 0xe5, 0x7f00,&err);
+    } else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_78B_3PHASE)  {
+       i2c_write_word(dc2dc_addr[0], 0x35, 0xf028, &err);
+       i2c_write_word(dc2dc_addr[0], 0x36, 0xf018,&err);
+       i2c_write_word(dc2dc_addr[0], 0x38, 0x8021,&err);
+       i2c_write_word(dc2dc_addr[0], 0x39, 0xe024,&err);
+       i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+       i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+       i2c_write_byte(dc2dc_addr[0], 0x47, 0x3F,&err);
+       i2c_write_byte(dc2dc_addr[0], 0xd7, 0x03,&err);
+       i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
+       i2c_write_word(dc2dc_addr[0], 0x51, 0x006e,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4f, 0x007d ,&err);
        i2c_write_word(dc2dc_addr[0], 0xe6, 0x0006,&err);
        i2c_write_word(dc2dc_addr[0], 0xe5, 0x7f00,&err);
     } else {
@@ -224,6 +257,23 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_word(dc2dc_addr[1], 0xe6, 0x001f ,&err);
       i2c_write_word(dc2dc_addr[1], 0xe5, 0x7f00 ,&err);
     }
+    if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_78B_I50) {
+      i2c_write_word(dc2dc_addr[1], 0x35, 0xf028 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x36, 0xf018 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x38, 0x8021 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a,&err);
+      i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a,&err);
+      i2c_write_byte(dc2dc_addr[1], 0x47, 0x3F ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x006e ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x007d ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x006e ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x007d ,&err);
+      i2c_write_word(dc2dc_addr[1], 0xe6, 0x001f ,&err);
+      i2c_write_word(dc2dc_addr[1], 0xe5, 0x7f00 ,&err);
+    }
+
     if ((vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72A)  ||
         (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72A_I50))  {  // FET_T_72A
       i2c_write_word(dc2dc_addr[1], 0x35, 0xf028, &err);
@@ -285,6 +335,21 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_word(dc2dc_addr[1], 0x4f, 0x0096 ,&err);
       i2c_write_word(dc2dc_addr[1], 0xe6, 0x001e ,&err);
       i2c_write_word(dc2dc_addr[1], 0xe5, 0x7f00 ,&err);    
+    } else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_78B_3PHASE)  {  // FET_T_72A
+      i2c_write_word(dc2dc_addr[1], 0x35, 0xf028 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x36, 0xf018 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x38, 0x8021 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x46, 0xf864 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x46, 0xf864 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a ,&err);
+      i2c_write_byte(dc2dc_addr[1], 0x47, 0x3F ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x0087 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0096 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x006e ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x007d ,&err);
+      i2c_write_word(dc2dc_addr[1], 0xe6, 0x001e ,&err);
+      i2c_write_word(dc2dc_addr[1], 0xe5, 0x7f00 ,&err);
     } else {
       passert("Unknown FET type");
     }
@@ -638,6 +703,7 @@ int dc2dc_get_current_16s_of_amper_channel(
   if ((chanel_id == 0) ||
       (
         (vm.fet[ASIC_TO_BOARD_ID(addr)] != FET_T_72B_3PHASE) &&
+        (vm.fet[ASIC_TO_BOARD_ID(addr)] != FET_T_78B_3PHASE) &&
         (vm.fet[ASIC_TO_BOARD_ID(addr)] != FET_T_72A_3PHASE) 
       )
      ){
