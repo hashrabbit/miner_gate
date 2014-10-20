@@ -78,7 +78,7 @@ static int dc2dc_init_rb(int addr) {
     assert(addr >= 0);
 
     if ((vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_ERROR)) {
-      disable_asic_forever_rt(addr, "FET read error");
+      disable_asic_forever_rt(addr, 1, "FET read error");
       return 0;
     }
   

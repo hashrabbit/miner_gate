@@ -203,7 +203,8 @@ void act_on_temperature(int addr, int* can_upscale) {
   int err;
   ASIC *a = &vm.asic[addr];
   if ((a->asic_temp >= vm.max_asic_temp) ||
-      ((!vm.dc2dc_temp_ignore) && (a->dc2dc.dc_temp > MAX_DC2DC_TEMP))) {
+      ((!vm.dc2dc_temp_ignore) && 
+      ((a->dc2dc.dc_temp > MAX_DC2DC_TEMP) && (a->dc2dc.dc_temp < DC2DC_TEMP_WRONG)))) {
     if (a->dc2dc.max_vtrim_temperature > VTRIM_MIN) {
       // Down 1 click on voltage, full down on FREQ 
       if (dc2dc_can_down(addr)) {
@@ -528,7 +529,7 @@ int allocate_addresses_to_devices() {
             asics_in_loop++;
             vm.asic_count++;
             vm.asic[addr].asic_present = 1;
-            disable_asic_forever_rt(addr, "User disabled");
+            disable_asic_forever_rt(addr, (addr == (ASICS_COUNT-1)) , "User disabled");
             continue;
         }
 
@@ -938,7 +939,7 @@ void on_failed_bist(int addr, bool store_limit, bool step_down_if_failed) {
       vm.asic[addr].not_brocken_engines[6]
     );
     if (vm.asic[addr].not_brocken_engines_count < 100) {
-      disable_asic_forever_rt(addr, "Asic all engines fail BIST");
+      disable_asic_forever_rt(addr,1, "Asic all engines fail BIST");
     } else {
       disable_engines_asic(addr,0);
       enable_engines_asic(addr, vm.asic[addr].not_brocken_engines, 0,1);
@@ -1043,7 +1044,7 @@ usleep(1000);
       psyslog(RED "JOB %x stuck, killing ASIC X 3\n" RESET, reg);
       //return 0;
       int addr = BROADCAST_READ_ADDR(reg);
-      disable_asic_forever_rt(addr, "bist cant start, stuck X");
+      disable_asic_forever_rt(addr, 1, "bist cant start, stuck X");
     }
     usleep(1);
   }
@@ -1079,7 +1080,7 @@ usleep(1000);
         int bad_asic = (a->last_bist_passed_engines[6] > 0x1);
         if (bad_asic) {
           psyslog("ASIC %d is evil\n", addr);
-          disable_asic_forever_rt(addr, "Very Evil ASIC");
+          disable_asic_forever_rt(addr,1, "Very Evil ASIC");
           continue;
         }
         
@@ -1278,7 +1279,7 @@ void set_initial_voltage_freq() {
          if (a->freq_hw < ASIC_FREQ_MAX - 20) {
           set_pll(i, (int)(a->freq_hw+10), 1,1, "initial stepup");
          } else {
-          disable_asic_forever_rt(i, "Runaway ASIC Bob");
+          disable_asic_forever_rt(i, 1, "Runaway ASIC Bob");
          }
        } 
      }
@@ -1892,7 +1893,8 @@ int dc2dc_can_up(int i) {
          (vm.asic[i].dc2dc.vtrim < vm.asic[i].dc2dc.max_vtrim_currentwise) && ++p &&
          (vm.asic[i].dc2dc.vtrim < vm.asic[i].dc2dc.max_vtrim_temperature) && ++p && 
          (vm.asic[i].dc2dc.vtrim < vm.asic[i].dc2dc.max_vtrim_user) && ++p &&
-         (vm.asic[i].dc2dc.dc_temp < vm.asic[i].dc2dc.dc_temp_limit) && ++p &&         
+         (vm.asic[i].dc2dc.dc_temp < vm.asic[i].dc2dc.dc_temp_limit ||
+          vm.asic[i].dc2dc.dc_temp > DC2DC_TEMP_WRONG) && ++p &&         
          (vm.ac2dc[ASIC_TO_PSU_ID(i)].ac2dc_power_limit - vm.ac2dc[ASIC_TO_PSU_ID(i)].ac2dc_power > 5) && ++p);
   //DBG(DBG_SCALING,"P[%d]=%d\n", i,p);
 
@@ -1924,7 +1926,7 @@ void dc2dc_up(int i, int *err, const  char* why) {
     }
   } else {
     psyslog("Runaway ASIC %d with freq %d\n",i,(vm.asic[i].freq_bist_limit));
-    disable_asic_forever_rt(i, "runaway freq 1"); 
+    disable_asic_forever_rt(i, 1,"runaway freq 1"); 
   }
 }
 
@@ -1971,7 +1973,8 @@ void asic_up_freq_max(int i, int wait_pll_lock, int disable_enable_engines,  con
 int asic_can_up_freq(int i) {
   return ((vm.asic[i].dc2dc.dc_current_16s < (vm.max_dc2dc_current_16s)) &&
           (vm.asic[i].freq_hw < ASIC_FREQ_MAX) &&
-          (vm.asic[i].dc2dc.dc_temp < vm.asic[i].dc2dc.dc_temp_limit) &&
+          (vm.asic[i].dc2dc.dc_temp < vm.asic[i].dc2dc.dc_temp_limit ||
+           vm.asic[i].dc2dc.dc_temp > DC2DC_TEMP_WRONG) &&
           (vm.ac2dc[ASIC_TO_PSU_ID(i)].ac2dc_power_limit - vm.ac2dc[ASIC_TO_PSU_ID(i)].ac2dc_power > 2) );
 }
 
@@ -2108,7 +2111,7 @@ void once_second_tasks_rt() {
     vm.asic[jj].idle_asic_cycles_this_min += vm.asic[jj].idle_asic_cycles_sec;
     
     if (vm.asic[jj].idle_asic_cycles_sec) {
-      psyslog(RED "[%d:I:%d%] mq=%d cons=%d\n" RESET, 
+      DBG(DBG_SCALING ,RED "[%d:I:%d%] mq=%d cons=%d\n" RESET, 
           jj,
           vm.asic[jj].idle_asic_cycles_sec/100000 , 
           vm.asic[jj].idle_asic_cycles_sec, 
