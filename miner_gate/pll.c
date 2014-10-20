@@ -380,7 +380,7 @@ int enable_good_engines_all_asics_ok(int with_reset) {
         psyslog(RED "PLL %x stuck, killing ASIC Y\n" RESET, reg);
         //return 0;
         int addr = BROADCAST_READ_ADDR(reg);
-        disable_asic_forever_rt(addr, "can't enable");
+        disable_asic_forever_rt(addr,1, "can't enable");
         killed_pll++;
       }
       usleep(10);
@@ -435,7 +435,7 @@ int wait_dll_ready(int a_addr,const char* why) {
       if (dll != 0) {
         psyslog(RED "Discovered stuck PLL %x\n" RESET, dll);
         if (addr >= 0 && addr < ASICS_COUNT) {
-          disable_asic_forever_rt(a_addr,"Stuck PLL A");
+          disable_asic_forever_rt(a_addr, 1, "Stuck PLL A");
           // Try again          
           return -1;
         } else {
@@ -505,7 +505,7 @@ void set_pll(int addr, int freq, int wait_dll_lock, int disable_enable_engines, 
   }   
 }
 
-void disable_asic_forever_rt(int addr, const char* why) {
+void disable_asic_forever_rt(int addr, int passert_if_none_left, const char* why) {
   psyslog("Called disable ASIC reset in_reset:%d\n", vm.in_asic_reset);
   if (!vm.asic[addr].asic_present) {
     return;
@@ -557,7 +557,7 @@ void disable_asic_forever_rt(int addr, const char* why) {
   // dc2dc_disable_dc2dc(addr,&err);
   vm.asic_count--;
   psyslog("Disabing ASIC forever %d (0x%x) from loop %d (%s), count %d\n", addr, addr, addr/ASICS_PER_LOOP, why, vm.asic_count);
-  if (vm.asic_count == 0) {
+  if (passert_if_none_left && (vm.asic_count == 0)) {
     passert(0);
   }
 }

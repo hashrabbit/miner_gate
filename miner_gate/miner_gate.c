@@ -1504,7 +1504,7 @@ void restart_asics_full(int reason,const char * why) {
          (vm.asic[i].user_disabled)) {
       psyslog("Disable ASIC %d\n", i);
       vm.asic[i].asic_present = 1;
-      disable_asic_forever_rt(i,NULL);
+      disable_asic_forever_rt(i,1,NULL);
     }
   }
   psyslog("-------- SOFT RESET 10.5 -----------\n");  
@@ -1712,7 +1712,7 @@ int main(int argc, char *argv[]) {
   for (int x = 0; x < ASICS_COUNT; x++) {
     if (vm.asic[x].user_disabled == ASIC_STATUS_DISABLED) {
        printf("Disabling ASIC %d:\n", x);      
-       disable_asic_forever_rt(x,"User disabled");
+       disable_asic_forever_rt(x,1, "User disabled");
     }
   }
 
