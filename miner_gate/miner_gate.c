@@ -1646,7 +1646,8 @@ int main(int argc, char *argv[]) {
   }
 
   if (no_bp) {
-    PSU12vPowerCycleALL();
+	  if ( vm.try_12v_fix )
+	  PSU12vPowerCycleALL();
     
     // Try once more...
     vm.temp_mgmt = get_mng_board_temp();
