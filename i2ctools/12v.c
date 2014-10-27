@@ -32,9 +32,9 @@
 #include "ac2dc.h"
 #include "dc2dc.h"
 
-static int mgmt_addr[4] = {0, AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_EMERSON_1200_I2C_MGMT_DEVICE};
+static int mgmt_addr[4] = {0, AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, 0, AC2DC_EMERSON_1200_I2C_MGMT_DEVICE};
 extern pthread_mutex_t i2c_mutex;
-static int eeprom_addr[4] = {0, AC2DC_MURATA_NEW_I2C_EEPROM_DEVICE, AC2DC_MURATA_OLD_I2C_EEPROM_DEVICE, AC2DC_EMERSON_1200_I2C_EEPROM_DEVICE};
+static int eeprom_addr[4] = {0, AC2DC_MURATA_NEW_I2C_EEPROM_DEVICE, 0, AC2DC_EMERSON_1200_I2C_EEPROM_DEVICE};
 static int revive_code[4] = {0, 0x0, 0x0, 0x40};
 static int revive_code_ON[4] = {0, 0x80, 0x80, 0x80};
 static int psu_addr[PSU_COUNT]  = {PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN};

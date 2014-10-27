@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
   } else if (argv[1][0] == 'm') {
        unsigned int offset = strtoul(argv[2], NULL, 16);
        unsigned int value = strtoul(argv[3], NULL, 16);;
-       push_mq_broadcast( offset,  value);
+       push_mq_write(0xff, 0xff, offset,  value);
        flush_mq_write();
        printf("[%x] => %x\n",offset,value);
 

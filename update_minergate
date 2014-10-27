@@ -37,8 +37,15 @@ sshpass -p ${SSH_PASS} scp -o StrictHostKeyChecking=no $IMAGE root@${MINER}:/etc
 echo "sync"
 sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} sync
 sleep 1
-echo TO START MINER TYPE: "sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} /usr/local/bin/spond-manager start" 
 
+echo "Start mining? (y/n)"
+read ssstart
+echo "You entered: $ssstart"
+if [ X"$ssstart" =  X"y" ]
+	then
+		echo "Starting mining..."
+		sshpass -p ${SSH_PASS} ssh -o StrictHostKeyChecking=no root@${MINER} /usr/local/bin/spond-manager start
+fi
 echo done
 
 

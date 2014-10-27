@@ -70,8 +70,27 @@ unsigned long usec_stamp ()
 	curr_usec -= first_usec;
     return curr_usec;
 }
+#ifdef MINERGATE
+void reset_asic_queue();
 
+void test_all_loops() {
+  reset_asic_queue();
+  for (int l = 0 ; l < LOOP_COUNT; l++) {
+    if (!vm.loop[l].enabled_loop) {
+      continue;
+    }
+    
+    unsigned int bypass_loops = ((~(1 << l)) & SQUID_LOOPS_MASK);
+    psyslog("ADDR_SQUID_LOOP_BYPASS = %x\n", bypass_loops);
+    write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
+    if (test_serial(l) != 1) {
+      mg_event_x("Loop failed %d", l);
+    }
+  }
+  write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops))&SQUID_LOOPS_MASK);
 
+}
+#endif
 void parse_squid_status(int v) {
   if (v & BIT_STATUS_SERIAL_Q_TX_FULL)
     printf("BIT_STATUS_SERIAL_Q_TX_FULL       ");
@@ -404,7 +423,7 @@ void flush_spi_write() {
   }
 }
 
-void push_mq_broadcast(uint32_t offset, uint32_t value) {
+void push_mq_write(uint8_t asic_addr, uint8_t engine_addr, uint32_t offset, uint32_t value) {
   uint32_t l_d1;
   uint32_t l_d2;
   if(asic_mq_stack_size >= 64) {
@@ -413,10 +432,10 @@ void push_mq_broadcast(uint32_t offset, uint32_t value) {
   }
   //printf("asic_serial_stack_size=%d\n",asic_serial_stack_size);
   if (enable_reg_debug) {
-      printf("%d - MQ: reg mq %04x %02x %x\n", usec_stamp(), (((int)ANY_ASIC)<<8)|ANY_ENGINE, offset, value);
+      printf("%d - MQ: reg mq %04x %02x %x\n", usec_stamp(), (((int)asic_addr)<<8)|engine_addr, offset, value);
   }
 
-  create_serial_pkt(&l_d1, &l_d2, offset, 0, (((int)ANY_ASIC)<<8)|ANY_ENGINE, value, 0);
+  create_serial_pkt(&l_d1, &l_d2, offset, 0, (((int)asic_addr)<<8)|engine_addr, value, 0);
 
   asic_mq_stack[asic_mq_stack_size++] = l_d1;
   asic_mq_stack[asic_mq_stack_size++] = l_d2;
@@ -561,11 +580,13 @@ uint32_t _read_reg_actual(QUEUED_REG_ELEMENT *e, int *err) {
 #endif      
       psyslog("READ TIMEOUT 0x%x 0x%x\n", e->addr, e->offset);
       mg_event_x("Data Timeout on read %x:%x (%d)", e->addr, e->offset,spi_timeout_count);
+      // Test loops?
       spi_timeout_count++;
 #ifdef MINERGATE
       // wait milli
       //*err = 1;
       //set_light_on_off(LIGHT_YELLOW, false);
+      test_all_loops();
       return 0;
 #endif
     } else {

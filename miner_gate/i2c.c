@@ -130,13 +130,15 @@ int i2c_getint(int source) {
 
 
 // 0 = no error
-uint8_t i2c_read(uint8_t addr, int *pError) {
+uint8_t i2c_read(uint8_t addr, int *pError, int verbose) {
   uint8_t res;
    passert(pError);
   pthread_mutex_lock(&i2cm);
   i2c_set_address(addr, pError);
   if (*pError != 0) {
-    psyslog(RED "i2c read 0x%x error1\n" RESET, addr);
+     if (verbose) {
+       psyslog(RED "i2c read 0x%x error1\n" RESET, addr);
+     }
      passert(0);
     res = 0;
   } else // no reason to call read, if we failed to set address.
@@ -149,18 +151,22 @@ uint8_t i2c_read(uint8_t addr, int *pError) {
   return res;
 }
 
-void i2c_write(uint8_t addr, uint8_t value, int *pError) {
+void i2c_write(uint8_t addr, uint8_t value, int *pError, int verbose) {
   
   pthread_mutex_lock(&i2cm);
    passert(pError);
   i2c_set_address(addr, pError);
 
   if (pError != NULL && *pError != 0) {
-       psyslog(RED "i2c write 0x%x = 0x%x error1\n" RESET, addr, value); 
+       if (verbose) {
+          psyslog(RED "i2c write 0x%x = 0x%x error1\n" RESET, addr, value); 
+       }
        //print_stack();
   } else {
     if (i2c_smbus_write_byte(file, value) == -1) {
-      psyslog(RED "i2c write 0x%x = 0x%x error2\n" RESET, addr, value); 
+      if (verbose) {
+       psyslog(RED "i2c write 0x%x = 0x%x error2\n" RESET, addr, value); 
+      }
       //print_stack();
       if (pError != NULL)
         *pError = -1;
@@ -172,7 +178,7 @@ void i2c_write(uint8_t addr, uint8_t value, int *pError) {
   pthread_mutex_unlock(&i2cm);
 }
 
-uint8_t i2c_read_byte(uint8_t addr, uint8_t command, int *pError) {
+uint8_t i2c_read_byte(uint8_t addr, uint8_t command, int *pError, int verbose) {
   uint8_t res = 0;
   __s32 r;
   pthread_mutex_lock(&i2cm);
@@ -181,15 +187,17 @@ uint8_t i2c_read_byte(uint8_t addr, uint8_t command, int *pError) {
 
   i2c_set_address(addr, pError);
   if (*pError != 0) {
-    printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);    
-    psyslog(RED "i2c read byte 0x%x 0x%x error1\n" RESET, addr, command);
+    if (verbose) {
+      psyslog(RED "i2c read byte 0x%x 0x%x error1\n" RESET, addr, command);
+    }
   //  passert(0);
   //  res = 0xFF;
   } else {
     r = i2c_smbus_read_byte_data(file, command, pError);
     res = r & 0xFF;
     if (*pError) {
-      psyslog(RED "i2c read byte 0x%x 0x%x error2\n" RESET, addr, command);
+      if (verbose) 
+        psyslog(RED "i2c read byte 0x%x 0x%x error2\n" RESET, addr, command);
      // passert(0);
      // res = 0;
     }
@@ -201,7 +209,7 @@ uint8_t i2c_read_byte(uint8_t addr, uint8_t command, int *pError) {
 
 
 //TODO
-uint8_t i2c_waddr_read_byte(uint8_t addr, uint16_t dev_addr, int *pError) {
+uint8_t i2c_waddr_read_byte(uint8_t addr, uint16_t dev_addr, int *pError, int verbose) {
   uint8_t res = 0;
   //__s32 r;
   passert(pError);
@@ -216,18 +224,19 @@ uint8_t i2c_waddr_read_byte(uint8_t addr, uint16_t dev_addr, int *pError) {
 
   i2c_set_address(addr, pError);
   if (*pError != 0) {
-    printf("i2c_read_byte(%d): call to i2c_set_address returned with err %d\n",__LINE__ , *pError);
-    psyslog(RED "i2c read byte 0x%x 0x%x error1\n" RESET, addr, command);
+    if (verbose)
+      psyslog(RED "i2c read byte 0x%x 0x%x error1\n" RESET, addr, command);
     passert(0);
   //  res = 0xFF;
   } else {
     __s32 ioctl_err = i2c_smbus_access(file , I2C_SMBUS_READ , command , I2C_SMBUS_WORD_DATA , &data);
 
     if (0 != ioctl_err) {
-    	printf("i2c error caught in i2c_smbus_read_byte_data %d\n" , ioctl_err);
-        if (NULL != pError)
-          * pError = ioctl_err;
-    }
+      if (verbose)
+      	psyslog("i2c error caught in i2c_smbus_read_byte_data %d\n" , ioctl_err);
+      if (NULL != pError)
+        * pError = ioctl_err;
+  }
 
     else{
     	res = data.byte;
@@ -238,19 +247,21 @@ uint8_t i2c_waddr_read_byte(uint8_t addr, uint16_t dev_addr, int *pError) {
   return res;
 }
 
-void i2c_waddr_write_byte(uint8_t addr, uint16_t dev_addr, uint8_t value, int *pError) {
+void i2c_waddr_write_byte(uint8_t addr, uint16_t dev_addr, uint8_t value, int *pError, int verbose) {
 	  pthread_mutex_lock(&i2cm);
 	  passert(pError);
 	  i2c_set_address(addr, pError);
 	  if (*pError != 0) {
-	    psyslog(RED "i2c write byte 0x%x 0x%x = 0x%x error3\n" RESET, addr, dev_addr, value);
+      if (verbose)
+  	    psyslog(RED "i2c write byte 0x%x 0x%x = 0x%x error3\n" RESET, addr, dev_addr, value);
       print_stack();
 
 	  } else {
 		  uint8_t command = (uint8_t)(dev_addr & 0xFF);
 		  uint8_t block[] = { (uint8_t)(dev_addr >> 8),value};
 		  if (i2c_smbus_write_block_data(file , command , 2 , block) == -1){
-	    	  psyslog(RED "i2c_waddr_write_byte 0x%x 0x%x = 0x%x error4 ; c=%d , b0=%d , b1=%d\n" RESET, addr, dev_addr, value , command , block[0] , block[1]);
+          if (verbose)
+	      	  psyslog(RED "i2c_waddr_write_byte 0x%x 0x%x = 0x%x error4 ; c=%d , b0=%d , b1=%d\n" RESET, addr, dev_addr, value , command , block[0] , block[1]);
 	        *pError = -1;
 	    }
 	    //usleep(SLEEP_TIME_I2C);
@@ -259,16 +270,18 @@ void i2c_waddr_write_byte(uint8_t addr, uint16_t dev_addr, uint8_t value, int *p
 	  pthread_mutex_unlock(&i2cm);
 }
 
-void i2c_write_byte(uint8_t addr, uint8_t command, uint8_t value, int *pError) {
+void i2c_write_byte(uint8_t addr, uint8_t command, uint8_t value, int *pError, int verbose) {
   pthread_mutex_lock(&i2cm);
   passert(pError);
   i2c_set_address(addr, pError);
   if (*pError != 0) {
-    psyslog(RED "i2c write byte 0x%x 0x%x = 0x%x error5\n" RESET, addr, command, value);
+    if (verbose)
+      psyslog(RED "i2c write byte 0x%x 0x%x = 0x%x error5\n" RESET, addr, command, value);
 
   } else {
     if (i2c_smbus_write_byte_data(file, command, value) == -1) {
-      psyslog(RED "i2c write byte 0x%x 0x%x = 0x%x error6\n" RESET, addr, command, value);
+      if (verbose)
+        psyslog(RED "i2c write byte 0x%x 0x%x = 0x%x error6\n" RESET, addr, command, value);
       *pError = -1;
     }
     //usleep(SLEEP_TIME_I2C);
@@ -279,14 +292,15 @@ void i2c_write_byte(uint8_t addr, uint8_t command, uint8_t value, int *pError) {
 
 
 
-uint16_t i2c_read_word(uint8_t addr, uint8_t command, int *pError) {
+uint16_t i2c_read_word(uint8_t addr, uint8_t command, int *pError, int verbose) {
   __s32 r;
   pthread_mutex_lock(&i2cm);
   passert(pError);
   i2c_set_address(addr, pError);
   if ( *pError != 0) {
 #ifdef MINERGATE
-	    psyslog(RED "i2c read word 0x%x 0x%x error7\n" RESET, addr, command);
+      if (verbose)
+  	    psyslog(RED "i2c read word 0x%x 0x%x error7\n" RESET, addr, command);
 #else
     	perror("i2c read word error7\n" );
 #endif
@@ -296,7 +310,8 @@ uint16_t i2c_read_word(uint8_t addr, uint8_t command, int *pError) {
     r = i2c_smbus_read_word_data(file, command, pError);
     if ( *pError != 0) {
 #ifdef MINERGATE
-    	psyslog(RED "i2c read word 0x%x 0x%x error8\n" RESET, addr, command, *pError);
+      if (verbose)
+      	psyslog(RED "i2c read word 0x%x 0x%x error8\n" RESET, addr, command, *pError);
 #else
     	perror("i2c read word error8\n");
 #endif
@@ -314,15 +329,17 @@ uint16_t i2c_read_word(uint8_t addr, uint8_t command, int *pError) {
 }
 
 void i2c_write_word(uint8_t addr, uint8_t command, uint16_t value,
-                    int *pError) {
+                    int *pError, int verbose) {
   pthread_mutex_lock(&i2cm);
   i2c_set_address(addr, pError);
   if (pError != NULL && *pError != 0) {
-    psyslog(RED "i2c write word 0x%x 0x%x = 0x%x error9\n" RESET, addr, command, value);        
+    if (verbose)
+      psyslog(RED "i2c write word 0x%x 0x%x = 0x%x error9\n" RESET, addr, command, value);        
   } else {
     if ((i2c_smbus_write_word_data(file, command, value) == -1) &&
         (pError != NULL)) {
-      psyslog(RED "i2c write word 0x%x 0x%x = 0x%x errora\n" RESET, addr, command, value);        
+      if (verbose)
+        psyslog(RED "i2c write word 0x%x 0x%x = 0x%x errora\n" RESET, addr, command, value);        
       *pError = -1;
     }
 

@@ -181,6 +181,7 @@ int main(int argc, char *argv[])
         		 break;
         	 case AC2DC_TYPE_MURATA_OLD:
         		 sprintf(psu_type,"%s","MURATA_OLD");
+             passert(0);
         		 break;
         	 case AC2DC_TYPE_EMERSON_1_2:
         		 sprintf(psu_type,"%s","EMERSON1200");
@@ -231,6 +232,7 @@ int main(int argc, char *argv[])
         		 sprintf(psu_type,"%s","MURATA_NEW");
         		 break;
         	 case AC2DC_TYPE_MURATA_OLD:
+             passert(0);
         		 sprintf(psu_type,"%s","MURATA_OLD");
         		 break;
         	 case AC2DC_TYPE_EMERSON_1_2:

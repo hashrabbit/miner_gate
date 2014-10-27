@@ -1,3 +1,4 @@
+#!/bin/bash
 #arm-none-linux-gnueabi-gcc spi_reg.c spilib.c -o spi_reg -g -O0
 #arm-none-linux-gnueabi-gcc hammer_kit.c hammer_tester.c spilib.c -o hammer_test -g -O0
 #gcc -g -O0 miner_gate.c minergate_lib.c   -o server 
@@ -11,7 +12,7 @@ make
 cd ../
 arm-none-linux-gnueabi-g++ -g -O0 -fpermissive  -rdynamic miner_gate_tester/miner_gate_tester.c miner_gate/spond_debug.c miner_gate/mg_proto_parser_sp30.c miner_gate/sha256.c -o miner_gate_test_arm -lpthread -static-libstdc++ -static-libgcc -I./miner_gate -I./miner_gate_tester
 cd hammer_reg
-./make_me
+. make_me
 cd ../
 arm-none-linux-gnueabi-g++ -g -O0 -fpermissive  -rdynamic miner_gate_tester/miner_gate_tester.c miner_gate/spond_debug.c miner_gate/mg_proto_parser_sp30.c miner_gate/sha256.c -o miner_gate_test_arm -lpthread -static-libstdc++ -static-libgcc -I./miner_gate -I./miner_gate_tester
 

@@ -23,10 +23,10 @@
 
 extern MINER_BOX vm;
 extern pthread_mutex_t i2c_mutex;
-static int mgmt_addr[5] = {0, AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_EMERSON_1600_I2C_MGMT_DEVICE};
-static int eeprom_addr[5] = {0, AC2DC_MURATA_NEW_I2C_EEPROM_DEVICE, AC2DC_MURATA_OLD_I2C_EEPROM_DEVICE, AC2DC_EMERSON_1200_I2C_EEPROM_DEVICE,AC2DC_EMERSON_1600_I2C_EEPROM_DEVICE};
+static int mgmt_addr[5] = {0, AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, 0, AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_EMERSON_1600_I2C_MGMT_DEVICE};
+static int eeprom_addr[5] = {0, AC2DC_MURATA_NEW_I2C_EEPROM_DEVICE, 0, AC2DC_EMERSON_1200_I2C_EEPROM_DEVICE,AC2DC_EMERSON_1600_I2C_EEPROM_DEVICE};
 static int revive_code_off[5] = {0, 0x0, 0x0, 0x40, 0x40};
-static int revive_code_on[5] = {0, 0x80, 0x80, 0x80, 0x80};
+static int revive_code_on[5] = {0, 0x80, 0x0, 0x80, 0x80};
 static int psu_addr[PSU_COUNT]  = {PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN}; 
 int get_fake_power(int psu_id);
 
@@ -81,11 +81,6 @@ bool ac2dc_check_connected(int psu_id) {
   int err;
   bool ret = false;
   i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
-  i2c_read_word(AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
-  if (!err) {
-    ret= true;
-  }
-
   
   i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
   if (!err) {
@@ -112,14 +107,7 @@ void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
  int err;
  
  i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
- 
-     int res = i2c_read_word(AC2DC_MURATA_OLD_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
-      if (!err) {
-#ifdef MINERGATE
-        psyslog("OLD MURATA AC2DC LOCATED\n");
-#endif
-        ac2dc->ac2dc_type = AC2DC_TYPE_MURATA_OLD;
-      } else {
+      {
         i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
         if (!err) {
 #ifdef MINERGATE
@@ -374,12 +362,15 @@ void test_fix_ac2dc_limits() {
       if ((p & (AC2DC_I2C_READ_STATUS_IOUT_OP_ERR | AC2DC_I2C_READ_STATUS_IOUT_OC_ERR)) ||
               ((ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_2) && (q != 0x1f))) {            
         psyslog("AC2DC OVERCURRENT 0:%x\n",p);
+        PSU12vPowerCycleALL();
+/*
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_WRITE_PROTECT,0x0,&err);
         usleep(3000000);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,revive_code_off[ac2dc->ac2dc_type],&err);
-        usleep(1000000);
+        usleep(3000000);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,0x80,&err);
-
+        usleep(3000000);
+*/
          if ((p & AC2DC_I2C_READ_STATUS_IOUT_OC_ERR) &&
             (vm.ac2dc[PSU_0].ac2dc_power_limit > 1270)) {
           mg_event_x("update 0 work mode %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
@@ -408,11 +399,15 @@ void test_fix_ac2dc_limits() {
       if ((p & (AC2DC_I2C_READ_STATUS_IOUT_OP_ERR | AC2DC_I2C_READ_STATUS_IOUT_OC_ERR)) ||
            ((ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_2) && (q != 0x1f))) {
         psyslog("AC2DC OVERCURRENT BOTTOM:%x\n",p);
+        PSU12vPowerCycleALL();
+/*
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_WRITE_PROTECT,0x0,&err);
         usleep(3000000);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,revive_code_off[ac2dc->ac2dc_type],&err);
-        usleep(1000000);
+        usleep(3000000);
         i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,0x80,&err);
+        usleep(3000000);
+*/
         if ((p & AC2DC_I2C_READ_STATUS_IOUT_OC_ERR) &&
             (vm.ac2dc[PSU_1].ac2dc_power_limit > 1270)) {
           mg_event_x("update bottom work mode %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
@@ -464,7 +459,8 @@ void update_single_psu(AC2DC *ac2dc, int psu_id) {
       ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
       ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power, ac2dc->ac2dc_power_last_last);        
 
-      DBG( DBG_SCALING ,"PowerOut: R:%d PM:%d [PL:%d PLL:%d PLLL:%d]\n", 
+      DBG( DBG_POWER ,"PowerOut %d: R:%d PM:%d [PL:%d PLL:%d PLLL:%d]\n", 
+               psu_id,
                p,
                ac2dc->ac2dc_power,
                ac2dc->ac2dc_power_now,
@@ -539,7 +535,7 @@ static void PSU12vONOFF (int psu , bool ON){
 		return;
 	}
 
-	 pthread_mutex_lock(&i2c_mutex);
+	pthread_mutex_lock(&i2c_mutex);
 
 	int _type = vm.ac2dc[psu].ac2dc_type;
 //	printf ("I2C_WRITE(0x%X , 0x%X )\n" , PRIMARY_I2C_SWITCH,psu_addr[psu]);
