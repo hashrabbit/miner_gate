@@ -895,19 +895,99 @@ void read_generic_ac2dc() {
 #endif
 }
 
-
-
-
 void read_max_asic_temp() {
-  vm.max_asic_temp = MAX_ASIC_TEMPERATURE;
-  FILE* file = fopen ("/etc/mg_max_asic_temp", "r");
-  if (file != 0) {
-    int res = fscanf (file, "%d", &vm.max_asic_temp);
-    fclose (file);
-    passert(res == 1);
-    passert(vm.max_asic_temp >= ASIC_TEMP_90 && vm.max_asic_temp <= ASIC_TEMP_125);
-  } 
-  psyslog("DC2DC ignore temp %d\n", vm.dc2dc_temp_ignore);
+    FILE* file = fopen("/etc/mg_max_temp_by_asic", "r");
+    if (file != 0) {
+        int r;
+
+#ifndef SP2x  
+        r = fscanf(file, "0:%d 1:%d 2:%d\n",
+                &vm.asic[0].max_temp_by_asic,
+                &vm.asic[1].max_temp_by_asic,
+                &vm.asic[2].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "3:%d 4:%d 5:%d\n",
+                &vm.asic[3].max_temp_by_asic,
+                &vm.asic[4].max_temp_by_asic,
+                &vm.asic[5].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "6:%d 7:%d 8:%d\n",
+                &vm.asic[6].max_temp_by_asic,
+                &vm.asic[7].max_temp_by_asic,
+                &vm.asic[8].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "9:%d 10:%d 11:%d\n",
+                &vm.asic[9].max_temp_by_asic,
+                &vm.asic[10].max_temp_by_asic,
+                &vm.asic[11].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "12:%d 13:%d 14:%d\n",
+                &vm.asic[12].max_temp_by_asic,
+                &vm.asic[13].max_temp_by_asic,
+                &vm.asic[14].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "15:%d 16:%d 17:%d\n",
+                &vm.asic[15].max_temp_by_asic,
+                &vm.asic[16].max_temp_by_asic,
+                &vm.asic[17].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "18:%d 19:%d 20:%d\n",
+                &vm.asic[18].max_temp_by_asic,
+                &vm.asic[19].max_temp_by_asic,
+                &vm.asic[20].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "21:%d 22:%d 23:%d\n",
+                &vm.asic[21].max_temp_by_asic,
+                &vm.asic[22].max_temp_by_asic,
+                &vm.asic[23].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "24:%d 25:%d 26:%d\n",
+                &vm.asic[24].max_temp_by_asic,
+                &vm.asic[25].max_temp_by_asic,
+                &vm.asic[26].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "27:%d 28:%d 29:%d\n",
+                &vm.asic[27].max_temp_by_asic,
+                &vm.asic[28].max_temp_by_asic,
+                &vm.asic[29].max_temp_by_asic);
+        passert(r == 3);
+
+#else  // SP20
+        r = fscanf(file, "0:%d 1:%d\n",
+                &vm.asic[0].max_temp_by_asic,
+                &vm.asic[1].max_temp_by_asic);
+        passert(r == 2);
+        r = fscanf(file, "2:%d 3:%d\n",
+                &vm.asic[2].max_temp_by_asic,
+                &vm.asic[3].max_temp_by_asic);
+        passert(r == 2);
+        r = fscanf(file, "4:%d 5:%d\n",
+                &vm.asic[4].max_temp_by_asic,
+                &vm.asic[5].max_temp_by_asic);
+        passert(r == 2);
+        r = fscanf(file, "6:%d 7:%d\n",
+                &vm.asic[6].max_temp_by_asic,
+                &vm.asic[7].max_temp_by_asic);
+        passert(r == 2);
+#endif
+        fclose(file);
+    } else {
+        int max_asic_temp = MAX_ASIC_TEMPERATURE;
+        FILE* file = fopen("/etc/mg_max_asic_temp", "r");
+        if (file != 0) {
+            int res = fscanf(file, "%d", &max_asic_temp);
+            fclose(file);
+            passert(res == 1);
+        }
+        for (int addr = 0; addr < ASICS_COUNT; addr++) {
+            vm.asic[addr].max_temp_by_asic = (ASIC_TEMP) max_asic_temp;
+        }
+    }
+
+    for (int a = 0; a < ASICS_COUNT; a++) {
+        passert(vm.asic[a].max_temp_by_asic >= ASIC_TEMP_105 && vm.asic[a].max_temp_by_asic <= ASIC_TEMP_125);
+    }
+    psyslog("DC2DC ignore temp %d\n", vm.dc2dc_temp_ignore);
 }
 
 

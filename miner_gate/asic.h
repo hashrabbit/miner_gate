@@ -294,7 +294,7 @@ typedef struct {
   uint32_t idle_asic_cycles_last_sec;
   uint32_t idle_asic_cycles_this_min;  
   uint32_t idle_asic_cycles_last_min;    
-
+  ASIC_TEMP max_temp_by_asic;
   DC2DC dc2dc;
 } ASIC;
 
@@ -470,7 +470,6 @@ typedef struct {
   int hw_errs;
   int fpga_ver;
   int try_12v_fix;
-  int max_asic_temp;
   int cur_leading_zeroes;
   // We give less LZ then needed to do faster scaling.
   // When system just started, search optimal speed agressively

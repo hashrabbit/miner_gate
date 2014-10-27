@@ -168,9 +168,9 @@ void thermal_init(int addr) {
   write_reg_asic(addr, NO_ENGINE,ADDR_TS_RSTN_0, 0);
   write_reg_asic(addr, NO_ENGINE,ADDR_TS_RSTN_1, 0);
   // Set to vm.max_asic_temp-1
-  write_reg_asic(addr, NO_ENGINE,ADDR_TS_SET_0, (vm.max_asic_temp-2));
+  write_reg_asic(addr, NO_ENGINE,ADDR_TS_SET_0, (ASIC_TEMP_120));
   // Set to vm.max_asic_temp
-  write_reg_asic(addr, NO_ENGINE,ADDR_TS_SET_1, (vm.max_asic_temp-1));
+  write_reg_asic(addr, NO_ENGINE,ADDR_TS_SET_1, (ASIC_TEMP_120));
   write_reg_asic(addr, NO_ENGINE,ADDR_TS_RSTN_0, 1);
   write_reg_asic(addr, NO_ENGINE,ADDR_TS_RSTN_1, 1);
   flush_spi_write();
@@ -179,7 +179,7 @@ void thermal_init(int addr) {
 void act_on_temperature(int addr, int* can_upscale) {
   int err;
   ASIC *a = &vm.asic[addr];
-  if ((a->asic_temp >= vm.max_asic_temp) ||
+  if ((a->asic_temp >= vm.asic[addr].max_temp_by_asic) ||
       ((!vm.dc2dc_temp_ignore) && 
       ((a->dc2dc.dc_temp > MAX_DC2DC_TEMP) && (a->dc2dc.dc_temp < DC2DC_TEMP_WRONG)))) {
     if (a->dc2dc.max_vtrim_temperature > VTRIM_MIN) {
@@ -1721,10 +1721,13 @@ void print_scaling() {
    
       total_asics++;
 
-      fprintf(f, GREEN RESET " ASIC:[%s%3dc%s " GREEN,
-        (a->asic_temp>=vm.max_asic_temp-1)?((a->asic_temp>=vm.max_asic_temp)?RED:YELLOW):GREEN,((a->asic_temp*5)+85),
+      fprintf(f, GREEN RESET " ASIC:[%s%3dc%s" GREEN,
+        (a->asic_temp>=a->max_temp_by_asic-1)?((a->asic_temp>=a->max_temp_by_asic)?RED:YELLOW):GREEN,((a->asic_temp*5)+85),
         ((a->cooling_down)?("*"):(" ")));
 
+        fprintf(f,"(%3dc) ",a->max_temp_by_asic*5+85);
+
+      
       fprintf(f, "%s%3dhz%s(BL:%4d) %4d" RESET /*"%08x%08x%08x%08x%08x%08x%08x"*/ " (E:%d) F:%x]\n",
          ((a->freq_hw>=800)? (MAGENTA) : ((a->freq_hw<=600)?(CYAN):(YELLOW))), (a->freq_hw),GREEN,
           (a->freq_bist_limit),
@@ -1749,7 +1752,7 @@ void print_scaling() {
   }
   // print last loop
   // print total hash power
-  fprintf(f, RESET "\n[H:HW:%dGh,W:%d,L:%d,A:%d,MMtmp:%d TMP:(%d)=>=>=>(%d,%d)]\nMax-asic-temp=%d\n",
+  fprintf(f, RESET "\n[H:HW:%dGh,W:%d,L:%d,A:%d,MMtmp:%d TMP:(%d)=>=>=>(%d,%d)]\n",
                 (vm.total_mhash)/1000,
                 total_watt/16,
                 total_loops,
@@ -1757,8 +1760,7 @@ void print_scaling() {
                 vm.mgmt_temp_max,
                 vm.temp_mgmt,
                 vm.temp_top,
-                vm.temp_bottom,
-                85+vm.max_asic_temp*5
+                vm.temp_bottom
   );
 
 

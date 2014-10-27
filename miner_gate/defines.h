@@ -50,7 +50,7 @@
 #ifdef SP2x
 #define MAX_ASIC_TEMPERATURE ASIC_TEMP_125
 #else
-#define MAX_ASIC_TEMPERATURE ASIC_TEMP_115
+#define MAX_ASIC_TEMPERATURE ASIC_TEMP_120
 #endif
 #define MAX_FAN_LEVEL                   100
 
