@@ -74,6 +74,7 @@ unsigned long usec_stamp ()
 void reset_asic_queue();
 
 void test_all_loops() {
+   mg_event_x("Testing LOOPs");
   reset_asic_queue();
   for (int l = 0 ; l < LOOP_COUNT; l++) {
     if (!vm.loop[l].enabled_loop) {
@@ -81,7 +82,7 @@ void test_all_loops() {
     }
     
     unsigned int bypass_loops = ((~(1 << l)) & SQUID_LOOPS_MASK);
-    psyslog("Bad loop %x ", bypass_loops);
+    //psyslog("Bad loop %x ", bypass_loops);
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
     if (test_serial(l) != 1) {
       mg_event_x("Loop serial failed %d", l);

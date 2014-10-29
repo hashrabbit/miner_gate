@@ -1392,7 +1392,7 @@ void once_second_scaling_logic() {
        )
       {
       DBG(DBG_SCALING,"BIST!\n");
-      int i=0; 
+      
 
       for (int xx = 0; xx < ASICS_COUNT ; xx++) {
         vm.asic[xx].dc2dc.revolted = 0;
@@ -1400,17 +1400,18 @@ void once_second_scaling_logic() {
       
       //end_stopper(&tv, "UPVOLT1");
       for (int psu = 0 ; psu < PSU_COUNT ; psu++) {
+        int i=0; 
         if (vm.ac2dc[psu].board_cooling_now == 0) {
           while(i < DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD) {
             // Find most optimal to up-volt
             int best = best_asic_to_upvolt(psu);
             if ((best == -1) || (!dc2dc_can_up(best))) {
-              DBG(DBG_SCALING,"CANNOT UPSCALE %d\n", best);
-              break;
+              DBG(DBG_SCALING1,"CANNOT UPSCALE %d\n", best);
+              i=DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD;
             } else {
               i++;
               ASIC *a = &vm.asic[best];
-              DBG(DBG_SCALING,"UPSCALE %d\n", best);
+              DBG(DBG_SCALING1,"UPSCALE %d\n", best);
               dc2dc_up(best,&err,"upvolt time");
             }
           }
@@ -1622,7 +1623,7 @@ void print_production() {
   fprintf(f, "%d err_runtime_disable\n", vm.err_runtime_disable);  
   fprintf(f, "%d err_purge_queue\n", vm.err_purge_queue);  
   fprintf(f, "%d err_read_timeouts\n", vm.err_read_timeouts);    
-  fprintf(f, "%d err_dc2dc_oc\n", vm.err_dc2dc_oc);    
+  fprintf(f, "%d err_dc2dc_i2c_error\n", vm.err_dc2dc_i2c_error);    
   fprintf(f, "%d err_read_timeouts2\n", vm.err_read_timeouts2);  
   fprintf(f, "%d err_read_corruption\n", vm.err_read_corruption);  
   fprintf(f, "%d err_purge_queue3\n", vm.err_purge_queue3);  
@@ -1793,7 +1794,7 @@ void print_scaling() {
    fprintf(f, " %d runtime_dsble\n", vm.err_runtime_disable);  
    fprintf(f, " %d purge_queue   ", vm.err_purge_queue);  
    fprintf(f, " %d read_timeouts ", vm.err_read_timeouts);    
-   fprintf(f, " %d dc2dc_oc      ", vm.err_dc2dc_oc);    
+   fprintf(f, " %d dc2dc_i2c      ", vm.err_dc2dc_i2c_error);    
    fprintf(f, " %d read_tmout2   ", vm.err_read_timeouts2);  
    fprintf(f, " %d read_crptn \n", vm.err_read_corruption);  
    fprintf(f, " %d purge_queue3  ", vm.err_purge_queue3);  
@@ -1982,14 +1983,16 @@ void update_dc2dc_stats(int i, int restart_on_err = 1) {
               &vm.asic[i].dc2dc.dc_temp,
               &vm.asic[i].dc2dc.dc_current_16s,
               &err);
-    if (err && restart_on_err) {
-        vm.err_dc2dc_oc++;  
-        if ((vm.err_dc2dc_oc % 10) == 0) {
-          test_lost_address();
-          restart_asics_full(6, "Dc2Dc i2c error");
-          return;
-        }
+    if (err) {
+      vm.err_dc2dc_i2c_error++;  
+      mg_event_x("dc2dc i2c error %d", i);
+      test_lost_address();
+      if (restart_on_err) {
+        restart_asics_full(6, "Dc2Dc i2c error");
+      }
+      return;
     }
+    
     //passert(err == 0);
     if (overcurrent_warning) {
       // Downscale ASIC voltage

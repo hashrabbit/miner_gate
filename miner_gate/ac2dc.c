@@ -82,17 +82,17 @@ bool ac2dc_check_connected(int psu_id) {
   bool ret = false;
   i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
   
-  i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
+  i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err, 0);
   if (!err) {
    ret= true;
   }
 
-  i2c_read_word(AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
+  i2c_read_word(AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err, 0);
   if (!err) {
     ret= true;
   }
 
-  i2c_read_word(AC2DC_EMERSON_1600_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
+  i2c_read_word(AC2DC_EMERSON_1600_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err, 0);
   if (!err) {
     ret= true;
   }
@@ -108,7 +108,7 @@ void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
  
  i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
       {
-        i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
+        i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err, 0);
         if (!err) {
 #ifdef MINERGATE
           psyslog("EMERSON 1200 AC2DC LOCATED\n");
@@ -116,7 +116,7 @@ void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
           ac2dc->ac2dc_type = AC2DC_TYPE_EMERSON_1_2;
         } else {
           // NOT EMERSON 1200
-          i2c_read_word(AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
+          i2c_read_word(AC2DC_MURATA_NEW_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err, 0);
           if (!err) {
 #ifdef MINERGATE
            psyslog("NEW MURATA AC2DC LOCATED\n");
@@ -124,7 +124,7 @@ void ac2dc_init_one(AC2DC* ac2dc, int psu_id) {
            ac2dc->ac2dc_type = AC2DC_TYPE_MURATA_NEW;
           } else {
           // NOT EMERSON 1200
-          i2c_read_word(AC2DC_EMERSON_1600_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err);
+          i2c_read_word(AC2DC_EMERSON_1600_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err, 0);
           if (!err) {
 #ifdef MINERGATE
            psyslog("EMERSON 1600 AC2DC LOCATED\n");
@@ -161,8 +161,8 @@ void ac2dc_init() {
       ac2dc_init_one(&vm.ac2dc[i], i);
     }
   }
- 
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
+  read_ac2dc_errors();
 }
 #endif
 
@@ -345,6 +345,30 @@ int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative)
 void exit_nicely(int seconds_sleep_before_exit, const char* p);
 static pthread_t ac2dc_thread;
 
+void read_ac2dc_errors() {  
+  int err;
+  int p0 = 0xbadbabe;
+  int p1 = 0xbadbabe;
+#ifndef SP2x   
+  if (vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
+    AC2DC* ac2dc = &vm.ac2dc[PSU_0];
+    p0 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
+    i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);
+  }
+  if (vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
+    AC2DC* ac2dc = &vm.ac2dc[PSU_1];
+    p1 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
+    i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);    
+  }
+  mg_event_x("AC2DC status: %x %x",p0,p1);
+  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  
+#endif  
+}
+
+
+
 void test_fix_ac2dc_limits() {
 #ifdef SP2x
 #else
@@ -518,6 +542,9 @@ void *update_ac2dc_power_measurments_thread(void *ptr) {
   //pthread_exit(NULL);
   return NULL;
 }
+
+
+
 
 int update_ac2dc_power_measurments() {
   update_ac2dc_power_measurments_thread(NULL);
