@@ -104,7 +104,7 @@ void read_spi_mult(uint8_t addr, int count, int values[]);
 void init_spi();
 unsigned long usec_stamp();
 
-
+void test_all_loops();
 void parse_squid_status(int v);
 void parse_squid_q_status(int v);
 // Flush write command to SPI

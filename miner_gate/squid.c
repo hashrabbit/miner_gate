@@ -81,10 +81,10 @@ void test_all_loops() {
     }
     
     unsigned int bypass_loops = ((~(1 << l)) & SQUID_LOOPS_MASK);
-    psyslog("ADDR_SQUID_LOOP_BYPASS = %x\n", bypass_loops);
+    psyslog("Bad loop %x ", bypass_loops);
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
     if (test_serial(l) != 1) {
-      mg_event_x("Loop failed %d", l);
+      mg_event_x("Loop serial failed %d", l);
     }
   }
   write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops))&SQUID_LOOPS_MASK);

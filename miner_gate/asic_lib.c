@@ -1966,7 +1966,7 @@ void asic_up_freq(int i, int wait_pll_lock, int disable_enable_engines, const ch
 
 // Each DC2DC takes 10 milli to poll.
 // All board takes 300 milli.
-void update_dc2dc_stats(int i) {
+void update_dc2dc_stats(int i, int restart_on_err = 1) {
   int overcurrent_err;
   int overcurrent_warning;
   uint8_t temp;
@@ -1982,7 +1982,7 @@ void update_dc2dc_stats(int i) {
               &vm.asic[i].dc2dc.dc_temp,
               &vm.asic[i].dc2dc.dc_current_16s,
               &err);
-    if (err) {
+    if (err && restart_on_err) {
         vm.err_dc2dc_oc++;  
         if ((vm.err_dc2dc_oc % 10) == 0) {
           test_lost_address();
@@ -2005,6 +2005,19 @@ void update_dc2dc_stats(int i) {
   }
 
 }
+
+
+
+void test_all_dc2dc() {
+  mg_event_x("Testing DC2DC");
+  for(int i = 0; i < ASICS_COUNT; i++) {
+     ASIC *a = &vm.asic[i];
+     if (a->asic_present) {
+       update_dc2dc_stats(i, 0);
+     }
+   }
+}
+  
 
 
 void once_33milli_tasks_rt() {

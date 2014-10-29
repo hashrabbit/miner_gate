@@ -36,6 +36,7 @@ int dc2dc_is_removed(int addr);
 int dc2dc_is_removed_or_disabled(int addr);
 int dc2dc_is_user_disabled(int addr);
 int loop_is_removed_or_disabled(int l);
+void test_all_dc2dc();
 
 
 int dc2dc_get_all_stats(

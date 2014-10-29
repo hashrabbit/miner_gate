@@ -67,7 +67,6 @@ i2cset –y 0 0x18 0xe5 0x7f00 w
 i2cset –y 0 0x18 0x15
 usleep 10000
 i2cset -y 0 0x18 0x03
-
 */
 
 // not locked
@@ -680,10 +679,11 @@ int dc2dc_get_current_16s_of_amper_channel(
   int problems = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7b);
   *overcurrent_err |= (problems & 0x80);
   *overcurrent_warning |= (problems & 0x20);
-  if (*overcurrent_err || *overcurrent_warning || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
-    psyslog(RED "DC2DC[%d] 7b (overcurrent) - 0x%x\n" RESET,addr,problems);
-    psyslog("DC2DC 7A (vout status) %d = %x", addr ,gen_stat2);
-    psyslog("DC2DC 78 (status) %d = %x", addr ,gen_stat);
+  if (*overcurrent_err || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
+    mg_event_x(RED "DC2DC[%d] 7b=0x%x, 7A=%x, 78=%x\n" RESET,addr,problems, gen_stat2, gen_stat);
+    i2c_write(dc2dc_channel_i2c_addr, 0x03);
+  }
+  if (*overcurrent_warning) {
     i2c_write(dc2dc_channel_i2c_addr, 0x03);
   }
 
@@ -730,12 +730,15 @@ int dc2dc_get_current_16s_of_amper_channel(
     int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A); 
     *overcurrent_err |= (problems & 0x80);
     *overcurrent_warning |= (problems & 0x20);  
-    if (*overcurrent_err || *overcurrent_warning) {
-      i2c_write(dc2dc_channel_i2c_addr, 0x03);
-      psyslog(RED "DC2DC<%d> 7b - 0x%x\n" RESET,addr,problems);
-      psyslog("DC2DC 7A (vout status) %d = %x", addr ,gen_stat2);
-      psyslog("DC2DC 78 (status) %d = %x", addr ,gen_stat);
-    }
+
+    if (*overcurrent_err || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
+       mg_event_x(RED "DC2DC<%d> 7b=0x%x, 7A=%x, 78=%x\n" RESET,addr,problems, gen_stat2, gen_stat);
+       i2c_write(dc2dc_channel_i2c_addr, 0x03);
+     }
+     if (*overcurrent_warning) {
+       i2c_write(dc2dc_channel_i2c_addr, 0x03);
+     }
+
     
     overtemp = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7d);
     if (overtemp & 0xC0) {

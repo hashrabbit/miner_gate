@@ -139,7 +139,7 @@ int test_serial(int loopid) {
 extern pthread_mutex_t i2c_mutex;
 extern pthread_mutex_t i2cm;
 void store_last_voltage();
-void update_dc2dc_stats(int i);
+void update_dc2dc_stats(int i, int restart_on_oc = 1);
 
 void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   int i, err2;
@@ -1472,7 +1472,9 @@ void test_lost_address() {
 void restart_asics_full(int reason,const char * why) {  
   int err;
   // Close all possible i2c devices
-  i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);   
+  test_all_loops();
+  test_all_dc2dc();
+  i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);
 #ifndef SP2x  
   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err);    
 #endif
@@ -1494,7 +1496,7 @@ void restart_asics_full(int reason,const char * why) {
     asics[i] = vm.asic[i];
     ASIC *a = &vm.asic[i];
     if (a->asic_present) {
-      update_dc2dc_stats(i);
+      update_dc2dc_stats(i, true);
       if (vm.asic[i].dc2dc.dc_current_16s < 7*16) {
           has_chiko = i;
           mg_event_x("Lazy asic %d",i);
