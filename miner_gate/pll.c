@@ -423,6 +423,8 @@ int wait_dll_ready(int a_addr,const char* why) {
    do {
      i++;
      dll = read_reg_asic(a_addr, NO_ENGINE, ADDR_INTR_BC_PLL_NOT_READY);
+     //int ver = read_reg_asic(a_addr, NO_ENGINE, ADDR_VERSION);     
+     //psyslog("%d: DLL=%x, VER=%x\n", a_addr, dll, ver);
    } while ((dll != 0) && (i < 3000));
 
    if (dll != 0) {
@@ -430,6 +432,7 @@ int wait_dll_ready(int a_addr,const char* why) {
       psyslog(RED "Error::: PLL stuck:%x asic(%d/%d) LOOP:%d (%s), %d\n" RESET,dll, a_addr,addr,addr/ASICS_PER_LOOP,why,i);      
       write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x0);
       write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x1);
+      mg_event_x("ASIC ERROR PLL on address %d", a_addr);
       usleep(10000);
       dll = read_reg_asic(addr, NO_ENGINE, ADDR_INTR_BC_PLL_NOT_READY);
       if (dll != 0) {
@@ -558,6 +561,7 @@ void disable_asic_forever_rt(int addr, int passert_if_none_left, const char* why
   vm.asic_count--;
   psyslog("Disabing ASIC forever %d (0x%x) from loop %d (%s), count %d\n", addr, addr, addr/ASICS_PER_LOOP, why, vm.asic_count);
   if (passert_if_none_left && (vm.asic_count == 0)) {
+    mg_event("NO ASICS LEFT!");
     passert(0);
   }
 }

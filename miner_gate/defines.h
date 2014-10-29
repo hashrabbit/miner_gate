@@ -21,16 +21,13 @@
 #define CHECK_GARBAGE_READ
 #define RESET_MQ_ON_BIST
 #define RUNTIME_BIST
-#ifdef SP2x
-//#define SLOW_START_WORK
-#endif
+//#ifdef SP2x
+#define SLOW_START_WORK
+//#endif
 //#define LIQUID_COOLING
-
 //#define REMO_STRESS
-
 //#define DOWNSCALE_ON_ERRORS
 //#define INFILOOP_TEST
-
 //#define ASSAFS_EXPERIMENTAL_PLL
 //#define ZVISHA_TEST
 //#define DUMMY_I2C_EMERSON_FIX
@@ -53,7 +50,7 @@
 #ifdef SP2x
 #define MAX_ASIC_TEMPERATURE ASIC_TEMP_125
 #else
-#define MAX_ASIC_TEMPERATURE ASIC_TEMP_115
+#define MAX_ASIC_TEMPERATURE ASIC_TEMP_120
 #endif
 #define MAX_FAN_LEVEL                   100
 

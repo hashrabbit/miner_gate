@@ -139,7 +139,7 @@ int test_serial(int loopid) {
 extern pthread_mutex_t i2c_mutex;
 extern pthread_mutex_t i2cm;
 void store_last_voltage();
-void update_dc2dc_stats(int i);
+void update_dc2dc_stats(int i, int restart_on_oc = 1);
 
 void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   int i, err2;
@@ -182,7 +182,7 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   psyslog("Here comes unexpected death, lights off!\n");
 
   for (i = 0; i < ASICS_COUNT ; i++) {
-    if(! dc2dc_is_user_disabled(i))
+    if(! dc2dc_is_removed(i))
 	  dc2dc_disable_dc2dc(i, &err2);
   }
   psyslog("Dye (%s)!\n", why);
@@ -413,6 +413,7 @@ void *connection_handler_thread(void *adptr) {
             push_work_rsp(&work,1);
          }
          vm.consecutive_jobs = 0;
+         //vm.all_engines_enable_countdown = SLOW_ENABLE_MODULO;
          pthread_mutex_unlock(&asic_mutex);
 
          
@@ -633,12 +634,12 @@ int discover_good_loops_restart_12v() {
     		  }
     		  vm.asic[h].not_brocken_engines[ENGINE_BITMASCS-1] = 0x1;
     	  } else {
-  			vm.asic[h].dc2dc.dc2dc_present = 0;
-  			psyslog("Disabling ASIC %d because REMOVED\n", h);
-  			vm.asic[h].asic_present = 0;
-  			for (int j = 0; j < ENGINE_BITMASCS; j++) {
-  			  vm.asic[h].not_brocken_engines[j] = 0;
-  			}
+    			vm.asic[h].dc2dc.dc2dc_present = 0;
+    			psyslog("Disabling ASIC %d because REMOVED\n", h);
+    			vm.asic[h].asic_present = 0;
+    			for (int j = 0; j < ENGINE_BITMASCS; j++) {
+    			  vm.asic[h].not_brocken_engines[j] = 0;
+    			}
     	  }
       }
       printf("loop %d enabled\n", i);
@@ -667,15 +668,15 @@ int discover_good_loops_restart_12v() {
         int err;
         int overcurrent_err, overcurrent_warning;
 
-        if (! dc2dc_is_user_disabled(h))
+        if (! dc2dc_is_removed_or_disabled(h))
         {
-			dc2dc_get_all_stats(
-				  h,
-				  &overcurrent_err,
-				  &overcurrent_warning,
-				  &vm.asic[h].dc2dc.dc_temp,
-				  &vm.asic[h].dc2dc.dc_current_16s,
-				  &err);
+    			dc2dc_get_all_stats(
+    				  h,
+    				  &overcurrent_err,
+    				  &overcurrent_warning,
+    				  &vm.asic[h].dc2dc.dc_temp,
+    				  &vm.asic[h].dc2dc.dc_current_16s,
+    				  &err);
 			dc2dc_disable_dc2dc(h,&err);
 			if (vm.loop[h].user_disabled) {
 			  vm.asic[h].why_disabled = "Loop user disabled!";
@@ -894,19 +895,99 @@ void read_generic_ac2dc() {
 #endif
 }
 
-
-
-
 void read_max_asic_temp() {
-  vm.max_asic_temp = MAX_ASIC_TEMPERATURE;
-  FILE* file = fopen ("/etc/mg_max_asic_temp", "r");
-  if (file != 0) {
-    int res = fscanf (file, "%d", &vm.max_asic_temp);
-    fclose (file);
-    passert(res == 1);
-    passert(vm.max_asic_temp >= ASIC_TEMP_100 && vm.max_asic_temp <= ASIC_TEMP_125);
-  } 
-  psyslog("DC2DC ignore temp %d\n", vm.dc2dc_temp_ignore);
+    FILE* file = fopen("/etc/mg_max_temp_by_asic", "r");
+    if (file != 0) {
+        int r;
+
+#ifndef SP2x  
+        r = fscanf(file, "0:%d 1:%d 2:%d\n",
+                &vm.asic[0].max_temp_by_asic,
+                &vm.asic[1].max_temp_by_asic,
+                &vm.asic[2].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "3:%d 4:%d 5:%d\n",
+                &vm.asic[3].max_temp_by_asic,
+                &vm.asic[4].max_temp_by_asic,
+                &vm.asic[5].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "6:%d 7:%d 8:%d\n",
+                &vm.asic[6].max_temp_by_asic,
+                &vm.asic[7].max_temp_by_asic,
+                &vm.asic[8].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "9:%d 10:%d 11:%d\n",
+                &vm.asic[9].max_temp_by_asic,
+                &vm.asic[10].max_temp_by_asic,
+                &vm.asic[11].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "12:%d 13:%d 14:%d\n",
+                &vm.asic[12].max_temp_by_asic,
+                &vm.asic[13].max_temp_by_asic,
+                &vm.asic[14].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "15:%d 16:%d 17:%d\n",
+                &vm.asic[15].max_temp_by_asic,
+                &vm.asic[16].max_temp_by_asic,
+                &vm.asic[17].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "18:%d 19:%d 20:%d\n",
+                &vm.asic[18].max_temp_by_asic,
+                &vm.asic[19].max_temp_by_asic,
+                &vm.asic[20].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "21:%d 22:%d 23:%d\n",
+                &vm.asic[21].max_temp_by_asic,
+                &vm.asic[22].max_temp_by_asic,
+                &vm.asic[23].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "24:%d 25:%d 26:%d\n",
+                &vm.asic[24].max_temp_by_asic,
+                &vm.asic[25].max_temp_by_asic,
+                &vm.asic[26].max_temp_by_asic);
+        passert(r == 3);
+        r = fscanf(file, "27:%d 28:%d 29:%d\n",
+                &vm.asic[27].max_temp_by_asic,
+                &vm.asic[28].max_temp_by_asic,
+                &vm.asic[29].max_temp_by_asic);
+        passert(r == 3);
+
+#else  // SP20
+        r = fscanf(file, "0:%d 1:%d\n",
+                &vm.asic[0].max_temp_by_asic,
+                &vm.asic[1].max_temp_by_asic);
+        passert(r == 2);
+        r = fscanf(file, "2:%d 3:%d\n",
+                &vm.asic[2].max_temp_by_asic,
+                &vm.asic[3].max_temp_by_asic);
+        passert(r == 2);
+        r = fscanf(file, "4:%d 5:%d\n",
+                &vm.asic[4].max_temp_by_asic,
+                &vm.asic[5].max_temp_by_asic);
+        passert(r == 2);
+        r = fscanf(file, "6:%d 7:%d\n",
+                &vm.asic[6].max_temp_by_asic,
+                &vm.asic[7].max_temp_by_asic);
+        passert(r == 2);
+#endif
+        fclose(file);
+    } else {
+        int max_asic_temp = MAX_ASIC_TEMPERATURE;
+        FILE* file = fopen("/etc/mg_max_asic_temp", "r");
+        if (file != 0) {
+            int res = fscanf(file, "%d", &max_asic_temp);
+            fclose(file);
+            passert(res == 1);
+        }
+        for (int addr = 0; addr < ASICS_COUNT; addr++) {
+            vm.asic[addr].max_temp_by_asic = (ASIC_TEMP) max_asic_temp;
+        }
+    }
+
+    for (int a = 0; a < ASICS_COUNT; a++) {
+        passert(vm.asic[a].max_temp_by_asic >= ASIC_TEMP_105 && vm.asic[a].max_temp_by_asic <= ASIC_TEMP_125);
+    }
+    psyslog("DC2DC ignore temp %d\n", vm.dc2dc_temp_ignore);
 }
 
 
@@ -1385,13 +1466,15 @@ void test_lost_address() {
       }
     }
   } else {
-    mg_event_x("No reset detected in ASICs");
+    //mg_event_x("No reset detected in ASICs");
   }
 }
 void restart_asics_full(int reason,const char * why) {  
   int err;
   // Close all possible i2c devices
-  i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);   
+  test_all_loops();
+  test_all_dc2dc();
+  i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);
 #ifndef SP2x  
   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err);    
 #endif
@@ -1404,7 +1487,8 @@ void restart_asics_full(int reason,const char * why) {
   }
   vm.in_asic_reset = 1;
   vm.asic_count = 0;
-
+  vm.all_engines_enable_countdown = SLOW_ENABLE_MODULO;
+  psyslog(":::all_engines_enable_countdown %d\n", vm.all_engines_enable_countdown);
   // Test AC2DC    
   static ASIC asics[ASICS_COUNT];
   int has_chiko = -1;
@@ -1412,7 +1496,7 @@ void restart_asics_full(int reason,const char * why) {
     asics[i] = vm.asic[i];
     ASIC *a = &vm.asic[i];
     if (a->asic_present) {
-      update_dc2dc_stats(i);
+      update_dc2dc_stats(i, true);
       if (vm.asic[i].dc2dc.dc_current_16s < 7*16) {
           has_chiko = i;
           mg_event_x("Lazy asic %d",i);
@@ -1520,24 +1604,12 @@ void restart_asics_full(int reason,const char * why) {
   psyslog("-------- SOFT RESET DONE -----------\n");     
   vm.in_asic_reset = 0;
   mg_event_x("Restart ASICS done :)%d", vm.in_asic_reset);
+  vm.all_engines_enable_countdown = SLOW_ENABLE_MODULO;
 }
 
 
 
-void restart_asics_part(const char * why) {
-   static int inside = 0;
-   if (inside) {
-      restart_asics_full(7,why);
-      return;
-   }
-   inside = 1;
-   mg_event_x("restart_asics_part (%s)", why);
-   // Just relock the PLLs
-   for (int x = 0; x < ASICS_COUNT; x++) {
-    set_pll(x, vm.asic[x].freq_hw, 1, 0,  "Reset");
-   }
-   inside = 0;
-}
+void print_scaling();
 
 
 int main(int argc, char *argv[]) {
@@ -1632,6 +1704,7 @@ int main(int argc, char *argv[]) {
   mg_event("Started!");
 
 
+
   vm.temp_mgmt = get_mng_board_temp();
   vm.temp_top = get_top_board_temp();
   vm.temp_bottom = get_bottom_board_temp();
@@ -1644,6 +1717,19 @@ int main(int argc, char *argv[]) {
     }
     psyslog("TAKE ONE BOARD %d PRESENT:%d\n",p, !vm.board_not_present[p]);
   }
+
+  print_scaling();
+
+/*
+  psyslog( "------------------------\n");
+  psyslog( "------------------------\n");
+  psyslog( "-----  PEROFM POWER CYCLE     --------\n");
+  PSU12vPowerCycleALL();    
+  psyslog( "------------------------\n");
+  psyslog( "------------------------\n");
+  */
+
+
 
   if (no_bp) {
 	  if ( vm.try_12v_fix )
@@ -1748,7 +1834,10 @@ int main(int argc, char *argv[]) {
   }
 
   vm.in_asic_reset = 0;
+  vm.all_engines_enable_countdown = SLOW_ENABLE_MODULO;
+
   psyslog("Starting HW thread\n");
+  
   s = pthread_create(&main_thread, NULL, squid_regular_state_machine_rt, (void *)NULL);
   passert(s == 0);
   minergate_adapter *adapter = new minergate_adapter;

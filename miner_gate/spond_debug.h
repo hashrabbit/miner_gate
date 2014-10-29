@@ -21,13 +21,16 @@
 #define DBG_WINS 0
 #define DBG_HW 0
 #define DBG_SCALING 0
+#define DBG_POWER 0
+#define DBG_TEMP 0
+
 #define DBG_HASH 0
 #define DBG_I2C 0
 #define DBG_IDLE 0
 #define DBG_BIST 0
 #define DBG_REGS 0
 
-
+/*
 #define RED "\x1b[31m"
 #define GREEN "\x1b[32m"
 #define YELLOW "\x1b[33m"
@@ -53,6 +56,30 @@
 #define MAGENTA_BOLD "\x1b[1;35m"
 #define CYAN_BOLD "\x1b[1;36m"
 #define WHITE_BOLD "\x1b[1;37m"
+*/
+
+#define RED ""
+#define GREEN ""
+#define YELLOW ""
+#define BLUE ""
+#define MAGENTA ""
+#define CYAN ""
+#define RESET ""
+#define RED_BK ""
+#define GREEN_BK ""
+#define YELLOW_BK ""
+#define BLUE_BK ""
+#define MAGENTA_BK ""
+#define CYAN_BK ""
+#define WHITE_BK ""
+#define RED_BOLD ""
+#define GREEN_BOLD ""
+#define YELLOW_BOLD ""
+#define BLUE_BOLD ""
+#define MAGENTA_BOLD ""
+#define CYAN_BOLD ""
+#define WHITE_BOLD ""
+
 
 #define DBG(DBG_TYPE, STR...)                                                  \
   if (DBG_TYPE) {                                                              \

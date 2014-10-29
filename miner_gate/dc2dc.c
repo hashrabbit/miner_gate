@@ -67,7 +67,6 @@ i2cset –y 0 0x18 0xe5 0x7f00 w
 i2cset –y 0 0x18 0x15
 usleep 10000
 i2cset -y 0 0x18 0x03
-
 */
 
 // not locked
@@ -83,7 +82,7 @@ static int dc2dc_init_rb(int addr) {
     }
   
 
-    if (dc2dc_is_user_disabled(addr)){
+    if (dc2dc_is_removed(addr)){
     	psyslog("skipping DC2DC %d, REMOVED/DISABLED\n",addr);
     	passert(0);
     	return 0;
@@ -375,7 +374,7 @@ void dc2dc_init() {
    psyslog("DC2DC stop all\n");
    for (int addr = 0; addr < ASICS_COUNT; addr++) {
     if (!vm.board_not_present[ASIC_TO_BOARD_ID(addr)]) {
-      if (! dc2dc_is_user_disabled(addr))
+      if (!dc2dc_is_removed(addr))
     	dc2dc_disable_dc2dc(addr,&err);
     }
   }
@@ -388,8 +387,8 @@ void dc2dc_init() {
   
   for (int addr = 0; addr < ASICS_COUNT; addr++) {
     int success = 0;
-    if (dc2dc_is_user_disabled(addr)) {
-        printf("dc2dc %d skipped (REMOVED/DISABLED)\n", addr);
+    if (dc2dc_is_removed(addr)) {
+        printf("dc2dc %d skipped (REMOVED)\n", addr);
         success = 0;
     } else if (!vm.board_not_present[ASIC_TO_BOARD_ID(addr)]) {
       success = dc2dc_init_rb(addr);
@@ -400,8 +399,8 @@ void dc2dc_init() {
       success = 0;
     }
     
-    if (dc2dc_is_user_disabled(addr)) {
-    	printf("dc2dc %d REMOVED/DISABLED - setting accordingly\n", addr);
+    if (dc2dc_is_removed_or_disabled(addr)) {
+    	printf("dc2dc %d REMOVED - setting accordingly\n", addr);
     	vm.asic[addr].dc2dc.dc2dc_present = 0;
     	vm.asic[addr].asic_present = 0;
     	vm.asic[addr].why_disabled = "REMOVED/DISABLED";
@@ -428,7 +427,7 @@ static void dc2dc_set_phase(int phase_addr, int channel_mask, int *err) {
 
 void dc2dc_disable_dc2dc(int addr, int *err) {  
    //printf("%s:%d\n",__FILE__, __LINE__);
-  passert(!dc2dc_is_user_disabled(addr));
+  passert(!dc2dc_is_removed(addr));
   pthread_mutex_lock(&i2c_mutex);
   //printf("%s:%d\n",__FILE__, __LINE__);
   dc2dc_select_i2c(addr, err);
@@ -461,7 +460,7 @@ int loop_is_removed_or_disabled(int l) {
 
 
 void dc2dc_enable_dc2dc(int addr, int *err) {
-	passert(!dc2dc_is_user_disabled(addr));
+	passert(!dc2dc_is_removed(addr));
 // disengage from scale manager if not needed
 #ifdef MINERGATE
   if (vm.asic[addr].dc2dc.dc2dc_present) {
@@ -588,7 +587,7 @@ int dc2dc_set_dcr_inductor_cat(int addr,int value){
 
 
 static void dc2dc_select_i2c(int addr, int *err) { // 1 or 0
-  passert(!dc2dc_is_user_disabled(addr));
+  passert(!dc2dc_is_removed(addr));
 
   int top = (addr < ASICS_PER_BOARD);
 #ifndef SP2x
@@ -613,7 +612,7 @@ static void dc2dc_select_i2c(int addr, int *err) { // 1 or 0
 
 void dc2dc_set_vtrim(int addr, uint32_t vtrim, bool vmargin_75low  , int *err, const char* why) {
   DBG(DBG_SCALING, "Set VOLTAGE ASIC %d Milli:%d Vtrim:%x (%s)\n",addr, VTRIM_TO_VOLTAGE_MILLI(vtrim),vtrim, why);
-  passert(!dc2dc_is_user_disabled(addr));
+  passert(!dc2dc_is_removed(addr));
 #ifdef MINERGATE
   passert((vtrim >= VTRIM_MIN) && (vtrim <= vm.vtrim_max));
 #endif
@@ -658,7 +657,7 @@ int dc2dc_get_current_16s_of_amper_channel(
   
   uint8_t temp2;
   int temp_reg;
-  passert(!dc2dc_is_user_disabled(addr));
+  passert(!dc2dc_is_removed_or_disabled(addr));
   dc2dc_set_phase(dc2dc_channel_i2c_addr,0 , err);
   temp_reg = i2c_read_word(dc2dc_channel_i2c_addr, 0x8e, err);
   if ((vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72B) ||
@@ -676,26 +675,24 @@ int dc2dc_get_current_16s_of_amper_channel(
   *current = (i2c_read_word(dc2dc_channel_i2c_addr, 0x8c) & 0x07FF);
 //  psyslog("CURRENT %d:%d =%d\n",addr, chanel_id*2 ,(*current)/16);
   int gen_stat = i2c_read_byte(dc2dc_channel_i2c_addr, 0x78);
-  if (gen_stat & 0x08) {
-     // mg_event_x("gen_stat %d = %x", addr ,gen_stat);
-  }
-  int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A);
-  if (gen_stat2 & 0x10) {
-     // mg_event_x("gen_stat2 %d = %x", addr ,gen_stat2);
-  }
-
-  
+  int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A); 
   int problems = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7b);
   *overcurrent_err |= (problems & 0x80);
   *overcurrent_warning |= (problems & 0x20);
-  if (*overcurrent_err || *overcurrent_warning || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
-    psyslog(RED "DC2DC 7b 1 - 0x%x\n" RESET,problems);
+  if (*overcurrent_err || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
+    mg_event_x(RED "DC2DC[%d] 7b=0x%x, 7A=%x, 78=%x\n" RESET,addr,problems, gen_stat2, gen_stat);
+    i2c_write(dc2dc_channel_i2c_addr, 0x03);
+  }
+  if (*overcurrent_warning) {
     i2c_write(dc2dc_channel_i2c_addr, 0x03);
   }
 
   int overtemp = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7d);
   if (overtemp & 0xC0) {
-    psyslog(RED "DC2DC A OVERTEMP WARN %d:p%d - 0x%x\n" RESET,addr,dc2dc_channel_i2c_addr,overtemp);
+    if (!vm.asic[addr].ot_warned_a) {
+      psyslog(RED "DC2DC A TEMP WARN %d:p%d - 0x%x\n" RESET,addr,dc2dc_channel_i2c_addr,overtemp);
+      vm.asic[addr].ot_warned_a = 1;
+    }
     i2c_write(dc2dc_channel_i2c_addr, 0x03);
   }
 
@@ -729,16 +726,26 @@ int dc2dc_get_current_16s_of_amper_channel(
       *temp = temp2;
     }
     problems = i2c_read_word(dc2dc_channel_i2c_addr, 0x7b);  
+    int gen_stat = i2c_read_byte(dc2dc_channel_i2c_addr, 0x78);
+    int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A); 
     *overcurrent_err |= (problems & 0x80);
     *overcurrent_warning |= (problems & 0x20);  
-    if (*overcurrent_err || *overcurrent_warning) {
-      i2c_write(dc2dc_channel_i2c_addr, 0x03);
-      psyslog(RED "DC2DC 7b 2 - 0x%x\n" RESET,problems);
-    }
+
+    if (*overcurrent_err || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
+       mg_event_x(RED "DC2DC<%d> 7b=0x%x, 7A=%x, 78=%x\n" RESET,addr,problems, gen_stat2, gen_stat);
+       i2c_write(dc2dc_channel_i2c_addr, 0x03);
+     }
+     if (*overcurrent_warning) {
+       i2c_write(dc2dc_channel_i2c_addr, 0x03);
+     }
+
     
     overtemp = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7d);
     if (overtemp & 0xC0) {
-      psyslog(RED "DC2DC B OVERTEMP WARN %d:p%d - 0x%x\n" RESET,addr,dc2dc_channel_i2c_addr,overtemp);
+      if (!vm.asic[addr].ot_warned_b) {
+        psyslog(RED "DC2DC B OVERTEMP WARN %d:p%d - 0x%x\n" RESET,addr,dc2dc_channel_i2c_addr,overtemp);
+        vm.asic[addr].ot_warned_b = 1;
+      }
       i2c_write(dc2dc_channel_i2c_addr, 0x03);
     }
   }
@@ -764,7 +771,7 @@ int dc2dc_get_all_stats(
   // TODO - select addr!
   // int err = 0;
   passert(err != NULL);
-  passert(!dc2dc_is_user_disabled(addr));
+  passert(!dc2dc_is_removed_or_disabled(addr));
   //printf("%s:%d\n",__FILE__, __LINE__);
   *err = 0;
 
@@ -817,7 +824,7 @@ int dc2dc_get_all_stats(
   *overcurrent_err = phaze_overcurrent_err[0] || phaze_overcurrent_err[1];
   *overcurrent_warning = phaze_overcurrent_warning[0] || phaze_overcurrent_warning[1];
   if (*overcurrent_err || *overcurrent_warning) {
-    psyslog(YELLOW "DC ERROR:%d, WARNING:%d\n" RESET,*overcurrent_err, *overcurrent_warning);
+    psyslog(YELLOW "DC %d ERROR:%d, WARNING:%d\n" RESET,addr,*overcurrent_err, *overcurrent_warning);
   }
   *temp = (phaze_temp[0] > phaze_temp[1])? phaze_temp[0] : phaze_temp[1];
   //printf("%d %d %d\n",*current,phaze_current[0],phaze_current[1]);

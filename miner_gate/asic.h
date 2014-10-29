@@ -269,7 +269,8 @@ typedef struct {
   int last_bist_result;
   int engines_down;
   int cooling_down;
-  
+  int ot_warned_a;
+  int ot_warned_b;  
   // Asic temperature/frequency (polled periodicaly)
   ASIC_TEMP asic_temp;   
   int freq_hw;            // current frequency
@@ -293,7 +294,7 @@ typedef struct {
   uint32_t idle_asic_cycles_last_sec;
   uint32_t idle_asic_cycles_this_min;  
   uint32_t idle_asic_cycles_last_min;    
-
+  ASIC_TEMP max_temp_by_asic;
   DC2DC dc2dc;
 } ASIC;
 
@@ -390,10 +391,7 @@ typedef struct {
 #define FET_T_78B_3PHASE	 11
 #define FET_ERROR            100
 
-
-#ifdef SLOW_START_WORK
-#define ALL_ENGINE_COUNTDOWN_TIMER (ASICS_COUNT)
-#endif
+#define SLOW_ENABLE_MODULO  8
 
 typedef struct {
   // Fans set to high
@@ -472,7 +470,6 @@ typedef struct {
   int hw_errs;
   int fpga_ver;
   int try_12v_fix;
-  int max_asic_temp;
   int cur_leading_zeroes;
   // We give less LZ then needed to do faster scaling.
   // When system just started, search optimal speed agressively

@@ -43,7 +43,7 @@ void PSU12vPowerCycleALL();
 // PSU types.
 #define AC2DC_TYPE_UNKNOWN     0
 #define AC2DC_TYPE_MURATA_NEW  1
-#define AC2DC_TYPE_MURATA_OLD  2
+#define AC2DC_TYPE_MURATA_OLD  2 // Removed!! Should not be used
 #define AC2DC_TYPE_EMERSON_1_2 3
 #define AC2DC_TYPE_EMERSON_1_6 4
 

@@ -89,7 +89,7 @@
 #define GENERAL_BITS_CONDITION 0x10
 
 #if 1
-#define PUSH_JOB(A,B) push_mq_broadcast(A,B)
+#define PUSH_JOB(A,B) push_mq_write(ANY_ASIC, ANY_ENGINE,A,B)
 #define FLUSH_JOB() flush_mq_write()
 #else
 #define PUSH_JOB(A,B) push_asic_write(ANY_ASIC, ANY_ENGINE, A,B)
@@ -104,12 +104,12 @@ void read_spi_mult(uint8_t addr, int count, int values[]);
 void init_spi();
 unsigned long usec_stamp();
 
-
+void test_all_loops();
 void parse_squid_status(int v);
 void parse_squid_q_status(int v);
 // Flush write command to SPI
 void flush_spi_write();
-void push_mq_broadcast(uint32_t offset, uint32_t value);
+void push_mq_write(uint8_t asic_addr, uint8_t engine_addr, uint32_t offset, uint32_t value);
 void flush_mq_write();
 int mq_size();
 int squid_wait_asic_reads();
