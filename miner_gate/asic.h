@@ -415,7 +415,7 @@ typedef struct {
   int err_runtime_disable;  
   int err_purge_queue;  
   int err_read_timeouts;    
-  int err_dc2dc_oc;    
+  int err_dc2dc_i2c_error;    
   int err_bad_idle;
   int dc2dc_temp_ignore;  
 

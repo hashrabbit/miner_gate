@@ -21,6 +21,8 @@
 #define DBG_WINS 0
 #define DBG_HW 0
 #define DBG_SCALING 0
+#define DBG_SCALING1 1
+
 #define DBG_POWER 0
 #define DBG_TEMP 0
 
@@ -30,7 +32,7 @@
 #define DBG_BIST 0
 #define DBG_REGS 0
 
-/*
+
 #define RED "\x1b[31m"
 #define GREEN "\x1b[32m"
 #define YELLOW "\x1b[33m"
@@ -56,8 +58,8 @@
 #define MAGENTA_BOLD "\x1b[1;35m"
 #define CYAN_BOLD "\x1b[1;36m"
 #define WHITE_BOLD "\x1b[1;37m"
-*/
 
+/*
 #define RED ""
 #define GREEN ""
 #define YELLOW ""
@@ -79,7 +81,7 @@
 #define MAGENTA_BOLD ""
 #define CYAN_BOLD ""
 #define WHITE_BOLD ""
-
+*/
 
 #define DBG(DBG_TYPE, STR...)                                                  \
   if (DBG_TYPE) {                                                              \

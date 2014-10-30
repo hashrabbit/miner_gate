@@ -1471,9 +1471,12 @@ void test_lost_address() {
 }
 void restart_asics_full(int reason,const char * why) {  
   int err;
+  mg_event_x("restart_asics_full (%s)", why);
   // Close all possible i2c devices
+  update_ac2dc_power_measurments();
   test_all_loops();
   test_all_dc2dc();
+  read_ac2dc_errors();
   i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);
 #ifndef SP2x  
   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err);    
@@ -1531,7 +1534,7 @@ void restart_asics_full(int reason,const char * why) {
   vm.consecutive_jobs = 10;
   vm.start_run_time = time(NULL);
   vm.err_restarted++;
-  mg_event_x("restart_asics_full (%s)", why);
+
   
   print_stack();
   psyslog("-------- SOFT RESET 0 -----------\n");  
@@ -1587,7 +1590,10 @@ void restart_asics_full(int reason,const char * why) {
     if ((!vm.asic[i].asic_present) ||
          (vm.asic[i].user_disabled)) {
       psyslog("Disable ASIC %d\n", i);
-      vm.asic[i].asic_present = 1;
+      if (!vm.asic[i].asic_present) {
+        vm.asic_count++;
+        vm.asic[i].asic_present = 1;
+      }
       disable_asic_forever_rt(i,1,NULL);
     }
   }
