@@ -1738,9 +1738,11 @@ int main(int argc, char *argv[]) {
 
 
   if (no_bp) {
+#ifndef SP2x
 	  if ( vm.try_12v_fix )
 	  PSU12vPowerCycleALL();
-    
+#endif
+
     // Try once more...
     vm.temp_mgmt = get_mng_board_temp();
     vm.temp_top = get_top_board_temp();
