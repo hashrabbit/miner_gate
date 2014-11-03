@@ -611,7 +611,7 @@ static void dc2dc_select_i2c(int addr, int *err) { // 1 or 0
 
 
 void dc2dc_set_vtrim(int addr, uint32_t vtrim, bool vmargin_75low  , int *err, const char* why) {
-  DBG(DBG_SCALING, "Set VOLTAGE ASIC %d Milli:%d Vtrim:%x (%s)\n",addr, VTRIM_TO_VOLTAGE_MILLI(vtrim),vtrim, why);
+  DBG(DBG_SCALING1, "ASIC:%d Milli:%d (%x) (%s)\n",addr, VTRIM_TO_VOLTAGE_MILLI(vtrim),vtrim, why);
   passert(!dc2dc_is_removed(addr));
 #ifdef MINERGATE
   passert((vtrim >= VTRIM_MIN) && (vtrim <= vm.vtrim_max));
@@ -680,7 +680,7 @@ int dc2dc_get_current_16s_of_amper_channel(
   *overcurrent_err |= (problems & 0x80);
   *overcurrent_warning |= (problems & 0x20);
   if (*overcurrent_err || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
-    mg_event_x(RED "DC2DC[%d] 7b=0x%x, 7A=%x, 78=%x\n" RESET,addr,problems, gen_stat2, gen_stat);
+    mg_event_x(RED "DC2DC[%d] 7b=0x%x, 7A=%x, 78=%x" RESET,addr,problems, gen_stat2, gen_stat);
     i2c_write(dc2dc_channel_i2c_addr, 0x03);
   }
   if (*overcurrent_warning) {
@@ -732,7 +732,7 @@ int dc2dc_get_current_16s_of_amper_channel(
     *overcurrent_warning |= (problems & 0x20);  
 
     if (*overcurrent_err || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
-       mg_event_x(RED "DC2DC<%d> 7b=0x%x, 7A=%x, 78=%x\n" RESET,addr,problems, gen_stat2, gen_stat);
+       mg_event_x(RED "DC2DC<%d> 7b=0x%x, 7A=%x, 78=%x" RESET,addr,problems, gen_stat2, gen_stat);
        i2c_write(dc2dc_channel_i2c_addr, 0x03);
      }
      if (*overcurrent_warning) {

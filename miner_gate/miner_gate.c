@@ -151,6 +151,7 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   close(socket_fd);
   save_rate_temp(0,0,0,0);  
   mg_event(why);
+  stop_all_work_rt();
   i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err2);    
 #ifndef SP2x
   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err2);    
@@ -170,7 +171,6 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
     set_fan_level(30);
     exit(0);
   }
-  usleep(100*1000);
   pthread_mutex_unlock(&i2cm);
   pthread_mutex_unlock(&i2c_mutex);    
   vm.exiting = 1;
@@ -184,6 +184,7 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   for (i = 0; i < ASICS_COUNT ; i++) {
     if(! dc2dc_is_removed(i))
 	  dc2dc_disable_dc2dc(i, &err2);
+    usleep(1000);
   }
   psyslog("Dye (%s)!\n", why);
   //set_light(LIGHT_GREEN, LIGHT_MODE_OFF);
@@ -412,8 +413,8 @@ void *connection_handler_thread(void *adptr) {
             //DBG(DBG_WINS,"CANCELED1::JOB ID HW:%d, SW:%d  ---\n",work.work_id_in_hw,work.work_id_in_sw);  
             push_work_rsp(&work,1);
          }
-         vm.consecutive_jobs = 0;
-         //vm.all_engines_enable_countdown = SLOW_ENABLE_MODULO;
+         //vm.consecutive_jobs = 0;
+         vm.all_engines_enable_countdown = SLOW_START_STATE_HALF;
          pthread_mutex_unlock(&asic_mutex);
 
          
@@ -642,13 +643,13 @@ int discover_good_loops_restart_12v() {
     			}
     	  }
       }
-      printf("loop %d enabled\n", i);
+      psyslog("loop %d enabled\n", i);
       good_loops |= 1 << i;
       good_loops_cnt++;
     } else {
       vm.loop[i].enabled_loop = 0;
       vm.loop[i].why_disabled = "test serial failed or something";        
-      printf("loop %d disabled\n", i);
+      psyslog("loop %d disabled\n", i);
 
 #ifndef SP2x
       if ( vm.try_12v_fix && 
@@ -1471,26 +1472,40 @@ void test_lost_address() {
 }
 void restart_asics_full(int reason,const char * why) {  
   int err;
-  mg_event_x("restart_asics_full (%s)", why);
-  // Close all possible i2c devices
-  update_ac2dc_power_measurments();
-  test_all_loops();
-  test_all_dc2dc();
-  read_ac2dc_errors();
-  i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);
-#ifndef SP2x  
-  i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err);    
-#endif
-  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
   
+  mg_event_x("restart_asics_full (%s)", why);
+  psyslog("-------- SOFT RESET 0 -----------\n");  
   if(vm.in_asic_reset != 0) {
     print_stack();
     mg_event_x("Recursive restart_asics (%s)", why);
     passert(0);
   }
   vm.in_asic_reset = 1;
+  psyslog("-------- SOFT RESET 0.1 -----------\n");  
+  // Close all possible i2c devices
+  //update_ac2dc_power_measurments();
+  psyslog("-------- SOFT RESET 0.11 -----------\n");  
+  test_all_loops();  
+  psyslog("-------- SOFT RESET 0.12 -----------\n");      
+  test_all_dc2dc();  
+  psyslog("-------- SOFT RESET 0.2 -----------\n");  
+  if (read_ac2dc_errors(1)) {
+    psyslog("sleep 1 second\n");
+    usleep(1000000);
+    update_ac2dc_power_measurments();
+    test_all_loops();
+    //test_all_dc2dc();
+  }
+  psyslog("-------- SOFT RESET 0.3 -----------\n");  
+  i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);
+#ifndef SP2x  
+  i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err);    
+#endif
+  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
+  
   vm.asic_count = 0;
-  vm.all_engines_enable_countdown = SLOW_ENABLE_MODULO;
+  vm.all_engines_enable_countdown = SLOW_START_STATE_HALF;
+
   psyslog(":::all_engines_enable_countdown %d\n", vm.all_engines_enable_countdown);
   // Test AC2DC    
   static ASIC asics[ASICS_COUNT];
@@ -1499,13 +1514,17 @@ void restart_asics_full(int reason,const char * why) {
     asics[i] = vm.asic[i];
     ASIC *a = &vm.asic[i];
     if (a->asic_present) {
+      /*
       update_dc2dc_stats(i, true);
       if (vm.asic[i].dc2dc.dc_current_16s < 7*16) {
           has_chiko = i;
           mg_event_x("Lazy asic %d",i);
       }
+      */
     }
   }
+
+  psyslog("-------- SOFT RESET 0.4 -----------\n");  
 
   // We had voltage drop
    /*
@@ -1537,7 +1556,7 @@ void restart_asics_full(int reason,const char * why) {
 
   
   print_stack();
-  psyslog("-------- SOFT RESET 0 -----------\n");  
+  
   
   psyslog("-------- SOFT RESET 1 -----------\n");  
   test_fix_ac2dc_limits();
@@ -1547,7 +1566,7 @@ void restart_asics_full(int reason,const char * why) {
     vm.ac2dc[p].board_cooling_now = 0;
   }
   
-  usleep(100000);
+  //usleep(100000);
 
   for(int i = 0; i < ASICS_COUNT; i++) {
     ASIC *a = &vm.asic[i];
@@ -1556,17 +1575,17 @@ void restart_asics_full(int reason,const char * why) {
   }
   psyslog("-------- SOFT RESET 3 -----------\n");  
   // Wait
-  usleep(300000);
+  //usleep(300000);
   if (discover_good_loops_restart_12v() != 0) {
     // second attempt
     discover_good_loops_restart_12v();
   }
   psyslog("-------- SOFT RESET 4 -----------\n");    
   init_asics(ANY_ASIC);
-  usleep(700000);
+  //usleep(700000);
   // Give addresses to devices.
   psyslog("-------- SOFT RESET 5 -----------\n");  
-  usleep(100000);
+  //usleep(100000);
   allocate_addresses_to_devices();
   psyslog("-------- SOFT RESET 6 -----------\n");    
   enable_all_engines_all_asics(1);  
@@ -1606,11 +1625,13 @@ void restart_asics_full(int reason,const char * why) {
     printf("Waiting conductor buzy\n");
    }  
   //passert(0);
-  // First - clear 
+  //First - clear 
+  read_ac2dc_errors(1);
+  vm.did_asic_reset = 1;
   psyslog("-------- SOFT RESET DONE -----------\n");     
   vm.in_asic_reset = 0;
   mg_event_x("Restart ASICS done :)%d", vm.in_asic_reset);
-  vm.all_engines_enable_countdown = SLOW_ENABLE_MODULO;
+  vm.all_engines_enable_countdown = SLOW_START_STATE_HALF;
 }
 
 
@@ -1737,7 +1758,7 @@ int main(int argc, char *argv[]) {
 
 
 
-  if (no_bp) {
+  if (no_bp && vm.try_12v_fix) {
     PSU12vPowerCycleALL();
     
     // Try once more...
@@ -1786,7 +1807,7 @@ int main(int argc, char *argv[]) {
   // Allocates addresses, sets nonce range.
   // Reset all asics
   init_asics(ANY_ASIC);
-  printf("GOT VERSION: 0x%x\n", read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_VERSION)&0xFF);
+  psyslog("GOT VERSION: 0x%x\n", read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_VERSION)&0xFF);
   passert((read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_VERSION)&0xFF) == 0x46);
 
   // Give addresses to devices.
@@ -1799,7 +1820,7 @@ int main(int argc, char *argv[]) {
   thermal_init(ANY_ASIC);
   // TEST
 
-  printf("Disabling ASICs:\n");
+  psyslog("Disabling ASICs:\n");
   for (int x = 0; x < ASICS_COUNT; x++) {
     if (vm.asic[x].user_disabled == ASIC_STATUS_DISABLED) {
        printf("Disabling ASIC %d:\n", x);      
@@ -1839,10 +1860,9 @@ int main(int argc, char *argv[]) {
   }
 
   vm.in_asic_reset = 0;
-  vm.all_engines_enable_countdown = SLOW_ENABLE_MODULO;
+  vm.all_engines_enable_countdown = SLOW_START_STATE_HALF;
 
   psyslog("Starting HW thread\n");
-  
   s = pthread_create(&main_thread, NULL, squid_regular_state_machine_rt, (void *)NULL);
   passert(s == 0);
   minergate_adapter *adapter = new minergate_adapter;

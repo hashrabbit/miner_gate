@@ -23,6 +23,8 @@
 #define RUNTIME_BIST
 //#ifdef SP2x
 #define SLOW_START_WORK
+//#define SLOW_STOP_WORK
+
 //#endif
 //#define LIQUID_COOLING
 //#define REMO_STRESS
@@ -54,7 +56,7 @@
 #endif
 #define MAX_FAN_LEVEL                   100
 
-#define MAX_DC2DC_TEMP                  110
+#define MAX_DC2DC_TEMP                  115
 #define DC2DC_TEMP_WRONG                200
 
 
@@ -63,19 +65,19 @@
 #define MAX_CONSECUTIVE_JOBS_TO_COUNT (200)
 
 // In seconds
-#define BIST_PERIOD_SECS                                   16 // MUST BE MORE THEN 16
-#define BIST_PERIOD_SECS_LONG                              (BIST_PERIOD_SECS*3) // MUST BE MORE THEN 16
+#define BIST_PERIOD_SECS                                    20 // MUST BE MORE THEN 7
+#define BIST_PERIOD_SECS_LONG                               60 // MUST BE MORE THEN 16
 
 
-#define DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD          13
-#if (BIST_PERIOD_SECS < 11) 
+#define DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD          100 // unlimited
+#if (BIST_PERIOD_SECS < 5) 
   Error!
 #endif
 
 #ifndef LIQUID_COOLING
 #define MAX_BOTTOM_TEMP 95
 #define MAX_TOP_TEMP 95
-#define MAX_MGMT_TEMP 50
+#define MAX_MGMT_TEMP 60
 #else
 #define MAX_BOTTOM_TEMP 95
 #define MAX_TOP_TEMP 95

@@ -72,7 +72,6 @@ int main(int argc, char *argv[]) {
     while (read_spi(ADDR_SQUID_STATUS) & BIT_STATUS_SERIAL_Q_RX_NOT_EMPTY) {
        psyslog("read garbage %x\n", read_spi(ADDR_SQUID_SERIAL_READ));
              i++;
-
              if (i == 1000) {
                 psyslog("GARBAGE OVERFLOW!\n");
                 return(0);

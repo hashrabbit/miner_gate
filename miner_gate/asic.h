@@ -391,7 +391,11 @@ typedef struct {
 #define FET_T_78B_3PHASE	 11
 #define FET_ERROR            100
 
-#define SLOW_ENABLE_MODULO  8
+#define SLOW_START_STATE_HALF     2
+#define SLOW_START_STATE_REST     1
+#define SLOW_START_STATE_WORKING  0
+
+
 
 typedef struct {
   // Fans set to high
@@ -417,6 +421,7 @@ typedef struct {
   int err_read_timeouts;    
   int err_dc2dc_i2c_error;    
   int err_bad_idle;
+  int err_murata;  
   int dc2dc_temp_ignore;  
 
   int err_read_timeouts2;  
@@ -474,7 +479,7 @@ typedef struct {
   // We give less LZ then needed to do faster scaling.
   // When system just started, search optimal speed agressively
   int needs_bist;  
-  
+  int engine_size;
   // our ASIC data
   ASIC asic[ASICS_COUNT];
   //uint32_t not_brocken_engines[ASICS_COUNT];
@@ -486,6 +491,7 @@ typedef struct {
   int board_not_present[BOARD_COUNT];  
   AC2DC ac2dc[PSU_COUNT]; 
   int exiting;
+  int did_asic_reset;
   int board_cooling_ever;   
   int asic_count;
 

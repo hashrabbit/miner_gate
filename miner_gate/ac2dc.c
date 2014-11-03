@@ -162,7 +162,7 @@ void ac2dc_init() {
     }
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-  read_ac2dc_errors();
+  read_ac2dc_errors(1);
 }
 #endif
 
@@ -345,10 +345,11 @@ int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative)
 void exit_nicely(int seconds_sleep_before_exit, const char* p);
 static pthread_t ac2dc_thread;
 
-void read_ac2dc_errors() {  
+// returns non-zero in case of error
+int read_ac2dc_errors(int to_event) {  
   int err;
-  int p0 = 0xbadbabe;
-  int p1 = 0xbadbabe;
+  int p0 = 0;
+  int p1 = 0;
 #ifndef SP2x   
   if (vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
@@ -362,8 +363,17 @@ void read_ac2dc_errors() {
     p1 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
     i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);    
   }
-  mg_event_x("AC2DC status: %x %x",p0,p1);
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  
+  int problem = ((p0 != 0) || (p1 != 0));
+  if (problem) {
+    vm.err_murata++;
+    if (to_event) {
+      mg_event_x(RED "AC2DC status: %x %x" RESET,p0,p1);
+    } else {
+      psyslog(RED  "AC2DC status: %x %x\n" RESET,p0,p1);
+    }
+  }
+  return ((p0 & 0x8000) || (p1 & 0x8000));
 #endif  
 }
 
@@ -373,7 +383,8 @@ void test_fix_ac2dc_limits() {
 #ifdef SP2x
 #else
   int err;
-  if (vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+  if (vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN &&
+      vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_MURATA_NEW) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
     AC2DC* ac2dc = &vm.ac2dc[PSU_0];
     int p = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_STATUS_IOUT, &err);
@@ -410,7 +421,8 @@ void test_fix_ac2dc_limits() {
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
 
-  if (vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
+  if (vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN &&
+      vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_MURATA_NEW) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
     AC2DC* ac2dc = &vm.ac2dc[PSU_1];
     int p = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_STATUS_IOUT, &err);
@@ -576,6 +588,7 @@ static void PSU12vONOFF (int psu , bool ON){
 
 //	printf ("I2C_WRITE_BYTE(0x%X , 0x%X , 0x%X ) \n" , mgmt_addr[_type], AC2DC_I2C_ON_OFF , cmd_code_arr[_type] );
 	i2c_write_byte(mgmt_addr[_type], AC2DC_I2C_ON_OFF , cmd_code_arr[_type] , &err);
+  mg_event("PSU restart");
 	usleep(5000);
 
 	pthread_mutex_unlock(&i2c_mutex);
@@ -600,7 +613,7 @@ void PSU12vPowerCycle (int psu){
 }
 
 void PSU12vPowerCycleALL() {
-  psyslog("Doing full power cycle");
+  psyslog("Doing full power cycle\n");
 	for (int psu = 0 ; psu < PSU_COUNT ; psu++){
 		PSU12vOFF(psu );
 	}

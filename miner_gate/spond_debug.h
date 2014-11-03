@@ -87,6 +87,7 @@
   if (DBG_TYPE) {                                                              \
     psyslog(STR);                                                               \
   }
+int print_time_delta();
 
 #define passert(X...)                                                          \
   {                                                                            \
@@ -101,6 +102,7 @@
   
 #define psyslog(X...)                                                          \
   {                                                                            \
+    print_time_delta();                                                        \
     syslog(LOG_WARNING, X);                                                    \
     printf(X);                                                                 \
   }

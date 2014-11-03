@@ -97,6 +97,7 @@ static void myPSU12vONOFF (int psu , AC2DC* ac2dc, bool ON){
 
 	printf ("I2C_WRITE_BYTE(0x%X , 0x%X , 0x%X ) \n" , mgmt_addr[_type], AC2DC_I2C_ON_OFF , cmd_code_arr[_type] );
 	i2c_write_byte(mgmt_addr[_type], AC2DC_I2C_ON_OFF , cmd_code_arr[_type] , &err);
+  mg_event("PSU restart");
 
 
 	usleep(5000);

@@ -31,7 +31,7 @@ typedef struct {
 } loop_iter;
 
 
-int stop_all_work_rt();
+int stop_all_work_rt(int wait_ok = 1);
 void resume_all_work();
 
 extern int assert_serial_failures;
@@ -57,7 +57,7 @@ int count_ones(uint32_t i);
 
 
 int dc2dc_can_down(int i);
-int dc2dc_can_up(int i);
+int dc2dc_can_up(int i, int *pp);
 void dc2dc_down(int i, int *err, const char* why);
 void dc2dc_up(int i, int *err, const char* why);
 int asic_can_down_freq(int i);

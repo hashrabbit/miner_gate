@@ -45,6 +45,22 @@ void print_stack() {
 }
 
 
+int print_time_delta() {
+  static struct timeval tv;
+  struct timeval new_tv;  
+  int usec;
+  gettimeofday(&new_tv, NULL);
+  if ((new_tv.tv_sec - tv.tv_sec) > 3) { 
+    printf("<S%3d>:", new_tv.tv_sec - tv.tv_sec);
+  } else {
+    usec = (new_tv.tv_sec - tv.tv_sec) * 1000;
+    usec += (new_tv.tv_usec - tv.tv_usec)/1000;
+    printf("[%4d]:", usec);
+  }
+  gettimeofday(&tv, NULL);
+}
+
+
 void _pabort(const char *s) {
 	 if (s) {
 	   //perror(orig_buf);

@@ -34,7 +34,7 @@ unsigned char ac2dc_get_eeprom_quick(int offset,AC2DC *ac2dc, int *pError = 0);
 
 char* psu_get_name(int id,int type);
 void test_fix_ac2dc_limits();
-void read_ac2dc_errors();
+int read_ac2dc_errors(int to_events);
 
 bool ac2dc_check_connected(int top_or_bottom);
 void PSU12vON(int psu);

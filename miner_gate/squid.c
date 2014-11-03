@@ -54,7 +54,7 @@ typedef struct {
   uint32_t i[64];
 } __attribute__((__packed__)) cpi_cmd;
 
-void purge_fpga_queue(const char* why);
+int purge_fpga_queue(const char* why);
 
 unsigned long usec_stamp ()
 {
@@ -74,7 +74,7 @@ unsigned long usec_stamp ()
 void reset_asic_queue();
 
 void test_all_loops() {
-   mg_event_x("Testing LOOPs");
+  mg_event_x("Testing LOOPs");
   reset_asic_queue();
   for (int l = 0 ; l < LOOP_COUNT; l++) {
     if (!vm.loop[l].enabled_loop) {
@@ -89,7 +89,7 @@ void test_all_loops() {
     }
   }
   write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops))&SQUID_LOOPS_MASK);
-
+  mg_event_x("Testing LOOPs done");
 }
 #endif
 void parse_squid_status(int v) {
@@ -462,16 +462,16 @@ void flush_mq_write() {
 }
 
 
-void purge_fpga_queue(const char* why) {
+int purge_fpga_queue(const char* why) {
 #ifdef MINERGATE
 #ifdef CHECK_GARBAGE_READ
     if (assert_serial_failures) {
        int i = 0;
        int sq_int;
-       while (i<2000 && ((sq_int = read_spi(ADDR_SQUID_STATUS)) & BIT_STATUS_SERIAL_Q_RX_NOT_EMPTY)) {  
+       while (i<200 && ((sq_int = read_spi(ADDR_SQUID_STATUS)) & BIT_STATUS_SERIAL_Q_RX_NOT_EMPTY)) {  
          //set_light_on_off(LIGHT_YELLOW, true);
          int x = read_spi(ADDR_SQUID_SERIAL_READ);         
-         if ((i<10) || (i>1995)) {
+         if ((i<10) || (i>195)) {
 #ifdef MINERGATE            
             vm.err_purge_queue3++;
 #endif
@@ -481,17 +481,19 @@ void purge_fpga_queue(const char* why) {
          //set_light_on_off(LIGHT_YELLOW, false);
          i++;
        }
-       if(i>1995) {
+       if(i>195) {
 #ifdef MINERGATE        
           reset_asic_queue();
           print_chiko(0);
           vm.err_purge_queue++;  
           restart_asics_full(10,"purge_fpga_queue");
+          return -1;
 #endif
        }
     }
 #endif
 #endif
+  return 0;
 }
 
 void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, uint32_t *p_value) {
@@ -501,7 +503,9 @@ void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, u
   }
 
   if (current_cmd_queue_ptr == 0) {
-    purge_fpga_queue("Pre");
+    if (purge_fpga_queue("Pre") != 0) {
+      return;
+    }
   }
   QUEUED_REG_ELEMENT *e = &cmd_queue[current_cmd_queue_ptr++];
   //printf("%x %x %x %x\n",current_cmd_queue_ptr,e->addr,e->offset,e->value);
@@ -566,6 +570,7 @@ int wait_rx_queue_ready() {
 
 static int corruptions_count = 0;
 static int spi_timeout_count = 0;
+int read_ac2dc_errors(int to_event);
 
 int revive_asics_if_one_got_reset(const char *why);
 uint32_t _read_reg_actual(QUEUED_REG_ELEMENT *e, int *err) {
@@ -575,6 +580,7 @@ uint32_t _read_reg_actual(QUEUED_REG_ELEMENT *e, int *err) {
   if (!success) {
     // TODO  - handle timeout?
     if (assert_serial_failures) {
+      
 #ifdef MINERGATE      
       //set_light_on_off(LIGHT_YELLOW, true);
       vm.err_read_timeouts2++;
@@ -584,6 +590,10 @@ uint32_t _read_reg_actual(QUEUED_REG_ELEMENT *e, int *err) {
       // Test loops?
       spi_timeout_count++;
 #ifdef MINERGATE
+      if (read_ac2dc_errors(1)) {
+        //usleep(1000000);
+        restart_asics_full(434, "read timeout AC2DC fail");
+      }
       // wait milli
       //*err = 1;
       //set_light_on_off(LIGHT_YELLOW, false);

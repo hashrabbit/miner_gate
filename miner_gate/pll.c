@@ -432,7 +432,7 @@ int wait_dll_ready(int a_addr,const char* why) {
       psyslog(RED "Error::: PLL stuck:%x asic(%d/%d) LOOP:%d (%s), %d\n" RESET,dll, a_addr,addr,addr/ASICS_PER_LOOP,why,i);      
       write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x0);
       write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x1);
-      mg_event_x("ASIC ERROR PLL on address %d", a_addr);
+      mg_event_x("ASIC ERROR PLL on address %d/%d", a_addr, addr);
       usleep(10000);
       dll = read_reg_asic(addr, NO_ENGINE, ADDR_INTR_BC_PLL_NOT_READY);
       if (dll != 0) {
