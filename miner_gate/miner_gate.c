@@ -620,7 +620,7 @@ int discover_good_loops_restart_12v() {
     unsigned int bypass_loops = ((~(1 << i)) & SQUID_LOOPS_MASK);
     psyslog("ADDR_SQUID_LOOP_BYPASS = %x\n", bypass_loops);
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
-    if ((vm.fet[LOOP_TO_BOARD_ID(i)] != FET_ERROR) &&
+    if ((vm.fet[LOOP_TO_BOARD_ID(i)] < FET_ERRORS) &&
         (vm.loop[i].user_disabled == 0) &&
        (!vm.board_not_present[LOOP_TO_BOARD_ID(i)]) && (testing_spi = 1) &&
        test_serial(i)
@@ -655,7 +655,7 @@ int discover_good_loops_restart_12v() {
       if ( vm.try_12v_fix && 
           !vm.tryed_power_cycle_to_revive_loops &&
           !loop_is_removed_or_disabled(i) && 
-          (vm.fet[LOOP_TO_BOARD_ID(i)] != FET_ERROR)) {
+          (vm.fet[LOOP_TO_BOARD_ID(i)] < FET_ERRORS)) {
         mg_event_x("Bad loop %d = trying power cycle", i);
         vm.tryed_power_cycle_to_revive_loops = 1;
         PSU12vPowerCycleALL();
@@ -1056,7 +1056,7 @@ void read_fet() {
     vm.fet[BOARD_0] = get_fet(BOARD_0);
     vm.fet[BOARD_1] = get_fet(BOARD_1);
 
-    check_fet_values();
+    //check_fet_values();
 
     psyslog("----------------------------------\n");
     psyslog("--------FET TOP:%d BOT:%d---------\n", vm.fet[BOARD_0], vm.fet[BOARD_1]);
