@@ -1935,6 +1935,7 @@ void print_scaling() {
    fprintf(f, "AC2DC BAD: %d %d\n" , 0, 0);
    fprintf(f, "R/NR: %d/%d\n", vm.mining_time, vm.not_mining_time);
    fprintf(f, "RTF asics: %d\n",vm.run_time_failed_asics);
+   fprintf(f ,  "FET: %d:%d %d:%d\n" , BOARD_0 , vm.fet[BOARD_0] , BOARD_1 , vm.fet[BOARD_1]);
 
    fprintf(f, " %d restarted     ", vm.err_restarted);  
    fprintf(f, " %d reset         ", vm.err_unexpected_reset);  

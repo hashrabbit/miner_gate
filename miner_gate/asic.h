@@ -389,7 +389,18 @@ typedef struct {
 #define FET_T_78B_I50		 9
 //#define FET_T_78A_3PHASE	 10
 #define FET_T_78B_3PHASE	 11
-#define FET_ERROR            100
+
+#define FET_ERRORS						0xF0
+#define FET_ERROR_ILLEGAL_VALUE 		0xF1
+
+#define FET_ERROR_VPD_WRITE_ERROR 		0xF8
+#define FET_ERROR_VPD_READ_ERROR 		0xF9
+#define FET_EEPROM_DEV_ERROR 			0xFA
+#define FET_ERROR_BLANK_VPD 			0xFB
+#define FET_ERROR_VPD_FET_NOT_SET 		0xFC
+#define FET_ERROR_VPD_FET_NOT_SUPPORT	0xFD
+#define FET_ERROR_UNKNOWN_ELA  			0xFE
+#define FET_ERROR_BOARD_NA 				0xFF
 
 #define SLOW_START_STATE_HALF     2
 #define SLOW_START_STATE_REST     1

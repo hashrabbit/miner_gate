@@ -19,6 +19,7 @@
 #include "squid.h"
 #include "i2c.h"
 #include "defines.h"
+#include "asic.h"
 
 using namespace std;
 extern pthread_mutex_t i2c_mutex;

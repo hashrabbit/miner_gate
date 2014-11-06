@@ -6,6 +6,43 @@
 
 #include "mainvpd.h"
 
+
+
+int usage(char * app ,int exCode ,const char * errMsg)
+{
+    if (NULL != errMsg )
+    {
+        fprintf (stderr,"==================\n%s\n\n==================\n",errMsg);
+    }
+
+    printf ("Usage: %s [-top|-bottom][[-q] [-a] [-p] [-s] [-r] [-f]] [-v vpd] [-vf fet]\n\n" , app);
+
+    printf ("       -top : top main board\n");
+    printf ("       -bottom : bottom main board (default)\n");
+    printf ("        default mode is read\n");
+    printf ("       -q : quiet mode, values only w/o headers\n");
+    printf ("       -a : print all VPD params as one string\n");
+    printf ("       -p : print part number\n");
+    printf ("       -r : print revision number\n");
+    printf ("       -s : print serial number\n");
+    printf ("		-f : print FET type and code\n");
+    printf ("       -v : vpd value to write\n");
+    printf ("       -vf : fet value to write (integer)\n");
+    if (0 == exCode) // exCode ==0 means - just print usage and get back to app for business. other value - exit with it.
+    {
+        return 0;
+    }
+    else
+    {
+        exit(exCode);
+    }
+}
+
+int usage(char * app ,int exCode)
+{
+     return usage(app ,exCode ,NULL) ;
+}
+
 int main(int argc, char *argv[])
 {
 	int rc = 0;
@@ -112,10 +149,14 @@ int main(int argc, char *argv[])
 	mainboard_vpd_info_t vpd = {}; // allocte, and initializero
 
 	if (writefet){
-		if (set_fet(topOrBottom , fet_value) == 0)
+		rc = set_fet(topOrBottom , fet_value);
+		if (rc == 0)
 		{
 			 get_fet_str(topOrBottom , fet_str);
 			 printf("%s FET %s (%d)\n",h_board[topOrBottom],fet_str,fet_value);
+		}
+		else{
+			return rc;
 		}
 	}
 
