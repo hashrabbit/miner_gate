@@ -558,5 +558,14 @@ void disable_asic_forever_rt(int addr, int passert_if_none_left, const char* why
     vm.asic[addr].cooling_down = 0;
   }
   // dc2dc_disable_dc2dc(addr,&err);
+  vm.asic_count = 0;
+  for (int j =0;j< ASICS_COUNT;j++) {    
+     if (vm.asic[j].asic_present) {
+         vm.asic_count++;
+     }
+  }  
   psyslog("Disabing ASIC forever %d (0x%x) from loop %d (%s)\n", addr, addr, addr/ASICS_PER_LOOP, why);
+  if (vm.asic_count == 0) {
+    exit_nicely(1,"All ASICs disabled");
+  }
 }

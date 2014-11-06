@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 	bool callUsage = false;
 	bool badParm = false;
 
-	int topOrBottom = -1; // default willbe TOP, start with -1, to rule out ambiguity.
+	int board_id = -1; // default willbe TOP, start with -1, to rule out ambiguity.
 
 	char badloopsformattedstring[100];
 
@@ -181,20 +181,20 @@ int main(int argc, char *argv[])
 	  callUsage = true;
 
 	else if ( 0 == strcmp(argv[i],"-both")){
-	  if (topOrBottom == -1 || topOrBottom == BOTH_MAIN_BOARDS)
-		  topOrBottom = BOTH_MAIN_BOARDS;
+	  if (board_id == -1 || board_id == BOTH_MAIN_BOARDS)
+		  board_id = BOTH_MAIN_BOARDS;
 	  else
 		  badParm = true;
 	}
 	else if ( 0 == strcmp(argv[i],"-top")){
-	  if (topOrBottom == -1 || topOrBottom == TOP_BOARD)
-		  topOrBottom = TOP_BOARD;
+	  if (board_id == -1 || board_id == BOARD_0)
+		  board_id = BOARD_0;
 	  else
 		  badParm = true;
 	}
 	else if ( 0 == strcmp(argv[i],"-bottom")){
-	  if (topOrBottom == -1 || topOrBottom == BOTTOM_BOARD)
-		  topOrBottom = BOTTOM_BOARD;
+	  if (board_id == -1 || board_id == BOARD_1)
+		  board_id = BOARD_1;
 	  else
 		  badParm = true;
 	}
@@ -208,15 +208,15 @@ int main(int argc, char *argv[])
 	}
 
 	// applying default as top.
-	if (-1 == topOrBottom)
-	  topOrBottom = BOTH_MAIN_BOARDS;
+	if (-1 == board_id)
+	  board_id = BOTH_MAIN_BOARDS;
 
-	switch (topOrBottom){
-		case TOP_BOARD:
+	switch (board_id){
+		case BOARD_0:
 			FIRSTLOOP = TOP_FIRST_LOOP;
 			LASTLOOP = TOP_LAST_LOOP;
 			break;
-		case BOTTOM_BOARD:
+		case BOARD_1:
 			FIRSTLOOP = BOTTOM_FIRST_LOOP;
 			LASTLOOP = BOTTOM_LAST_LOOP;
 			break;

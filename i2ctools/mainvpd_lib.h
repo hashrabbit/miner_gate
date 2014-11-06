@@ -27,8 +27,6 @@ extern pthread_mutex_t i2c_mutex;
 #define MAIN_VPD_REV 2
 #define FET_SUPPORT_VPD_REV 2
 
-#define TOP_BOARD 0
-#define BOTTOM_BOARD 1
 #define BOTH_MAIN_BOARDS 2
 #define CUSTOM_LOOPS_SELECTION 3
 
@@ -84,12 +82,12 @@ inline int fix_max_cap(int val, int max);
 int usage(char * app ,int exCode ,const char * errMsg );
 int usage(char * app ,int exCode );
 int setI2CSwitches(int tob);
-int set_fet(int topOrBottom , int fet_type);
-int get_fet(int topOrBottom );
-int get_fet_str(int topOrBottom , char * fet);
-int mainboard_set_vpd(  int topOrBottom, const char * vpd);
-int readMain_I2C_eeprom (char * vpd_str , int topOrBottom , int startAddress , int length);
-int mainboard_get_vpd(int topOrBottom ,  mainboard_vpd_info_t *pVpd);
+int set_fet(int board_id , int fet_type);
+int get_fet(int board_id );
+int get_fet_str(int board_id , char * fet);
+int mainboard_set_vpd(  int board_id, const char * vpd);
+int readMain_I2C_eeprom (char * vpd_str , int board_id , int startAddress , int length);
+int mainboard_get_vpd(int board_id ,  mainboard_vpd_info_t *pVpd);
 
 
 

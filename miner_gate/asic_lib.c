@@ -2244,7 +2244,7 @@ void once_second_tasks_rt() {
   partial_idle_last_run = partial_idle_this_run;
   partial_idle_this_run = 0;
 
-  
+  int bad_asic = -1; 
   for (int jj = 0; jj < ASICS_COUNT; jj++) {  
     if (vm.all_engines_enable_countdown == 0) {
       if ((vm.asic[jj].asic_present) &&
@@ -2252,11 +2252,12 @@ void once_second_tasks_rt() {
           (vm.asic[jj].idle_asic_cycles_sec/100000 > 20)) {
         vm.err_bad_idle++;
         // if 20% idle - count how many in this state. 
+        bad_asic = jj;
         partial_idle_this_run++;
         // if 90% idle - restart
         if (vm.asic[jj].idle_asic_cycles_sec/100000 > 90) {
           test_lost_address();
-          psyslog("ASIC %d iddle:%d\n",jj,vm.asic[jj].idle_asic_cycles_sec/100000);
+          mg_event_x("ASIC %d idle:%d\n",jj,vm.asic[jj].idle_asic_cycles_sec/100000);
           restart_asics_full(17,"Asic IDLE when should not be IDLE");
           partial_idle_this_run = 0;
           return;
@@ -2278,6 +2279,8 @@ void once_second_tasks_rt() {
 
   // twice slow ASICs
   if (partial_idle_this_run && partial_idle_last_run) {
+    
+     mg_event_x("Idle asic: %d", bad_asic);
      test_lost_address();
      partial_idle_this_run = 0;
      restart_asics_full(19,"Asic partial-IDLE twice");

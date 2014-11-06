@@ -1,6 +1,6 @@
 #include "mainvpd_lib.h"
 
-int readMain_I2C_eeprom (char * vpd_str , int topOrBottom , int startAddress , int length);
+int readMain_I2C_eeprom (char * vpd_str , int board_id , int startAddress , int length);
 #ifdef SP2x
 	  uint8_t I2C_DC2DC_SWITCH = I2C_DC2DC_SWITCH_GROUP0;
 #else
@@ -44,10 +44,10 @@ inline int fix_max_cap(int val, int max){
 		return val;
 }
 
-int setI2CSwitches(int tob){
+int setI2CSwitches(int board_id){
 
 	int err = 0;
-	int I2C_MY_MAIN_BOARD_PIN = (tob == TOP_BOARD)?PRIMARY_I2C_SWITCH_BOARD0_MAIN_PIN : PRIMARY_I2C_SWITCH_BOARD1_MAIN_PIN;
+	int I2C_MY_MAIN_BOARD_PIN = (board_id == BOARD_0)?PRIMARY_I2C_SWITCH_BOARD0_MAIN_PIN : PRIMARY_I2C_SWITCH_BOARD1_MAIN_PIN;
 	i2c_write(PRIMARY_I2C_SWITCH, I2C_MY_MAIN_BOARD_PIN | PRIMARY_I2C_SWITCH_DEAULT , &err);
 
 	if (err==0){
@@ -72,7 +72,7 @@ int setI2CSwitches(int tob){
 	return err;
 }
 
-int set_fet(int topOrBottom , int fet_type){
+int set_fet(int board_id , int fet_type){
 	int err=0;
 	int rc = 0;
 	int vpdrev = 0;
@@ -84,7 +84,7 @@ int set_fet(int topOrBottom , int fet_type){
 	}
 	pthread_mutex_lock(&i2c_mutex);
 
-	err = setI2CSwitches(topOrBottom);
+	err = setI2CSwitches(board_id);
 
 
 	if (err){
@@ -296,14 +296,14 @@ int get_fet_from_ela(mainboard_vpd_info_t * vpd){
 	return fet_code;
 }
 
-int get_fet(int topOrBottom ){
+int get_fet(int board_id ){
 	int err=0;
 	int fet_type  = 100;
 	int fetflag = 0;
 	int vpdrev ;
 
 	pthread_mutex_lock(&i2c_mutex);
-	err = setI2CSwitches(topOrBottom);
+	err = setI2CSwitches(board_id);
 
 	if (err){
 		fet_type = FET_ERROR_BOARD_NA;
@@ -351,7 +351,7 @@ int get_fet(int topOrBottom ){
 	{
 		// read ela and stuff
 		mainboard_vpd_info_t vpd = {}; // allocte, and initializero
-		if (mainboard_get_vpd(topOrBottom , &vpd) != 0)
+		if (mainboard_get_vpd(board_id , &vpd) != 0)
 			fet_type = FET_ERROR_VPD_READ_ERROR;
 
 		else
@@ -361,7 +361,7 @@ int get_fet(int topOrBottom ){
 	return fet_type;
 }
 
-int get_fet_str(int topOrBottom , char * fet){
+int get_fet_str(int board_id , char * fet){
 	int err=0;
 	int rc=0;
 	int fetflag = 0;
@@ -369,7 +369,7 @@ int get_fet_str(int topOrBottom , char * fet){
 
 	pthread_mutex_lock(&i2c_mutex);
 
-	err = setI2CSwitches(topOrBottom);
+	err = setI2CSwitches(board_id);
 
 	if (err){
 		rc = FET_ERROR_BOARD_NA;
@@ -407,20 +407,20 @@ int get_fet_str(int topOrBottom , char * fet){
 	pthread_mutex_unlock(&i2c_mutex);
 
 	if (rc == 0){
-		readMain_I2C_eeprom(fet , topOrBottom , MAIN_BOARD_VPD_FET_STR_ADDR_START , MAIN_BOARD_VPD_FET_STR_ADDR_LENGTH);
+		readMain_I2C_eeprom(fet , board_id , MAIN_BOARD_VPD_FET_STR_ADDR_START , MAIN_BOARD_VPD_FET_STR_ADDR_LENGTH);
 	}
 	return  rc;
 }
 
 
-int mainboard_set_vpd(  int topOrBottom, const char * vpd){
+int mainboard_set_vpd(  int board_id, const char * vpd){
 
 	int rc = 0;
 	int err=0;
 	bool firstTimeBurn = false;
 
 	pthread_mutex_lock(&i2c_mutex);
-	err = setI2CSwitches(topOrBottom);
+	err = setI2CSwitches(board_id);
 
 	int vpdrev =  (unsigned char)i2c_read_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, 0 , &err);
 	if (vpdrev == 0xFF){
@@ -458,13 +458,13 @@ int mainboard_set_vpd(  int topOrBottom, const char * vpd){
 
 }
 
-int readMain_I2C_eeprom (char * vpd_str , int topOrBottom , int startAddress , int length){
+int readMain_I2C_eeprom (char * vpd_str , int board_id , int startAddress , int length){
 	int rc = 0;
 	int err=0;
 
 	pthread_mutex_lock(&i2c_mutex);
 
-	err = setI2CSwitches(topOrBottom);
+	err = setI2CSwitches(board_id);
 
 	if (err==0){
 		for (int i = 0; i < length; i++) {
@@ -486,7 +486,7 @@ int readMain_I2C_eeprom (char * vpd_str , int topOrBottom , int startAddress , i
 	return rc;
 }
 
-int mainboard_get_vpd(int topOrBottom ,  mainboard_vpd_info_t *pVpd) {
+int mainboard_get_vpd(int board_id ,  mainboard_vpd_info_t *pVpd) {
 	int rc = 0;
 	int err = 0;
 
@@ -497,7 +497,7 @@ int mainboard_get_vpd(int topOrBottom ,  mainboard_vpd_info_t *pVpd) {
 		return 1;
 	}
 
-	err = readMain_I2C_eeprom(vpd_str , topOrBottom , 0 , 32);
+	err = readMain_I2C_eeprom(vpd_str , board_id , 0 , 32);
 
 	if (err)
 		return err;
@@ -513,7 +513,7 @@ int mainboard_get_vpd(int topOrBottom ,  mainboard_vpd_info_t *pVpd) {
 	pVpd->serial[MAIN_BOARD_VPD_SERIAL_ADDR_LENGTH] = '\0';
 
 	if (err) {
-		fprintf(stderr, RED            "Failed reading %s Main Board VPD (err %d)\n" RESET,(topOrBottom==TOP_BOARD)?"TOP":"BOTTOM", err);
+		fprintf(stderr, RED            "Failed reading %s Main Board VPD (err %d)\n" RESET,(board_id==BOARD_0)?"TOP":"BOTTOM", err);
 		rc =  err;
 	}
 	return rc;

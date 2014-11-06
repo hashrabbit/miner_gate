@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 	char vpd_str[32];
 	char fet_str[16];
 	int  vpd_rev = 0;
-	int topOrBottom = -1; // default willbe TOP, start with -1, to rule out ambiguity.
+	int board_id = -1; // default willbe TOP, start with -1, to rule out ambiguity.
 
 	const char * h_board[] = {"TOP MAIN BOARD ","BOTTOM MAIN BOARD "};
 	const char * h_all = "VPD: ";
@@ -97,14 +97,14 @@ int main(int argc, char *argv[])
 	  strncpy(vpd_str,argv[i],sizeof(vpd_str));
 	}
 	else if ( 0 == strcmp(argv[i],"-top")){
-	  if (topOrBottom == -1 || topOrBottom == TOP_BOARD)
-		  topOrBottom = TOP_BOARD;
+	  if (board_id == -1 || board_id == BOARD_0)
+		  board_id = BOARD_0;
 	  else
 		  badParm = true;
 	}
 	else if ( 0 == strcmp(argv[i],"-bottom")){
-	  if (topOrBottom == -1 || topOrBottom == BOTTOM_BOARD)
-		  topOrBottom = BOTTOM_BOARD;
+	  if (board_id == -1 || board_id == BOARD_1)
+		  board_id = BOARD_1;
 	  else
 		  badParm = true;
 	}
@@ -130,8 +130,8 @@ int main(int argc, char *argv[])
 	}
 
 	// applying default as BOTTOM.
-	if (-1 == topOrBottom)
-	  topOrBottom = BOTTOM_BOARD;
+	if (-1 == board_id)
+	  board_id = BOARD_1;
 
 	if (callUsage)
 		return usage(argv[0] , 0);
@@ -149,11 +149,11 @@ int main(int argc, char *argv[])
 	mainboard_vpd_info_t vpd = {}; // allocte, and initializero
 
 	if (writefet){
-		rc = set_fet(topOrBottom , fet_value);
+		rc = set_fet(board_id , fet_value);
 		if (rc == 0)
 		{
-			 get_fet_str(topOrBottom , fet_str);
-			 printf("%s FET %s (%d)\n",h_board[topOrBottom],fet_str,fet_value);
+			 get_fet_str(board_id , fet_str);
+			 printf("%s FET %s (%d)\n",h_board[board_id],fet_str,fet_value);
 		}
 		else{
 			return rc;
@@ -161,34 +161,34 @@ int main(int argc, char *argv[])
 	}
 
 	 if (write){
-		 rc  = mainboard_set_vpd(topOrBottom, vpd_str );
+		 rc  = mainboard_set_vpd(board_id, vpd_str );
 		 if (0 == rc)
 		 {
-				 printf("%s%s\n",quiet?"":h_board[topOrBottom],vpd_str);
+				 printf("%s%s\n",quiet?"":h_board[board_id],vpd_str);
 		 }
 	 }
 	 else{
-		 rc  = mainboard_get_vpd(topOrBottom ,&vpd   );
+		 rc  = mainboard_get_vpd(board_id ,&vpd   );
 		 if (0 == rc)
 		 {
 			 if (print_all)
-				 printf("%s%s%s%s%s\n",quiet?"":h_board[topOrBottom],quiet?"":h_all,vpd.serial,vpd.pnr,vpd.revision);
+				 printf("%s%s%s%s%s\n",quiet?"":h_board[board_id],quiet?"":h_all,vpd.serial,vpd.pnr,vpd.revision);
 			 if (print_pnr)
-				 printf("%s%s%s\n",quiet?"":h_board[topOrBottom],quiet?"":h_pnr,vpd.pnr);
+				 printf("%s%s%s\n",quiet?"":h_board[board_id],quiet?"":h_pnr,vpd.pnr);
 			 if (print_rev)
-				 printf("%s%s%s\n",quiet?"":h_board[topOrBottom],quiet?"":h_rev,vpd.revision);
+				 printf("%s%s%s\n",quiet?"":h_board[board_id],quiet?"":h_rev,vpd.revision);
 			 if (print_ser)
-				 printf("%s%s%s\n",quiet?"":h_board[topOrBottom],quiet?"":h_ser,vpd.serial);
+				 printf("%s%s%s\n",quiet?"":h_board[board_id],quiet?"":h_ser,vpd.serial);
 		 }
 		 if (print_fet)
 		 {
-			 fet_value = get_fet(topOrBottom);
+			 fet_value = get_fet(board_id);
 			 if (quiet){
 				 printf("%d\n",fet_value);
 			 }
 			 else{
-				 get_fet_str(topOrBottom , fet_str);
-				 printf("%s FET %s (%d)\n",h_board[topOrBottom],fet_str,fet_value);
+				 get_fet_str(board_id , fet_str);
+				 printf("%s FET %s (%d)\n",h_board[board_id],fet_str,fet_value);
 			 }
 		 }
 	 }
