@@ -150,6 +150,26 @@ int set_fet(int board_id , int fet_type){
 	return rc;
 }
 
+int is_sp30() {
+
+	int rc = 0;
+	int r;
+	char model [16];
+	FILE* file = fopen("/model_name", "r");
+	if (file < 0) {
+		psyslog("file /model_name missing is it an SP miner at all??");
+	    passert(0);
+	}
+	else{
+		r = fscanf (file,  "%s",model);
+		if (r > 0){
+			rc = (strcmp("SP30",model) == 0);
+		}
+	}
+	return rc;
+}
+
+
 int get_fet_from_ela(mainboard_vpd_info_t * vpd){
 	int fet_code = FET_ERROR_UNKNOWN_ELA;
 
@@ -319,6 +339,10 @@ int get_fet(int board_id ){
 
 	if (vpdrev == 0xFF) {
 		fet_type = FET_ERROR_BLANK_VPD;
+		if (is_sp30()){
+			psyslog("this is an SP30, with no VPD in main board.\nWe ASSUME it's an old ELA-2013 board, hence FET=0\n");
+			fet_type = 0;
+		}
 		goto get_out;
 	}
 	else if (vpdrev < FET_SUPPORT_VPD_REV){
