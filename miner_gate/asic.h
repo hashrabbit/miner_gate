@@ -489,11 +489,15 @@ typedef struct {
   LOOP loop[LOOP_COUNT];
   int fet[BOARD_COUNT];
   int board_not_present[BOARD_COUNT];  
+  int wins_last_minute[BOARD_COUNT];
+  int board_working_asics[BOARD_COUNT];   
   AC2DC ac2dc[PSU_COUNT]; 
   int exiting;
   int did_asic_reset;
   int board_cooling_ever;   
+  
   int asic_count;
+  
 
   int this_min_failed_bist;
   WIN last_win;

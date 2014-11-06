@@ -21,7 +21,7 @@
 #define DBG_WINS 0
 #define DBG_HW 0
 #define DBG_SCALING 0
-#define DBG_SCALING1 1
+#define DBG_SCALING1 0
 
 #define DBG_POWER 0
 #define DBG_TEMP 0

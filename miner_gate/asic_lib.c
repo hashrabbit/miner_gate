@@ -559,7 +559,6 @@ int allocate_addresses_to_devices() {
             write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_CHIP_ADDR, addr << 8);
             total_devices++;
             asics_in_loop++;
-            vm.asic_count++;
             vm.asic[addr].asic_present = 1;
             disable_asic_forever_rt(addr, (addr == (ASICS_COUNT-1)) , "User disabled");
             continue;
@@ -570,7 +569,6 @@ int allocate_addresses_to_devices() {
           write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_CHIP_ADDR, addr << 8);
           total_devices++;
           asics_in_loop++;
-          vm.asic_count++;
           for (int i = 0; i < ENGINE_BITMASCS-1; i++) {
             vm.asic[addr].not_brocken_engines[i] = ENABLED_ENGINES_MASK;
           }
@@ -776,6 +774,7 @@ int get_print_win(int winner_device, int winner_engine) {
     //printf("Win\n");
     vm.asic[winner_device].solved_jobs++;
     vm.solved_jobs_total++;
+    vm.wins_last_minute[ASIC_TO_BOARD_ID(winner_device)]++;
     vm.this_minute_wins++;
     work_in_hw->winner_nonce = winner_nonce;
     work_in_hw->ntime_offset = job_id%MQ_INCREMENTS;
@@ -1547,13 +1546,12 @@ void once_second_scaling_logic() {
     ASIC *a = &vm.asic[xx];
     if ((a->asic_present) && (a->dc2dc.dc_current_16s < (10*16))) {
         needs_reset = 1;
-        mg_event_x_nonl("Lazy: %d", xx);
+        mg_event_x("Lazy[%d]", xx);
     } 
     vm.asic[xx].dc2dc.revolted = 0;
   }
 
   if (needs_reset) {
-    mg_event_x("Doing restart");
     test_lost_address();
     restart_asics_full(5, "Lazy asic");
     return;
@@ -1646,18 +1644,31 @@ int get_fake_power(int psu_id) {
 
 
 void one_minute_tasks() {
+  memset(vm.board_working_asics, 0, sizeof(vm.board_working_asics));
   // Give them chance to raise over 3 hours if system got colder
   vm.last_minute_wins = vm.this_minute_wins;
   //vm.this_min_failed_bist = 0;
   // basic win at 20lz lz is 1MB, divide by 60 seconds.
   vm.last_minute_rate_mb = ((1<<(vm.cur_leading_zeroes-20)) * vm.last_minute_wins); 
   vm.last_minute_rate_mb /= 60;
-  for (int j =0;j< ASICS_COUNT;j++) {
+  for (int j =0;j< ASICS_COUNT;j++) {    
+    if (vm.asic[j].asic_present) {
+        vm.asic_count++;
+    }
+
     vm.asic[j].idle_asic_cycles_last_min = vm.asic[j].idle_asic_cycles_this_min;  
     vm.asic[j].idle_asic_cycles_this_min = 0;
     vm.asic[j].ot_warned_a = 0;
     vm.asic[j].ot_warned_b = 0;
+    if (vm.asic[j].asic_present) {
+      vm.board_working_asics[ASIC_TO_BOARD_ID(j)]++;
+    }
   }
+
+  if (vm.asic_count == 0) {
+    exit_nicely(1,"All ASICs disabled");
+  }
+  
   /*
   psyslog("***********************************\n");  
   psyslog("Last minute rate: %d (mining:%d, notmining:%d, idle promil=%d)\n", 
@@ -1669,7 +1680,15 @@ void one_minute_tasks() {
   psyslog("***********************************\n");      
  */
 
-
+  // Catch non-mining boards
+  if (vm.mining_time > 100) {
+    for (int b = 0; b < BOARD_COUNT; b++) {
+      if (vm.board_working_asics[b] &&  vm.wins_last_minute[b] == 0) {
+        restart_asics_full(77,"Idle board");
+      }
+      vm.wins_last_minute[b] = 0;
+    }
+  }
   vm.this_minute_wins = 0;   
 }
 
@@ -1907,11 +1926,11 @@ void print_scaling() {
            vm.solved_jobs_total, vm.this_minute_wins, vm.last_minute_wins,
            vm.this_min_failed_bist,
            vm.hw_errs);
-   fprintf(f, "leading-zeroes:%d idle promils[s/m]:%d/%d, rate:%dgh/s asic-count:%d\n",            
+   fprintf(f, "leading-zeroes:%d idle promils[s/m]:%d/%d, rate:%dgh/s asic-count:%d (wins:%d+%d)\n",            
            vm.cur_leading_zeroes, 
            vm.asic[0].idle_asic_cycles_sec*10/100000, (vm.asic[0].idle_asic_cycles_last_min*10) / 6000000, 
            vm.last_minute_rate_mb/1000,
-           vm.asic_count);
+           vm.asic_count, vm.wins_last_minute[BOARD_0], vm.wins_last_minute[BOARD_1]);
    fprintf(f, "Fan:%d, conseq:%d\n", vm.fan_level, vm.consecutive_jobs);
    fprintf(f, "AC2DC BAD: %d %d\n" , 0, 0);
    fprintf(f, "R/NR: %d/%d\n", vm.mining_time, vm.not_mining_time);

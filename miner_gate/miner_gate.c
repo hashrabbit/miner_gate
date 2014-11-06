@@ -1472,9 +1472,17 @@ void test_lost_address() {
 }
 void restart_asics_full(int reason,const char * why) {  
   int err;
+  int working_asics_before_restart;
+  for (int j =0;j< ASICS_COUNT;j++) {    
+     if (vm.asic[j].asic_present) {
+         working_asics_before_restart++;
+     }
+  }
+     
+
   
   mg_event_x("restart_asics_full (%s)", why);
-  psyslog("-------- SOFT RESET 0 -----------\n");  
+  psyslog("-------- SOFT RESET 0 (asics:%d) -----------\n", working_asics_before_restart);  
   if(vm.in_asic_reset != 0) {
     print_stack();
     mg_event_x("Recursive restart_asics (%s)", why);
@@ -1503,7 +1511,6 @@ void restart_asics_full(int reason,const char * why) {
 #endif
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
   
-  vm.asic_count = 0;
   vm.all_engines_enable_countdown = SLOW_START_STATE_HALF;
 
   psyslog(":::all_engines_enable_countdown %d\n", vm.all_engines_enable_countdown);
@@ -1610,7 +1617,6 @@ void restart_asics_full(int reason,const char * why) {
          (vm.asic[i].user_disabled)) {
       psyslog("Disable ASIC %d\n", i);
       if (!vm.asic[i].asic_present) {
-        vm.asic_count++;
         vm.asic[i].asic_present = 1;
       }
       disable_asic_forever_rt(i,1,NULL);
@@ -1628,6 +1634,17 @@ void restart_asics_full(int reason,const char * why) {
   //First - clear 
   read_ac2dc_errors(1);
   vm.did_asic_reset = 1;
+
+  for (int j =0;j< ASICS_COUNT;j++) {    
+     if (vm.asic[j].asic_present) {
+         vm.asic_count++;
+     }
+  }
+  
+  if (vm.asic_count < working_asics_before_restart) {
+    exit_nicely(1,"Not all ASICs recover");
+  }
+  
   psyslog("-------- SOFT RESET DONE -----------\n");     
   vm.in_asic_reset = 0;
   mg_event_x("Restart ASICS done :)%d", vm.in_asic_reset);

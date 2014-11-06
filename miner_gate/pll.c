@@ -536,7 +536,7 @@ void disable_asic_forever_rt(int addr, int passert_if_none_left, const char* why
   write_reg_asic(addr, NO_ENGINE,ADDR_INTR_MASK,0xFFFF);
   write_reg_asic(addr, NO_ENGINE,ADDR_DEBUG_CONTROL,BIT_ADDR_DEBUG_DISABLE_TRANSMIT);
   flush_spi_write();
-  mg_event_x("Asic disable %d: %s, left:%d",addr,vm.asic[addr].why_disabled, vm.asic_count);
+  mg_event_x("Asic disable %d: %s",addr,vm.asic[addr].why_disabled);
 
   for (int i = 0; i < ENGINE_BITMASCS; i++) {
      vm.asic[addr].not_brocken_engines[i] = 0;
@@ -558,10 +558,5 @@ void disable_asic_forever_rt(int addr, int passert_if_none_left, const char* why
     vm.asic[addr].cooling_down = 0;
   }
   // dc2dc_disable_dc2dc(addr,&err);
-  vm.asic_count--;
-  psyslog("Disabing ASIC forever %d (0x%x) from loop %d (%s), count %d\n", addr, addr, addr/ASICS_PER_LOOP, why, vm.asic_count);
-  if (passert_if_none_left && (vm.asic_count == 0)) {
-    mg_event("NO ASICS LEFT!");
-    passert(0);
-  }
+  psyslog("Disabing ASIC forever %d (0x%x) from loop %d (%s)\n", addr, addr, addr/ASICS_PER_LOOP, why);
 }
