@@ -166,6 +166,7 @@ int is_sp30() {
 			rc = (strcmp("SP30",model) == 0);
 		}
 	}
+	fclose (file);
 	return rc;
 }
 
