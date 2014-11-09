@@ -1094,11 +1094,13 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
      while ((reg = read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_CONDUCTOR_BUSY)) != 0) {
       if (i++ > 4000) {
         //end_stopper(&tv,"MQ WAIT BAD");
-        psyslog(RED "JOB %x stuck, killing ASIC X 3\n" RESET, reg);
+        psyslog(RED "JOB %x stuck, NOT killing ASIC X 3?\n" RESET, reg);
         //return 0;
         int addr = BROADCAST_READ_ADDR(reg);
-        disable_asic_forever_rt(addr, 1, "bist cant start, stuck X");
+        //disable_asic_forever_rt(addr, 1, "bist cant start, stuck X");
+        break;
       }
+      usleep(1);
     }
   } 
 

@@ -143,20 +143,32 @@ void update_dc2dc_stats(int i, int restart_on_oc = 1);
 
 void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   int i, err2;
-  set_light(LIGHT_GREEN, LIGHT_MODE_OFF);
-  leds_periodic_100_msecond();
-  set_light_on_off(LIGHT_GREEN, LIGHT_MODE_OFF);
-  //execl("/usr/local/bin/kill_cgminer", "/usr/local/bin/kill_cgminer", NULL);
-  psyslog("Closing socket %d\n", socket_fd);
-  close(socket_fd);
-  save_rate_temp(0,0,0,0);  
-  mg_event(why);
-  stop_all_work_rt();
+  static int recursive = 0;
+
+  if (recursive > 5) {
+    exit(0);
+  }
   i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err2);    
 #ifndef SP2x
   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err2);    
 #endif
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
+  set_light_on_off(LIGHT_GREEN, LIGHT_MODE_OFF);
+  set_light(LIGHT_GREEN, LIGHT_MODE_OFF);
+  leds_periodic_100_msecond();
+  set_light_on_off(LIGHT_GREEN, LIGHT_MODE_OFF);
+  
+  
+  //execl("/usr/local/bin/kill_cgminer", "/usr/local/bin/kill_cgminer", NULL);
+  psyslog("Closing socket %d\n", socket_fd);
+  close(socket_fd);
+  save_rate_temp(0,0,0,0);  
+  mg_event(why);
+  if (!recursive) {
+    recursive++;
+    stop_all_work_rt();
+  }
+  recursive++;  
   err2 = 0;
 
 /*

@@ -368,12 +368,22 @@ int read_ac2dc_errors(int to_event) {
   if (problem) {
     vm.err_murata++;
     if (to_event) {
-      mg_event_x(RED "AC2DC status: %x %x" RESET,p0,p1);
+      //mg_event_x(RED "AC2DC status: %x %x" RESET,p0,p1);
+      psyslog(RED  "AC2DC status: %x %x\n" RESET,p0,p1);
     } else {
       psyslog(RED  "AC2DC status: %x %x\n" RESET,p0,p1);
     }
   }
-  return ((p0 & 0x8000) || (p1 & 0x8000));
+  int ppp = 0;
+  if ((p0 & 0x8000) && (vm.board_working_asics[BOARD_0] > 0)) {
+      ppp=1;
+  }
+
+  if ((p1 & 0x8000) && (vm.board_working_asics[BOARD_1] > 0)) {
+      ppp=1;
+  }
+  
+  return (ppp);
 #endif  
 }
 
