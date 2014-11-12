@@ -29,10 +29,10 @@ int readMain_I2C_eeprom (char * vpd_str , int board_id , int startAddress , int 
 void resetI2CSwitches(){
 	int err;
 	i2c_write(I2C_DC2DC_SWITCH, PRIMARY_I2C_SWITCH_DEAULT , &err);
-	usleep(2000);
+	usleep(10000);
 
 	i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT , &err);
-	usleep(2000);
+	usleep(10000);
 }
 
 inline int fix_max_cap(int val, int max){
@@ -51,7 +51,7 @@ int setI2CSwitches(int board_id){
 	i2c_write(PRIMARY_I2C_SWITCH, I2C_MY_MAIN_BOARD_PIN | PRIMARY_I2C_SWITCH_DEAULT , &err);
 
 	if (err==0){
-		usleep(2000);
+		usleep(10000);
 		i2c_write(I2C_DC2DC_SWITCH,  PRIMARY_I2C_SWITCH_DEAULT , &err);
 	}
 	else{
@@ -60,9 +60,9 @@ int setI2CSwitches(int board_id){
 	}
 
 	if (err==0){
-		usleep(2000);
+		usleep(10000);
 		i2c_write(I2C_DC2DC_SWITCH,  MAIN_BOARD_I2C_SWITCH_EEPROM_PIN , &err);
-		usleep(2000);
+		usleep(10000);
 	}
 	else{
 		fprintf(stderr,"failed calling i2c set 0x71 %x\n", PRIMARY_I2C_SWITCH_DEAULT);
@@ -101,15 +101,15 @@ int set_fet(int board_id , int fet_type){
 
 	if (vpdrev == 0xFF){
 		i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, 0 , MAIN_VPD_REV , &err);
-		usleep(2000);
+		usleep(10000);
 		for (int a = 1 ; a < MAIN_BOARD_VPD_EEPROM_SIZE ; a++){
 			i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, a , 0 , &err);
-			usleep(2000);
+			usleep(10000);
 		}
 	}
 	else if ( vpdrev < MAIN_VPD_REV) {
 		i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, 0 , MAIN_VPD_REV , &err);
-		usleep(2000);
+		usleep(10000);
 	}
 
 	if (err){
@@ -118,14 +118,14 @@ int set_fet(int board_id , int fet_type){
 	}
 
 	i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, MAIN_BOARD_VPD_FET_FLAG_ADDR_START , 1 , &err);
-	usleep(2000);
+	usleep(10000);
 	if (err){
 		rc = FET_ERROR_VPD_WRITE_ERROR;
 		goto get_out;
 	}
 
 	i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, MAIN_BOARD_VPD_FET_CODE_ADDR_START , fet_type , &err);
-	usleep(2000);
+	usleep(10000);
 	if (err){
 		rc = FET_ERROR_VPD_WRITE_ERROR;
 		goto get_out;
@@ -136,7 +136,7 @@ int set_fet(int board_id , int fet_type){
 	for (b = 0 ; b < strlen(fetstr); b++)
 	{
 		i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, b+MAIN_BOARD_VPD_FET_STR_ADDR_START  , fetstr[b] , &err);
-		usleep(2000);
+		usleep(10000);
 		if(err != 0){
 			rc = FET_ERROR_VPD_WRITE_ERROR;
 			goto get_out;
@@ -451,21 +451,21 @@ int mainboard_set_vpd(  int board_id, const char * vpd){
 	if (vpdrev == 0xFF){
 			firstTimeBurn = true;
 			i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, 0 , MAIN_VPD_REV , &err);
-			usleep(2000);
+			usleep(10000);
 			for (int a = 1 ; a < MAIN_BOARD_VPD_EEPROM_SIZE ; a++){
 				i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, a , 0 , &err);
-				usleep(2000);
+				usleep(10000);
 			}
 	}
 	else if ( vpdrev < MAIN_VPD_REV) {
 			i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, 0 , MAIN_VPD_REV , &err);
-			usleep(2000);
+			usleep(10000);
 	}
 
 	for (int b = 0 ; b < (MAIN_BOARD_VPD_FET_STR_ADDR_START-MAIN_BOARD_VPD_SERIAL_ADDR_START); b++)
 	{
 		i2c_write_byte(MAIN_BOARD_I2C_EEPROM_DEV_ADDR, b+MAIN_BOARD_VPD_SERIAL_ADDR_START  , vpd[b] , &err);
-		usleep(2000);
+		usleep(10000);
 		if(err != 0)
 			break;
 	}
