@@ -146,17 +146,6 @@ int main(int argc, char *argv[])
 
      ac2dc_init2(ac2dc);
 
-     /*
-     if (ac2dc[PSU_BOTTOM].ac2dc_type == AC2DC_TYPE_NONE)
-     {
-    	  printf("NO BOTTOM PSU\n");
-     }
-
-     if (ac2dc[PSU_TOP].ac2dc_type == AC2DC_TYPE_NONE)
-     {
-         	  printf("NO TOP PSU\n");
-     }
-      */
 
      ac2dc_vpd_info_t vpd = {}; // allocte, and initializero
      if (showTop){
@@ -172,6 +161,7 @@ int main(int argc, char *argv[])
            if (print_type)
            {
         	   char psu_type[32]={};
+        	   //printf("PSU %d Type is %d\n",0 , ac2dc[0].ac2dc_type);
         	 switch (ac2dc[0].ac2dc_type){
         	 case AC2DC_TYPE_UNKNOWN:
         		 sprintf(psu_type,"%s","NO_PSU");
@@ -185,6 +175,9 @@ int main(int argc, char *argv[])
         		 break;
         	 case AC2DC_TYPE_EMERSON_1_2:
         		 sprintf(psu_type,"%s","EMERSON1200");
+        		 break;
+        	 case AC2DC_TYPE_EMERSON_1_6:
+        		 sprintf(psu_type,"%s","EMERSON1600");
         		 break;
         	 default:
         		 sprintf(psu_type,"%s","UNKNOWN_PSU");
@@ -223,6 +216,7 @@ int main(int argc, char *argv[])
 
            if (print_type)
            {
+        	   //printf("PSU %d Type is %d\n",1 , ac2dc[1].ac2dc_type);
         	   char psu_type[32]={};
         	 switch (ac2dc[1].ac2dc_type){
         	 case AC2DC_TYPE_UNKNOWN:
@@ -237,6 +231,9 @@ int main(int argc, char *argv[])
         		 break;
         	 case AC2DC_TYPE_EMERSON_1_2:
         		 sprintf(psu_type,"%s","EMERSON1200");
+        		 break;
+        	 case AC2DC_TYPE_EMERSON_1_6:
+        		 sprintf(psu_type,"%s","EMERSON1600");
         		 break;
         	 default:
         		 sprintf(psu_type,"%s","UNKNOWN_PSU");

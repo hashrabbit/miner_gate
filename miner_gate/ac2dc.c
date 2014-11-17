@@ -200,8 +200,8 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
 	  }
 
 
-		int rc = 0;
-		int err = 0;
+	  int rc = 0;
+	  int err = 0;
 	  int pnr_offset = 0x34;
 	  int pnr_size = 15;
 	  int model_offset = 0x57;
@@ -231,8 +231,8 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
 	12 (0x3F , 0x4A ) Product NR
 	2  (0x4c ,0x4d) REV
 	13 (0x4f , 0x5B)SNR
-		   *
 		   */
+
 		  pnr_offset = 0x3F;
 		  pnr_size = 12;
 		  model_offset = 0x3F;
@@ -243,6 +243,19 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
 		  revision_size = 2;
 
 	  }
+	  else if (ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_6) // EMRSN1200
+	  	  {
+
+		  pnr_offset = 0x34;
+		  pnr_size = 15;
+		  model_offset = 0x57;
+		  model_size = 4;
+		  serial_offset = 0x57;
+		  serial_size = 13; // this includes the model and the serial . serial naked is 0x5b/9 (instead of 57/13)
+		  revision_offset = 0x61;
+		  revision_size = 2;
+
+	  	  }
 
 	  if (NULL == pVpd) {
 	    psyslog("call ac2dc_get_vpd performed without allocating sturcture first\n");
