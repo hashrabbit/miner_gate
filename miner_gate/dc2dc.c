@@ -61,7 +61,7 @@ i2cset –y 0 0x18 0x47 0x3F
 i2cset –y 0 0x18 0xd7 0x03
 i2cset –y 0 0x18 0x02 0x02
 i2cset –y 0 0x18 0x51 0x0087 w
-i2cset –y 0 0x18 0x4f 0x0096 w
+i2cset –y 0 0x18 0x4f 0x009b w
 i2cset –y 0 0x18 0xe6 0x0007 w
 i2cset –y 0 0x18 0xe5 0x7f00 w
 i2cset –y 0 0x18 0x15
@@ -76,8 +76,8 @@ static int dc2dc_init_rb(int addr) {
     assert(addr < ASICS_COUNT);
     assert(addr >= 0);
 
-    if ((vm.fet[ASIC_TO_BOARD_ID(addr)] >= FET_ERRORS)) {
-      disable_asic_forever_rt(addr, 1, "FET read error");
+    if ((vm.fet[ASIC_TO_BOARD_ID(addr)] >= FET_ERROR_CODES_START)) {
+      disable_asic_forever_rt_restart_if_error(addr, 1, "FET read error");
       return 0;
     }
   
@@ -116,15 +116,19 @@ static int dc2dc_init_rb(int addr) {
         i2c_write_word(dc2dc_addr[0], 0x4a, 0xf850,&err);
       } else {
         i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-        i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+        i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
         i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-        i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+        i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
       }
       i2c_write_byte(dc2dc_addr[0], 0x47, 0x3F,&err);
       i2c_write_byte(dc2dc_addr[0], 0xd7, 0x03,&err);
       i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
-      i2c_write_word(dc2dc_addr[0], 0x51, 0x006e,&err);
-      i2c_write_word(dc2dc_addr[0], 0x4f, 0x007d ,&err);
+      // TEMP
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x008C,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x009B ,&err);      
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x008C,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x009b ,&err);
+      
       i2c_write_word(dc2dc_addr[0], 0xe6, 0x0007,&err);
       i2c_write_word(dc2dc_addr[0], 0xe5, 0x7f00,&err);
     }else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_78B_I50)  {
@@ -133,14 +137,18 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_word(dc2dc_addr[0], 0x38, 0x8021,&err);
       i2c_write_word(dc2dc_addr[0], 0x39, 0xe024,&err);
       i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
       i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
       i2c_write_byte(dc2dc_addr[0], 0x47, 0x3F,&err);
       i2c_write_byte(dc2dc_addr[0], 0xd7, 0x03,&err);
       i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
-      i2c_write_word(dc2dc_addr[0], 0x51, 0x006e,&err);
-      i2c_write_word(dc2dc_addr[0], 0x4f, 0x007d ,&err);
+
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x0082,&err);
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x0082,&err);
+      
       i2c_write_word(dc2dc_addr[0], 0xe6, 0x0007,&err);
       i2c_write_word(dc2dc_addr[0], 0xe5, 0x7f00,&err);
     }
@@ -158,15 +166,19 @@ static int dc2dc_init_rb(int addr) {
       } else {
         i2c_write_word(dc2dc_addr[0], 0x38, 0x8018,&err);      
         i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-        i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85A,&err);
+        i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
         i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-        i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85A,&err);
+        i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
       }
       i2c_write_byte(dc2dc_addr[0], 0x47, 0x3F,&err);
       i2c_write_byte(dc2dc_addr[0], 0xd7, 0x03,&err);
       i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
-      i2c_write_word(dc2dc_addr[0], 0x51, 0x006e,&err);
-      i2c_write_word(dc2dc_addr[0], 0x4f, 0x007d ,&err);
+      
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x0082,&err);
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x0082,&err);
+
       i2c_write_word(dc2dc_addr[0], 0xe6, 0x0007,&err);
       i2c_write_word(dc2dc_addr[0], 0xe5, 0x7c00,&err);
     } else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72A_3PHASE)  {  // FET_T_72A
@@ -174,14 +186,18 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_word(dc2dc_addr[0], 0x36, 0xf018,&err);
       i2c_write_word(dc2dc_addr[0], 0x38, 0x8018,&err);
       i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85A,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
       i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85A,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
       i2c_write_byte(dc2dc_addr[0], 0x47, 0x3F,&err);
       i2c_write_byte(dc2dc_addr[0], 0xd7, 0x03,&err);
       i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
-      i2c_write_word(dc2dc_addr[0], 0x51, 0x006e,&err);
-      i2c_write_word(dc2dc_addr[0], 0x4f, 0x007d ,&err);
+
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x0082,&err);
+      i2c_write_word(dc2dc_addr[0], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[0], 0x4f, 0x0082,&err);
+       
       i2c_write_word(dc2dc_addr[0], 0xe6, 0x0006,&err);
       i2c_write_word(dc2dc_addr[0], 0xe5, 0x7c00,&err);
     } else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72B_3PHASE)  {
@@ -190,14 +206,18 @@ static int dc2dc_init_rb(int addr) {
        i2c_write_word(dc2dc_addr[0], 0x38, 0x8021,&err);
        i2c_write_word(dc2dc_addr[0], 0x39, 0xe024,&err);    
        i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
        i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
        i2c_write_byte(dc2dc_addr[0], 0x47, 0x3F,&err);
        i2c_write_byte(dc2dc_addr[0], 0xd7, 0x03,&err);
        i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
-       i2c_write_word(dc2dc_addr[0], 0x51, 0x0087,&err);
-       i2c_write_word(dc2dc_addr[0], 0x4f, 0x0096 ,&err);
+
+       i2c_write_word(dc2dc_addr[0], 0x51, 0x008c,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4f, 0x009b,&err);
+       i2c_write_word(dc2dc_addr[0], 0x51, 0x008c,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4f, 0x009b,&err);
+       
        i2c_write_word(dc2dc_addr[0], 0xe6, 0x0006,&err);
        i2c_write_word(dc2dc_addr[0], 0xe5, 0x7f00,&err);
     } else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_78B_3PHASE)  {
@@ -206,14 +226,19 @@ static int dc2dc_init_rb(int addr) {
        i2c_write_word(dc2dc_addr[0], 0x38, 0x8021,&err);
        i2c_write_word(dc2dc_addr[0], 0x39, 0xe024,&err);
        i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
        i2c_write_word(dc2dc_addr[0], 0x46, 0xf864,&err);
-       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85a,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4a, 0xf85f,&err);
        i2c_write_byte(dc2dc_addr[0], 0x47, 0x3F,&err);
        i2c_write_byte(dc2dc_addr[0], 0xd7, 0x03,&err);
        i2c_write_byte(dc2dc_addr[0], 0x02, 0x02,&err);
-       i2c_write_word(dc2dc_addr[0], 0x51, 0x006e,&err);
-       i2c_write_word(dc2dc_addr[0], 0x4f, 0x007d ,&err);
+       
+       i2c_write_word(dc2dc_addr[0], 0x51, 0x0073,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4f, 0x0082,&err);
+       i2c_write_word(dc2dc_addr[0], 0x51, 0x0073,&err);
+       i2c_write_word(dc2dc_addr[0], 0x4f, 0x0082,&err);
+
+
        i2c_write_word(dc2dc_addr[0], 0xe6, 0x0006,&err);
        i2c_write_word(dc2dc_addr[0], 0xe5, 0x7f00,&err);
     } else {
@@ -244,15 +269,17 @@ static int dc2dc_init_rb(int addr) {
         i2c_write_word(dc2dc_addr[1], 0x4a, 0xf850,&err);
       } else {
         i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
-        i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a,&err);
+        i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f,&err);
         i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
-        i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a,&err);
+        i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f,&err);
       }
       i2c_write_byte(dc2dc_addr[1], 0x47, 0x3F ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x0087 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0096 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x0087 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0096 ,&err);
+
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x008c,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x009b,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x008c,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x009b,&err);
+      
       i2c_write_word(dc2dc_addr[1], 0xe6, 0x001f ,&err);
       i2c_write_word(dc2dc_addr[1], 0xe5, 0x7f00 ,&err);
     }
@@ -261,14 +288,16 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_word(dc2dc_addr[1], 0x36, 0xf018 ,&err);
       i2c_write_word(dc2dc_addr[1], 0x38, 0x8021 ,&err);
       i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f,&err);
       i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f,&err);
       i2c_write_byte(dc2dc_addr[1], 0x47, 0x3F ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x006e ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x007d ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x006e ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x007d ,&err);
+
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x0073 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0082 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x0073 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0082 ,&err);
+      
       i2c_write_word(dc2dc_addr[1], 0xe6, 0x001f ,&err);
       i2c_write_word(dc2dc_addr[1], 0xe5, 0x7f00 ,&err);
     }
@@ -286,14 +315,18 @@ static int dc2dc_init_rb(int addr) {
       } else {
         i2c_write_word(dc2dc_addr[1], 0x38, 0x8018,&err);      
         i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
-        i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85A,&err);
+        i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f,&err);
         i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
-        i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85A,&err);
+        i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f,&err);
       }
       i2c_write_byte(dc2dc_addr[1], 0x47, 0x3F,&err);
 #if 1    // 110/120 
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x006e,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x007d ,&err);
+
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0082 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0082 ,&err);
+      
 #else     // 120/140
       i2c_write_word(dc2dc_addr[1], 0x51, 0x0078,&err);
       i2c_write_word(dc2dc_addr[1], 0x4f, 0x008c ,&err);
@@ -306,13 +339,16 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_word(dc2dc_addr[1], 0x36, 0xf018,&err);
       i2c_write_word(dc2dc_addr[1], 0x38, 0x8018,&err);
       i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85A,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f,&err);
       i2c_write_word(dc2dc_addr[1], 0x46, 0xf864,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85A,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f,&err);
       i2c_write_byte(dc2dc_addr[1], 0x47, 0x3F,&err);
 #if 1    // 110/120 
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x006e,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x007d ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0082 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x0073,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0082 ,&err);
+      
 #else     // 120/140
       i2c_write_word(dc2dc_addr[1], 0x51, 0x0078,&err);
       i2c_write_word(dc2dc_addr[1], 0x4f, 0x008c ,&err);
@@ -324,14 +360,16 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_word(dc2dc_addr[1], 0x36, 0xf018 ,&err);
       i2c_write_word(dc2dc_addr[1], 0x38, 0x8021 ,&err);
       i2c_write_word(dc2dc_addr[1], 0x46, 0xf864 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f ,&err);
       i2c_write_word(dc2dc_addr[1], 0x46, 0xf864 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f ,&err);
       i2c_write_byte(dc2dc_addr[1], 0x47, 0x3F ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x0087 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0096 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x0087 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0096 ,&err);
+
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x008c ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x009b ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x008c ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x009b ,&err);
+
       i2c_write_word(dc2dc_addr[1], 0xe6, 0x001e ,&err);
       i2c_write_word(dc2dc_addr[1], 0xe5, 0x7f00 ,&err);    
     } else if (vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_78B_3PHASE)  {  // FET_T_72A
@@ -339,14 +377,16 @@ static int dc2dc_init_rb(int addr) {
       i2c_write_word(dc2dc_addr[1], 0x36, 0xf018 ,&err);
       i2c_write_word(dc2dc_addr[1], 0x38, 0x8021 ,&err);
       i2c_write_word(dc2dc_addr[1], 0x46, 0xf864 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f ,&err);
       i2c_write_word(dc2dc_addr[1], 0x46, 0xf864 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85a ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4a, 0xf85f ,&err);
       i2c_write_byte(dc2dc_addr[1], 0x47, 0x3F ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x0087 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0096 ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x51, 0x006e ,&err);
-      i2c_write_word(dc2dc_addr[1], 0x4f, 0x007d ,&err);
+      
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x0073 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0082 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x51, 0x0073 ,&err);
+      i2c_write_word(dc2dc_addr[1], 0x4f, 0x0082 ,&err);
+      
       i2c_write_word(dc2dc_addr[1], 0xe6, 0x001e ,&err);
       i2c_write_word(dc2dc_addr[1], 0xe5, 0x7f00 ,&err);
     } else {
@@ -361,7 +401,9 @@ static int dc2dc_init_rb(int addr) {
     dc2dc_i2c_close();
     pthread_mutex_unlock(&i2c_mutex);
     dc2dc_enable_dc2dc(addr, &err);
-    dc2dc_set_vtrim(addr, VOLTAGE_TO_VTRIM_MILLI(660), 1, &err, "init 1");
+    DBG(DBG_VTRIM, "ASIC:%d (ac2dc %d) vtrim:%x voltage:%d\n", 
+      addr, ASIC_TO_PSU_ID(addr), vm.ac2dc[ASIC_TO_PSU_ID(addr)].vtrim_start, vm.ac2dc[ASIC_TO_PSU_ID(addr)].voltage_start);
+    dc2dc_set_vtrim(addr, vm.ac2dc[ASIC_TO_PSU_ID(addr)].vtrim_start, 1, &err, "init 1");
     //dc2dc_disable_dc2dc(addr,&err);
     pthread_mutex_lock(&i2c_mutex);
     vm.asic[addr].dc2dc.dc_temp_limit = DC_TEMP_LIMIT;
@@ -611,7 +653,12 @@ static void dc2dc_select_i2c(int addr, int *err) { // 1 or 0
 
 
 void dc2dc_set_vtrim(int addr, uint32_t vtrim, bool vmargin_75low  , int *err, const char* why) {
-  DBG(DBG_SCALING1, "ASIC:%d Milli:%d (%x) (%s)\n",addr, VTRIM_TO_VOLTAGE_MILLI(vtrim),vtrim, why);
+  DBG(DBG_VTRIM, "ASIC:%d Milli:%d (vtrim:%x/%x) (%s)\n",
+    addr, 
+    VTRIM_TO_VOLTAGE_MILLI(vtrim),
+    vtrim, 
+    vmargin_75low,
+    why);
   passert(!dc2dc_is_removed(addr));
 #ifdef MINERGATE
   passert((vtrim >= VTRIM_MIN) && (vtrim <= vm.vtrim_max));
@@ -643,6 +690,63 @@ void dc2dc_set_vtrim(int addr, uint32_t vtrim, bool vmargin_75low  , int *err, c
   //FAKE_BIST_PRINT(addr, vm.asic[addr].dc2dc.vtrim , vm.asic[addr].freq_hw);
 }
 
+
+
+
+
+
+
+// returns AMPERS
+// Mutex locked from above!
+void dc2dc_get_errors(
+      int addr, 
+      int chanel_id,
+      int dc2dc_channel_i2c_addr,
+      int* overcurrent_err, 
+      int* overcurrent_warning,
+      uint8_t *temp,
+      int *current,      
+      int *err,
+      int verbose) {
+  
+  //  psyslog("CURRENT %d:%d =%d\n",addr, chanel_id*2 ,(*current)/16);
+    int gen_stat = i2c_read_byte(dc2dc_channel_i2c_addr, 0x78);
+    int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A); 
+    int problems = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7b);
+    int r79 = i2c_read_word(dc2dc_channel_i2c_addr, 0x79);
+    int r80 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x80);
+    *overcurrent_err |= (problems & 0x80);
+    *overcurrent_warning |= (problems & 0x20);
+    int overtemp = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7d);
+    int five_volt_err = ((r79 & 0xc) != 0);
+
+    
+    if ((problems&0xDF) || 
+        (gen_stat&0xFC != 0) || 
+        (gen_stat2) || 
+        five_volt_err || 
+        (overtemp & 0x80) ||
+        verbose) {
+      mg_event_x( "DC2DC ASIC WARNING [%d]: 7B=0x%2x, 7A=%2x, 78=%2x, 7D=%2x 79=%x 80=%x",
+        addr,problems, gen_stat2, gen_stat, overtemp,r79,r80);
+      i2c_write(dc2dc_channel_i2c_addr, 0x03);
+    }
+    
+    if (*overcurrent_warning) {
+      i2c_write(dc2dc_channel_i2c_addr, 0x03);
+    }
+  
+    if (overtemp & 0x40) {
+      if (!vm.asic[addr].ot_warned_a) {
+         psyslog("DC2DC TEMPWARNING[%d]: 7B=0x%2x, 7A=%2x, 78=%2x, 7D=%2x 79=%x 80=%x" ,
+          addr,problems, gen_stat2, gen_stat, overtemp, r79, r80);
+        vm.asic[addr].ot_warned_a = 1;
+      }
+      i2c_write(dc2dc_channel_i2c_addr, 0x03);
+    }
+}
+
+
 // returns AMPERS
 // Mutex locked from above!
 int dc2dc_get_current_16s_of_amper_channel(
@@ -653,7 +757,8 @@ int dc2dc_get_current_16s_of_amper_channel(
       int* overcurrent_warning,
       uint8_t *temp,
       int *current,      
-      int *err) {
+      int *err,
+      int verbose) {
   
   uint8_t temp2;
   int temp_reg;
@@ -661,7 +766,7 @@ int dc2dc_get_current_16s_of_amper_channel(
   dc2dc_set_phase(dc2dc_channel_i2c_addr,0 , err);
   temp_reg = i2c_read_word(dc2dc_channel_i2c_addr, 0x8e, err);
   if ((vm.fet[ASIC_TO_BOARD_ID(addr)] == FET_T_72B) ||
-    (vm.fet[ASIC_TO_BOARD_ID(addr)]   == FET_T_72B_I50) ||
+     (vm.fet[ASIC_TO_BOARD_ID(addr)]   == FET_T_72B_I50) ||
      (vm.fet[ASIC_TO_BOARD_ID(addr)]  == FET_T_72B_3PHASE)) {
     *temp = ((temp_reg)&0x7FF)/4 - 25;
   } else {
@@ -672,31 +777,21 @@ int dc2dc_get_current_16s_of_amper_channel(
   if (*err) {
     return 0;
   }
-  *current = (i2c_read_word(dc2dc_channel_i2c_addr, 0x8c) & 0x07FF);
-//  psyslog("CURRENT %d:%d =%d\n",addr, chanel_id*2 ,(*current)/16);
-  int gen_stat = i2c_read_byte(dc2dc_channel_i2c_addr, 0x78);
-  int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A); 
-  int problems = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7b);
-  *overcurrent_err |= (problems & 0x80);
-  *overcurrent_warning |= (problems & 0x20);
-  if (*overcurrent_err || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
-    mg_event_x(RED "DC2DC[%d] 7b=0x%x, 7A=%x, 78=%x" RESET,addr,problems, gen_stat2, gen_stat);
-    i2c_write(dc2dc_channel_i2c_addr, 0x03);
-  }
-  if (*overcurrent_warning) {
-    i2c_write(dc2dc_channel_i2c_addr, 0x03);
-  }
-
-  int overtemp = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7d);
-  if (overtemp & 0xC0) {
-    if (!vm.asic[addr].ot_warned_a) {
-      psyslog(RED "DC2DC A TEMP WARN %d:p%d - 0x%x\n" RESET,addr,dc2dc_channel_i2c_addr,overtemp);
-      vm.asic[addr].ot_warned_a = 1;
-    }
-    i2c_write(dc2dc_channel_i2c_addr, 0x03);
-  }
 
   
+  *current = (i2c_read_word(dc2dc_channel_i2c_addr, 0x8c) & 0x07FF);
+   dc2dc_get_errors(
+       addr, 
+       chanel_id,
+       dc2dc_channel_i2c_addr,
+       overcurrent_err, 
+       overcurrent_warning,
+       temp,
+       current,      
+       err,
+       verbose);
+
+   
   if ((chanel_id == 0) ||
       (
         (vm.fet[ASIC_TO_BOARD_ID(addr)] != FET_T_72B_3PHASE) &&
@@ -725,29 +820,19 @@ int dc2dc_get_current_16s_of_amper_channel(
     if (temp2>*temp) {
       *temp = temp2;
     }
-    problems = i2c_read_word(dc2dc_channel_i2c_addr, 0x7b);  
-    int gen_stat = i2c_read_byte(dc2dc_channel_i2c_addr, 0x78);
-    int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A); 
-    *overcurrent_err |= (problems & 0x80);
-    *overcurrent_warning |= (problems & 0x20);  
-
-    if (*overcurrent_err || (gen_stat & 0x8) || (gen_stat2 & 0x10)) {
-       mg_event_x(RED "DC2DC<%d> 7b=0x%x, 7A=%x, 78=%x" RESET,addr,problems, gen_stat2, gen_stat);
-       i2c_write(dc2dc_channel_i2c_addr, 0x03);
-     }
-     if (*overcurrent_warning) {
-       i2c_write(dc2dc_channel_i2c_addr, 0x03);
-     }
-
     
-    overtemp = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7d);
-    if (overtemp & 0xC0) {
-      if (!vm.asic[addr].ot_warned_b) {
-        psyslog(RED "DC2DC B OVERTEMP WARN %d:p%d - 0x%x\n" RESET,addr,dc2dc_channel_i2c_addr,overtemp);
-        vm.asic[addr].ot_warned_b = 1;
-      }
-      i2c_write(dc2dc_channel_i2c_addr, 0x03);
-    }
+    dc2dc_get_errors(
+         addr, 
+         chanel_id,
+         dc2dc_channel_i2c_addr,
+         overcurrent_err, 
+         overcurrent_warning,
+         temp,
+         current,      
+         err,
+         verbose);
+    
+    
   }
   dc2dc_set_phase(dc2dc_channel_i2c_addr, 0x81, err);
   if (*err) {
@@ -767,7 +852,8 @@ int dc2dc_get_all_stats(
       int* overcurrent_warning,
       uint8_t *temp,
       int* current,      
-      int *err) {
+      int *err,
+      int verbose) {
   // TODO - select addr!
   // int err = 0;
   passert(err != NULL);
@@ -793,7 +879,8 @@ int dc2dc_get_all_stats(
         phaze_overcurrent_warning+0,
         phaze_temp+0,
         phaze_current+0,      
-        err);
+        err,
+        verbose);
   if (*err) {
     psyslog("i2c error on dc2dc  %i:0\n", addr);
     dc2dc_i2c_close();
@@ -811,7 +898,8 @@ int dc2dc_get_all_stats(
           phaze_overcurrent_warning+1,
           phaze_temp+1,
           phaze_current+1,      
-          err);
+          err,
+          verbose);
   if (*err) {
     psyslog("i2c error on dc2dc  %i:1\n", addr);
     dc2dc_i2c_close();

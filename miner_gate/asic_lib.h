@@ -31,7 +31,7 @@ typedef struct {
 } loop_iter;
 
 
-int stop_all_work_rt(int wait_ok = 1);
+int stop_all_work_rt_restart_if_error(int wait_ok = 1);
 void resume_all_work();
 
 extern int assert_serial_failures;

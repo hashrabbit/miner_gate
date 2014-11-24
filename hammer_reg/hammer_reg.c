@@ -25,9 +25,9 @@
 #include <errno.h>
 
 void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, uint32_t* p_value);
-int squid_wait_asic_reads();
+int squid_wait_asic_reads_restart_if_error();
 void push_asic_write(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, uint32_t value);
-int squid_wait_asic_reads();
+int squid_wait_asic_reads_restart_if_error();
 
 
 
@@ -86,14 +86,14 @@ int main(int argc, char *argv[]) {
         unsigned int offset = strtoul(argv[3], NULL, 16);
         unsigned int value;
         push_asic_read( (addr&0xff00)>>8,addr&0xff,  offset, &value);
-        squid_wait_asic_reads();
+        squid_wait_asic_reads_restart_if_error();
         printf("[%x:%x] => %x\n",addr,offset,value);
       } else {
         unsigned int addr  = strtoul(argv[2], NULL, 16);
         unsigned int offset = strtoul(argv[3], NULL, 16);
         unsigned int value = strtoul(argv[4], NULL, 16);
         push_asic_write((addr&0xff00)>>8,addr&0xff, offset, value);
-        squid_wait_asic_reads();
+        squid_wait_asic_reads_restart_if_error();
         printf("[%x:%x] <= %x\n",addr,offset,value);
     }
     

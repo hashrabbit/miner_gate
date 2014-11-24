@@ -61,7 +61,7 @@ int print_time_delta() {
 }
 
 
-void _pabort(const char *s) { 
+void _pabort(const char *s) {
 	 if (s) {
 	   //perror(orig_buf);
 	   psyslog("PABORT (%s)", s);

@@ -355,12 +355,14 @@ int read_ac2dc_errors(int to_event) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
     AC2DC* ac2dc = &vm.ac2dc[PSU_0];
     p0 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
+    p0 &= (~0x2);
     i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);
   }
   if (vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
     AC2DC* ac2dc = &vm.ac2dc[PSU_1];
     p1 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
+    p1 &= (~0x2);
     i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);    
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  
@@ -376,10 +378,18 @@ int read_ac2dc_errors(int to_event) {
   }
   int ppp = 0;
   if ((p0 & 0x8000) && (vm.board_working_asics[BOARD_0] > 0)) {
+      // in this error - restore loop error count
+      for (int l = 0; l < ASICS_PER_BOARD ; l++) { 
+        vm.loop[l].bad_loop_count = 0;
+      }
       ppp=1;
   }
 
   if ((p1 & 0x8000) && (vm.board_working_asics[BOARD_1] > 0)) {
+      // in this error - restore loop error count
+      for (int l = ASICS_PER_BOARD; l < ASICS_COUNT; l++) { 
+        vm.loop[l].bad_loop_count = 0;
+      }
       ppp=1;
   }
   
@@ -423,7 +433,7 @@ void test_fix_ac2dc_limits() {
         }     
         mg_event_x("AC2DC top fail on %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
         i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-        exit_nicely(4,"AC2DC fail, restart minergate please");
+        exit_nicely(10,"AC2DC fail, restart minergate please");
       }
     }else {
       mg_event("top i2c miss");
@@ -461,7 +471,7 @@ void test_fix_ac2dc_limits() {
         }
         mg_event_x("AC2DC bottom fail on %d", vm.ac2dc[PSU_1].ac2dc_power_limit);
         i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-        exit_nicely(4,"AC2DC fail, restart minergate please");
+        exit_nicely(10,"AC2DC fail, restart minergate please");
       }
     } else {
       mg_event("bottom i2c miss");
@@ -487,10 +497,10 @@ void update_single_psu(AC2DC *ac2dc, int psu_id) {
    p = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_PIN_WORD, &err);
    if (!err) {
      ac2dc->ac2dc_in_power = i2c_getint(p); 
-     DBG( DBG_SCALING ,"PowerIn: %d\n", ac2dc->ac2dc_in_power);
+     DBG( DBG_SCALING_AC2DC ,"PowerIn: %d\n", ac2dc->ac2dc_in_power);
    } else {
      //ac2dc->ac2dc_in_power = 0;
-     DBG( DBG_SCALING ,"PowerIn: Error\n", ac2dc->ac2dc_in_power);
+     DBG( DBG_SCALING_AC2DC ,"PowerIn: Error\n", ac2dc->ac2dc_in_power);
    }
    
 //   i2c_write(PRIMARY_I2C_SWITCH, i2c_switch);  
@@ -498,7 +508,7 @@ void update_single_psu(AC2DC *ac2dc, int psu_id) {
    p = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_POUT_WORD, &err);
    if (!err) {
       int pp = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_STATUS_IOUT, &err);
-      DBG( DBG_SCALING ,"PSU STAT:%x\n", pp);
+      DBG( DBG_SCALING_AC2DC ,"PSU STAT:%x\n", pp);
       ac2dc->ac2dc_power_last_last = ac2dc->ac2dc_power_last;
       ac2dc->ac2dc_power_last = ac2dc->ac2dc_power_now;      
       ac2dc->ac2dc_power_now = i2c_getint(p); 
@@ -513,7 +523,7 @@ void update_single_psu(AC2DC *ac2dc, int psu_id) {
                ac2dc->ac2dc_power_last,
                ac2dc->ac2dc_power_last_last);
    } else {
-     DBG( DBG_SCALING ,"PowerOut: Error\n", ac2dc->ac2dc_power);
+     DBG( DBG_SCALING_AC2DC ,"PowerOut: Error\n", ac2dc->ac2dc_power);
    }
 //   i2c_write(PRIMARY_I2C_SWITCH, i2c_switch);  
 //   i2c_write(PRIMARY_I2C_SWITCH, i2c_switch);      
@@ -522,7 +532,7 @@ void update_single_psu(AC2DC *ac2dc, int psu_id) {
    int usecs = end_stopper(&tv,NULL);
    if ((usecs > 500000)) {
      mg_event_x("Bad PSU FW on PSU %d", psu_id);  
-     exit_nicely(0,"Bad PSU Firmware");
+     exit_nicely(20,"Bad PSU Firmware");
    }
 }
 

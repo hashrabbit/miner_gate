@@ -104,7 +104,7 @@ void read_spi_mult(uint8_t addr, int count, int values[]);
 void init_spi();
 unsigned long usec_stamp();
 
-void test_all_loops();
+int test_all_loops_and_dc2dc(int disabled_failed, int verbose);
 void parse_squid_status(int v);
 void parse_squid_q_status(int v);
 // Flush write command to SPI
@@ -112,7 +112,7 @@ void flush_spi_write();
 void push_mq_write(uint8_t asic_addr, uint8_t engine_addr, uint32_t offset, uint32_t value);
 void flush_mq_write();
 int mq_size();
-int squid_wait_asic_reads();
+int squid_wait_asic_reads_restart_if_error();
 
 void write_reg_asic(uint8_t asic_addr, uint8_t engine_addr, uint8_t offset, uint32_t value);
 uint32_t read_reg_asic(uint8_t asic_addr, uint8_t engine_addr, uint8_t offset);

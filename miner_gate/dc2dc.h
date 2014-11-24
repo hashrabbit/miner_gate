@@ -31,12 +31,12 @@ void dc2dc_select_rb(int addr, int *err) ;
 void dc2dc_disable_dc2dc(int addr, int *err);
 void dc2dc_enable_dc2dc(int addr, int *err);
 void dc2dc_init();
-void update_dc2dc_stats();
+void update_dc2dc_stats_restart_if_error();
 int dc2dc_is_removed(int addr);
 int dc2dc_is_removed_or_disabled(int addr);
 int dc2dc_is_user_disabled(int addr);
 int loop_is_removed_or_disabled(int l);
-void test_all_dc2dc();
+int test_all_dc2dc(int verbose);
 
 
 int dc2dc_get_all_stats(
@@ -45,7 +45,8 @@ int dc2dc_get_all_stats(
       int* overcurrent_warning,
       uint8_t *temp,
       int* current,      
-      int *err);
+      int *err,
+      int verbose);
 
 
 // in takes 0.2second for voltage to be stable.

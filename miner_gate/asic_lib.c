@@ -63,7 +63,7 @@ RT_JOB *peak_rt_queue(uint8_t hw_id);
 void try_push_job_to_mq();
 void on_failed_bist(int addr, bool store_limit,bool step_down_if_failed);
 
-int stop_all_work_rt(int wait_ok) {
+int stop_all_work_rt_restart_if_error(int wait_ok) {
   // Let half the ASICS stop
   //psyslog("STOP 1");
 
@@ -141,7 +141,7 @@ int stop_all_work_rt(int wait_ok) {
     if (i++ > 3000) {
       //end_stopper(&tv,"MQ WAIT BAD");
       psyslog(RED "JOB %x stuck, killing ASIC X 2\n" RESET, reg);
-      //disable_asic_forever_rt(addr, "bist cant start, stuck Y");
+      //disable_asic_forever_rt_restart_if_error(addr, "bist cant start, stuck Y");
       print_chiko(1);
       vm.err_stuck_bist++; 
       test_lost_address();
@@ -534,13 +534,13 @@ int allocate_addresses_to_devices() {
     passert(0);
   }
 
-  for (l = 0; l < LOOP_COUNT; l++) {
+  for (l = 0; l < LOOP_COUNT; l++) {  
     // Only in loops discovered in "enable_good_loops_ok()"
     if (vm.loop[l].enabled_loop) {
       // Disable all other loops
       unsigned int bypass_loops = (~(1 << l)) & SQUID_LOOPS_MASK;
    
-      psyslog("ADDR_SQUID_LOOP_BYPASS = %x\n", bypass_loops);      
+      psyslog("ADDR_SQUID_LOOP_BYPASS = %x (loop %d)\n", bypass_loops, l);
       write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
 
       // Give 8 addresses
@@ -554,15 +554,18 @@ int allocate_addresses_to_devices() {
         vm.asic[addr].stacked_interrupt_mask = 0xcafebabe;
 
         if (dc2dc_is_removed(addr)) {
+            // No address to removed device
           	continue;
         } else if (dc2dc_is_user_disabled(addr)) {
+            // Give address 
             write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_CHIP_ADDR, addr << 8);
             total_devices++;
             asics_in_loop++;
             vm.asic[addr].asic_present = 1;
-            disable_asic_forever_rt(addr, (addr == (ASICS_COUNT-1)) , "User disabled");
+            disable_asic_forever_rt_restart_if_error(addr, (addr == (ASICS_COUNT-1)) , "User disabled");
             continue;
         }
+        psyslog("Enabling ASIC: (%d)\n",  addr);
 
         if (  vm.asic[addr].dc2dc.dc2dc_present &&
               read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT)) {
@@ -584,7 +587,7 @@ int allocate_addresses_to_devices() {
                   count_ones(vm.asic[addr].not_brocken_engines[6]);
 
           vm.asic[addr].asic_present = 1;
-          vm.asic[addr].freq_bist_limit =    (ASIC_FREQ_MAX); // todo - discover
+          vm.asic[addr].freq_bist_limit = (ASIC_FREQ_MAX); // todo - discover
         } else {
           if (!vm.asic[addr].dc2dc.dc2dc_present) {
               write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_CHIP_ADDR, addr << 8);
@@ -609,7 +612,7 @@ int allocate_addresses_to_devices() {
              asics_in_loop, RESET);
       int no_addr = read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT);
       if (no_addr != 0) {
-        mg_event_x("no_addr = %x", no_addr);
+        mg_event_x("no addr problem %x (ASIC:%d)", no_addr, (no_addr&0xFF000000)>>24);
         passert(0);
       }
 
@@ -683,7 +686,7 @@ void compute_hash(const unsigned char *midstate, unsigned int mrkle_root,
 int get_leading_zeroes(const unsigned char *hash);
 
 
-int get_print_win(int winner_device, int winner_engine) {
+int get_print_win_restart_if_error(int winner_device, int winner_engine) {
   // TODO - find out who one!
   // int winner_device = winner_reg >> 16;
   // enable_reg_debug = 1;
@@ -696,7 +699,7 @@ int get_print_win(int winner_device, int winner_engine) {
   push_asic_read(winner_device, winner_engine, ADDR_WINNER_NONCE, &winner_nonce);
   push_asic_read(winner_device, winner_engine, ADDR_WINNER_JOBID, &job_id);
   push_asic_read(ANY_ASIC,NO_ENGINE ,ADDR_INTR_BC_WIN, &next_win_reg);
-  squid_wait_asic_reads();
+  squid_wait_asic_reads_restart_if_error();
 
   // Winner ID holds ID and Engine info
   job_id = job_id & 0xFF;
@@ -901,18 +904,18 @@ int do_bist_loop_push_job(const char* why) {
   int f;
   int i = 0;
   // Save engines needed only at minimal freq so we can disable them.
-  psyslog(YELLOW "Do BIST LOOP- START %s\n" RESET, why);
+  DBG(DBG_SCALING_BIST, YELLOW "Do BIST LOOP- START %s\n" RESET, why);
 #if 1  
   while ((f = do_bist_ok(true,true,1 , why))) {
-     psyslog(YELLOW "BIST %x FAILED: %x asics failed bist\n", i, f);
+   DBG(DBG_SCALING_BIST, "BIST %x: %x asics down after bist\n" , i, f);
     i++;    
     if (vm.did_asic_reset) {
       return 0;
     }
   }
-  psyslog(YELLOW "Do BIST LOOP- DONE %s\n" RESET, why);
+  DBG(DBG_SCALING_BIST,YELLOW "Do BIST LOOP- DONE %s\n" RESET, why);
 #else 
-  stop_all_work_rt();
+  stop_all_work_rt_restart_if_error();
   usleep(6000);
 #endif
 #ifdef SLOW_START_WORK
@@ -931,7 +934,7 @@ int do_bist_loop_push_job(const char* why) {
 
 
 void on_failed_bist(int addr, bool store_limit, bool step_down_if_failed) {
-  DBG(DBG_SCALING, "FAILED BIST %d: sl:%d sd:%d, rate:%d\n",
+  DBG(DBG_SCALING_BIST, "FAILED BIST %d: sl:%d sd:%d, rate:%d\n",
           addr,
           store_limit,
           step_down_if_failed,
@@ -940,12 +943,12 @@ void on_failed_bist(int addr, bool store_limit, bool step_down_if_failed) {
   write_reg_asic(addr, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);   
   flush_spi_write();
   if (asic_can_down_freq(addr)) { 
-    DBG(DBG_SCALING, "ASIC down XXT:%d (%d)\n", addr, vm.asic[addr].freq_bist_limit);
+    DBG(DBG_SCALING_BIST, "ASIC down XXT:%d (%d)\n", addr, vm.asic[addr].freq_bist_limit);
     passert(vm.asic[addr].freq_bist_limit > ASIC_FREQ_MIN);
     vm.asic[addr].bist_failed_called = 1;
     if (store_limit) {
       vm.asic[addr].freq_bist_limit = (int)(vm.asic[addr].freq_hw-5);
-      DBG(DBG_SCALING, "Store bist limit %d:%d\n", addr, vm.asic[addr].freq_bist_limit );      
+      DBG(DBG_SCALING_BIST, "Store bist limit %d:%d\n", addr, vm.asic[addr].freq_bist_limit );      
     }
     if (step_down_if_failed) {
       asic_down_freq(addr, 1,1, "failed bist");
@@ -960,7 +963,7 @@ void on_failed_bist(int addr, bool store_limit, bool step_down_if_failed) {
     push_asic_read(addr, NO_ENGINE, ADDR_WIN_5, &vm.asic[addr].not_brocken_engines[5]);
     push_asic_read(addr, NO_ENGINE, ADDR_WIN_6, &vm.asic[addr].not_brocken_engines[6]);
     
-    squid_wait_asic_reads();
+    squid_wait_asic_reads_restart_if_error();
     vm.asic[addr].not_brocken_engines[6] &= 0x1;
 
     vm.asic[addr].not_brocken_engines_count = 
@@ -984,7 +987,7 @@ void on_failed_bist(int addr, bool store_limit, bool step_down_if_failed) {
       vm.asic[addr].not_brocken_engines[6]
     );
     if (vm.asic[addr].not_brocken_engines_count < 100) {
-      disable_asic_forever_rt(addr,1, "Asic all engines fail BIST");
+      disable_asic_forever_rt_restart_if_error(addr,1, "Asic all engines fail BIST");
     } else {
       disable_engines_asic(addr,0);
       enable_engines_asic(addr, vm.asic[addr].not_brocken_engines, 0,1);
@@ -995,7 +998,7 @@ void on_failed_bist(int addr, bool store_limit, bool step_down_if_failed) {
   // Silence all interrupts temporary
   push_asic_read(addr, NO_ENGINE, ADDR_INTR_MASK, &vm.asic[addr].stacked_interrupt_mask);
   write_reg_asic(addr, NO_ENGINE, ADDR_INTR_MASK, 0xFFFF);
-  squid_wait_asic_reads();
+  squid_wait_asic_reads_restart_if_error();
 }
 
 
@@ -1019,7 +1022,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
   //revive_asics_if_one_got_reset("do_bist_ok\n");
 
 #if 0
-  if (stop_all_work_rt(0) != 0) {
+  if (stop_all_work_rt_restart_if_error(0) != 0) {
     return 0;
   }
 #else
@@ -1089,15 +1092,15 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
    }
 #endif
   //psyslog("do_bist_ok wait\n");
-
   if (!fast_bist) {
      while ((reg = read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_CONDUCTOR_BUSY)) != 0) {
       if (i++ > 4000) {
         //end_stopper(&tv,"MQ WAIT BAD");
-        psyslog(RED "JOB %x stuck, NOT killing ASIC X 3?\n" RESET, reg);
         //return 0;
         int addr = BROADCAST_READ_ADDR(reg);
-        //disable_asic_forever_rt(addr, 1, "bist cant start, stuck X");
+        mg_event_x(RED "JOB %x stuck, ASIC %d\n" RESET, reg, addr);
+        //disable_asic_forever_rt_restart_if_error(addr, 1, "bist cant start, stuck X");
+        restart_asics_full(323,"Stuck job");
         break;
       }
       usleep(1);
@@ -1137,7 +1140,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
      }
     }
   }
-  squid_wait_asic_reads();
+  squid_wait_asic_reads_restart_if_error();
 
 
 
@@ -1152,7 +1155,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
         int bad_asic = (a->last_bist_passed_engines[6] > 0x1);
         if (bad_asic) {
           psyslog("ASIC %d is evil\n", addr);
-          disable_asic_forever_rt(addr,1, "Very Evil ASIC");
+          disable_asic_forever_rt_restart_if_error(addr,1, "Very Evil ASIC");
           continue;
         }
         
@@ -1165,7 +1168,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
           (a->last_bist_passed_engines[5] == a->not_brocken_engines[5]) &&
           (a->last_bist_passed_engines[6] == a->not_brocken_engines[6]);
         
-          DBG(DBG_SCALING, "BIST:%s\n"
+          DBG(DBG_SCALING_BIST, "BIST:%s\n"
                 "%d: WORKING ENG: %x-%x-%x-%x %x-%x-%x\n"
                 "    WINS:        %x-%x-%x-%x %x-%x-%x\n"
                 "    PASSED 1s:   %d of %d\n", 
@@ -1199,13 +1202,13 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
      if  (!passed) {   
         some_one_failed++;
         vm.this_min_failed_bist++;
-        DBG(DBG_SCALING, RED "FAILED BIST %d at freq %d\n" RESET, addr, vm.asic[addr].freq_hw);
+        DBG(DBG_SCALING_BIST, RED "FAILED BIST %d at freq %d\n" RESET, addr, vm.asic[addr].freq_hw);
         on_failed_bist(addr, store_limit, step_down_if_failed);
      }
     }  
   }
   
-  DBG(DBG_SCALING, "FAILED BIST %d ASICS\n", some_one_failed);
+  DBG(DBG_SCALING_BIST, "FAILED BIST %d ASICS\n", some_one_failed);
   //end_stopper(&tv,"READ BIST RES");
 
 
@@ -1222,7 +1225,10 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
 
 
 
-  enable_good_engines_all_asics_ok(0);
+  enable_good_engines_all_asics_ok_restart_if_error(0);
+  if (vm.did_asic_reset) {
+    return 0;
+  }
   write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
   write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_CONTROL_SET0, BIT_ADDR_CONTROL_BIST_MODE);
   // write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_CONTROL_SET1, BIT_ADDR_CONTROL_FIFO_RESET_N);
@@ -1268,14 +1274,13 @@ void set_initial_voltage_freq_on_restart() {
    for (int i = 0 ; i < ASICS_COUNT; i++) {
      ASIC *a = &vm.asic[i];
      if (a->asic_present) {
-       DBG(DBG_SCALING, CYAN "TRY ENABLE ASIC %d\n" RESET, i);
-       DBG(DBG_SCALING, CYAN "TRY ENABLE PRESENT ASIC %d\n" RESET, i);
+       DBG(DBG_SCALING_INIT, CYAN "TRY ENABLE PRESENT ASIC %d\n" RESET, i);
        set_pll(i, a->freq_hw, 1,1, "RESTART Initial freq");
      } 
    }
    //usleep(50000);
    read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT);
-   while (wait_dll_ready(ANY_ASIC, "after initial") != 0) {
+   while (wait_dll_ready_restart_if_error(ANY_ASIC, "after initial") != 0) {
      psyslog("DLL STUCK, TRYING AGAIN x4367\n");
    }
   
@@ -1314,12 +1319,12 @@ void set_initial_voltage_freq() {
 
   // 1) Set initial freq to minimum.
   for (int i = 0 ; i < ASICS_COUNT; i++) {
-    DBG(DBG_SCALING, CYAN "TRY ENABLE ASIC %d\n" RESET, i);
+    DBG(DBG_SCALING_INIT, CYAN "TRY ENABLE ASIC %d\n" RESET, i);
     ASIC *a = &vm.asic[i];
     if (a->asic_present) {
-      DBG(DBG_SCALING, CYAN "TRY ENABLE PRESENT ASIC %d\n" RESET, i);
+      DBG(DBG_SCALING_INIT, CYAN "TRY ENABLE PRESENT ASIC %d\n" RESET, i);
       // Set FREQ
-      a->freq_bist_limit = ASIC_FREQ_MAX-2;
+      a->freq_bist_limit = ASIC_FREQ_MAX;
       disable_engines_asic(i, 0);
       set_pll(i, ASIC_FREQ_MIN, 1,0, "Initial freq");
       //usleep(500);
@@ -1328,7 +1333,7 @@ void set_initial_voltage_freq() {
   }
   //usleep(50000);
   read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT);
-  while (wait_dll_ready(ANY_ASIC, "after initial2") != 0) {
+  while (wait_dll_ready_restart_if_error(ANY_ASIC, "after initial2") != 0) {
     psyslog("DLL STUCK, TRYING AGAIN c454785\n");
   }
 
@@ -1351,33 +1356,18 @@ void set_initial_voltage_freq() {
     for (int i = 0 ; i < ASICS_COUNT; i++) {
      ASIC *a = &vm.asic[i];
      if (a->asic_present) {
-       //a->freq_bist_limit = ASIC_FREQ_MAX-3;
-       //psyslog(CYAN "LOOOKING AT ASIC %d (limit = %d)\n" RESET, i, (a->freq_bist_limit));
        if (!a->bist_failed_called) {
          all_limits_found = false;
-         if (a->freq_hw < ASIC_FREQ_MAX - 20) {
+         if (a->freq_hw <= ASIC_FREQ_MAX) {
           set_pll(i, (int)(a->freq_hw+10), 1,1, "initial stepup");
          } else {
-          disable_asic_forever_rt(i, 1, "Runaway ASIC Bob");
+          disable_asic_forever_rt_restart_if_error(i, 1, "Runaway ASIC Bob");
          }
        } 
      }
    }
   }
   psyslog("UPSCALE DONE\n");
-
-  // Give 2 clicks bonus
-  /*
-  for (int i = 0 ; i < ASICS_COUNT; i++) {
-   ASIC *a = &vm.asic[i];
-   if (a->asic_present) {    
-      if (a->freq_bist_limit < (ASIC_FREQ_MAX - 50)) {
-         a->freq_bist_limit += 20;
-      }
-      asic_up_freq_max(i,1,1,"Bonus");
-    }
-  }
-  */
 }
 
  
@@ -1474,12 +1464,12 @@ void print_chiko(int with_asics) {
   }
 }
 
-void once_second_scaling_logic() {
+void once_second_scaling_logic_restart_if_error() {
   int can_upscale = 1;
   int err;
   int psu_pimped[2] = {0,0};
   struct timeval tv;
-  DBG(DBG_SCALING,"once_second_scaling_logic start\n");
+  DBG(DBG_SCALING,"once_second_scaling_logic_restart_if_error start\n");
 
   if ((one_sec_counter % 3) == 0) {
     //printf("TIME=%d\n", time(NULL));
@@ -1499,7 +1489,7 @@ void once_second_scaling_logic() {
         ((one_sec_counter  % BIST_PERIOD_SECS_LONG) == 5)
        )
       {
-      DBG(DBG_SCALING,"BIST!\n");
+      DBG(DBG_SCALING_BIST,"BIST!\n");
       
 
       for (int xx = 0; xx < ASICS_COUNT ; xx++) {
@@ -1509,26 +1499,25 @@ void once_second_scaling_logic() {
       //end_stopper(&tv, "UPVOLT1");
       for (int psu = 0 ; psu < PSU_COUNT ; psu++) {
         int i=0; 
-        DBG(DBG_SCALING1,"UPSCALING PSU %d (power:%d)\n", 
-          psu,
-          vm.ac2dc[psu].ac2dc_power);
+        DBG(DBG_SCALING_UP,"UPSCALING PSU %d (power:%d)\n", psu, vm.ac2dc[psu].ac2dc_power);
         if (vm.ac2dc[psu].board_cooling_now == 0) {
           while(i < DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD) {
             // Find most optimal to up-volt
             int best = best_asic_to_upvolt(psu);
             int why_not = -1;
             if ((best == -1) || (!dc2dc_can_up(best, &why_not))) {
-              DBG(DBG_SCALING1,"CANNOT UPSCALE %d (why_not = %d)\n", best, why_not);
+              DBG(DBG_SCALING_UP,"CANNOT UPSCALE %d (why_not = %d)\n", best, why_not);
               i=DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD;
             } else {
               i++;
               ASIC *a = &vm.asic[best];
-              DBG(DBG_SCALING1,"UPSCALE %d ((power:%d))\n", best,
-                vm.ac2dc[psu].ac2dc_power);
+              DBG(DBG_SCALING_UP,"UPSCALE %d ((power:%d))\n", best, vm.ac2dc[psu].ac2dc_power);
               psu_pimped[psu] = 1;
               dc2dc_up(best,&err,"upvolt time");
             }
           }
+        } else {
+          DBG(DBG_SCALING_UP,"IN COOLDOWN\n");
         }
       }
      
@@ -1547,8 +1536,13 @@ void once_second_scaling_logic() {
   for (int xx = 0; xx < ASICS_COUNT ; xx++) {
     ASIC *a = &vm.asic[xx];
     if ((a->asic_present) && (a->dc2dc.dc_current_16s < (10*16))) {
-        needs_reset = 1;
-        mg_event_x("Lazy[%d]", xx);
+        a->lazy_asic_count++;
+        if (a->lazy_asic_count < MAX_LAZY_FAIL) {
+          needs_reset = 1;
+        } else {
+          disable_asic_forever_rt_restart_if_error(xx, 1, "too lazy");
+        }
+        mg_event_x("Lazy ASIC [%d] - consider disabling it", xx);
     } 
     vm.asic[xx].dc2dc.revolted = 0;
   }
@@ -1582,15 +1576,15 @@ void once_second_scaling_logic() {
         if (a->asic_present) {
           if (dc2dc_can_down(addr)) {
             dc2dc_down(addr,&err,"AC2DC too high A");
-             DBG(DBG_SCALING1,"DOWNSCALE %d ((power:%d))\n", addr,
+             DBG(DBG_SCALING_UP,"DOWNSCALE %d ((power:%d))\n", addr,
                 vm.ac2dc[psu].ac2dc_power);
-            i--;
           }
         }
+        i--;
       }
     }
 
-
+    //DBG(DBG_SCALING_UP,"here 1\n");
    
     
     for (int xx = 0; xx < ASICS_COUNT ; xx++) {
@@ -1624,7 +1618,7 @@ void once_second_scaling_logic() {
       asic_up_freq(i, 1,1, "because possible");
     }
   }
-  DBG(DBG_SCALING,"once_second_scaling_logic stop\n");
+  DBG(DBG_SCALING,"once_second_scaling_logic_restart_if_error stop\n");
 }
 
 
@@ -1640,12 +1634,12 @@ int get_fake_power(int psu_id) {
       fake_power += vm.asic[i].dc2dc.dc_power_watts_16s;
     }
   } 
-  return (fake_power*5/64) + (28/psu_count);
+  return (fake_power*5/(16*4 + 2)) + (22/psu_count);
 }
 
 
 
-void one_minute_tasks() {
+void once_minute_scaling_logic_restart_if_error() {
   memset(vm.board_working_asics, 0, sizeof(vm.board_working_asics));
   // Give them chance to raise over 3 hours if system got colder
   vm.last_minute_wins = vm.this_minute_wins;
@@ -1686,7 +1680,9 @@ void one_minute_tasks() {
   if (vm.mining_time > 100) {
     for (int b = 0; b < BOARD_COUNT; b++) {
       if (vm.board_working_asics[b] &&  vm.wins_last_minute[b] == 0) {
+        mg_event_x("Idle board:%d", b);
         restart_asics_full(77,"Idle board");
+        return;
       }
       vm.wins_last_minute[b] = 0;
     }
@@ -1845,9 +1841,9 @@ void print_scaling() {
   for (int l = 0; l < LOOP_COUNT; l++) {
     //printf("XXX %d %d\n",__LINE__, l);
     if (vm.loop[l].enabled_loop) {
-      fprintf(f,GREEN "LOOP[%d] ON\n" RESET,l);
+      fprintf(f,GREEN "LOOP[%d] ON TO:%d\n" RESET,l,vm.loop[l].bad_loop_count);
     } else {
-      fprintf(f,RED "LOOP[%d] OFF (%s)\n" RESET,l,vm.loop[l].why_disabled);
+      fprintf(f,RED "LOOP[%d] OFF TO:%d (%s)\n" RESET,l,vm.loop[l].bad_loop_count, vm.loop[l].why_disabled);
     }
 
 
@@ -1883,7 +1879,7 @@ void print_scaling() {
         fprintf(f,"(%3dc) ",a->max_temp_by_asic*5+85);
 
       
-      fprintf(f, "%s%3dhz%s(BL:%4d) %4d" RESET /*"%08x%08x%08x%08x%08x%08x%08x"*/ " (E:%d) F:%x]\n",
+      fprintf(f, "%s%3dhz%s(BL:%4d) %4d" RESET /*"%08x%08x%08x%08x%08x%08x%08x"*/ " (E:%d) F:%x L:%d]\n",
          ((a->freq_hw>=800)? (MAGENTA) : ((a->freq_hw<=600)?(CYAN):(YELLOW))), (a->freq_hw),GREEN,
           (a->freq_bist_limit),
           vm.asic[addr].solved_jobs,
@@ -1897,7 +1893,8 @@ void print_scaling() {
           a->not_brocken_engines[6],
           */
           a->not_brocken_engines_count,
-          a->faults
+          a->faults,
+          a->lazy_asic_count
 
       );
       }else {
@@ -1937,8 +1934,7 @@ void print_scaling() {
    fprintf(f, "AC2DC BAD: %d %d\n" , 0, 0);
    fprintf(f, "R/NR: %d/%d\n", vm.mining_time, vm.not_mining_time);
    fprintf(f, "RTF asics: %d\n",vm.run_time_failed_asics);
-   fprintf(f ,  "FET: %d:%d %d:%d\n" , BOARD_0 , vm.fet[BOARD_0] , BOARD_1 , vm.fet[BOARD_1]);
-
+   fprintf(f, "FET: %d:%d %d:%d\n" , BOARD_0 , vm.fet[BOARD_0] , BOARD_1 , vm.fet[BOARD_1]);
    fprintf(f, " %d restarted     ", vm.err_restarted);  
    fprintf(f, " %d reset         ", vm.err_unexpected_reset);  
    fprintf(f, " %d reset2        ", vm.err_unexpected_reset2);  
@@ -1998,7 +1994,8 @@ void ten_second_tasks() {
   vm.temp_top = get_top_board_temp();
   vm.temp_bottom = get_bottom_board_temp();
 
-
+  
+ 
  save_rate_temp(vm.temp_top, vm.temp_bottom,  vm.temp_mgmt, (vm.consecutive_jobs)?vm.total_mhash:0);
  if (vm.consecutive_jobs > 0) {
    ping_watchdog();
@@ -2021,7 +2018,12 @@ int dc2dc_can_down(int i) {
 int dc2dc_can_up(int i, int *pp) {
   int ret, p;
   p=1;
-  ret = ((vm.asic[i].dc2dc.dc_current_16s < (vm.max_dc2dc_current_16s)) && ++p &&
+  ret = (
+#ifdef SP2x
+//         (vm.asic[i].dc2dc.dc_current_16s < (MAX_AMPERS_DC2DC_SP20)) && ++p && 
+#else
+//         (vm.asic[i].dc2dc.dc_current_16s < (vm.max_dc2dc_current_16s)) && ++p &&
+#endif
          (vm.asic[i].dc2dc.vtrim < vm.asic[i].dc2dc.max_vtrim_currentwise) && ++p &&
          (vm.asic[i].dc2dc.vtrim < vm.asic[i].dc2dc.max_vtrim_temperature) && ++p && 
          (vm.asic[i].dc2dc.vtrim < vm.asic[i].dc2dc.max_vtrim_user) && ++p &&
@@ -2047,22 +2049,30 @@ void dc2dc_down(int i, int *err, const  char* why) {
 
 
 void dc2dc_up(int i, int *err, const  char* why) {
-  passert((vm.asic[i].dc2dc.vtrim < VTRIM_MAX));
-  vm.asic[i].dc2dc.revolted=1;
-  vm.asic[i].dc2dc.vtrim++;
-  vm.asic[i].dc2dc.dc_power_watts_16s += 7*16;
-  vm.asic[i].dc2dc.dc_current_16s     += 7*16;  
-  dc2dc_set_vtrim(i, vm.asic[i].dc2dc.vtrim, 1, err, why);
-  if (vm.asic[i].freq_bist_limit < (ASIC_FREQ_MAX - 30)) {
-    vm.asic[i].freq_bist_limit = (int)(vm.asic[i].freq_bist_limit+15);
+  if (vm.asic[i].freq_bist_limit < (ASIC_FREQ_MAX)) {
+    passert((vm.asic[i].dc2dc.vtrim < VTRIM_MAX));
+    vm.asic[i].dc2dc.revolted=1;
+    vm.asic[i].dc2dc.vtrim++;
+    vm.asic[i].dc2dc.dc_power_watts_16s += 7*16;
+    vm.asic[i].dc2dc.dc_current_16s     += 7*16;  
+    dc2dc_set_vtrim(i, vm.asic[i].dc2dc.vtrim, 1, err, why);
+    if (vm.asic[i].freq_bist_limit <= (ASIC_FREQ_MAX - 20)) {
+      vm.asic[i].freq_bist_limit = (int)(vm.asic[i].freq_bist_limit+20);
+    }else {
+      vm.asic[i].freq_bist_limit = (int)(ASIC_FREQ_MAX);
+    }
+    DBG(DBG_SCALING_HZ, "ASIC %d freq limit %d\n",i, vm.asic[i].freq_bist_limit);
+    
     if (!vm.asic[i].cooling_down) {
       if (asic_can_up_freq(i)) {
         asic_up_freq_max(i, 1, 1,  "Upvolt2");
+      } else {
+        //DBG(DBG_SCALING_HZ, "No UPVOLT %d :(\n",i);
       }
     }
   } else {
     psyslog("Runaway ASIC %d with freq %d\n",i,(vm.asic[i].freq_bist_limit));
-    disable_asic_forever_rt(i, 1,"runaway freq 1"); 
+    disable_asic_forever_rt_restart_if_error(i, 1,"runaway freq 1"); 
   }
 }
 
@@ -2092,10 +2102,10 @@ void asic_up_freq_max(int i, int wait_pll_lock, int disable_enable_engines,  con
         vm.ac2dc[ASIC_TO_BOARD_ID(i)].board_cooling_now--;
       }
     }
-    DBG(DBG_SCALING, "%d Full upscaling from %d by %d\n", i, vm.asic[i].freq_hw, (wanted_hz)); 
+    DBG(DBG_SCALING_TMP, "%d Full upscaling from %d by %d\n", i, vm.asic[i].freq_hw, (wanted_hz)); 
   } else {
     wanted_hz = (allowed_hz/5)*5;
-    DBG(DBG_SCALING, "%d Only upscaling from %d by %d\n", i, vm.asic[i].freq_hw, (wanted_hz)); 
+    DBG(DBG_SCALING_TMP, "%d Only upscaling from %d by %d\n", i, vm.asic[i].freq_hw, (wanted_hz)); 
   }
   
   if (wanted_hz >= 0) {
@@ -2107,10 +2117,17 @@ void asic_up_freq_max(int i, int wait_pll_lock, int disable_enable_engines,  con
 
 
 int asic_can_up_freq(int i) {
-  return ((vm.asic[i].dc2dc.dc_current_16s < (vm.max_dc2dc_current_16s)) &&
+  DBG(DBG_SCALING_HZ,"???: %d: %d/%d %d/%d\n",
+        i, 
+        vm.asic[i].dc2dc.dc_current_16s, 
+        vm.max_dc2dc_current_16s,
+        vm.asic[i].freq_hw,
+        ASIC_FREQ_MAX
+        );  
+  return (
+    // (vm.asic[i].dc2dc.dc_current_16s < (vm.max_dc2dc_current_16s)) &&
           (vm.asic[i].freq_hw < ASIC_FREQ_MAX) &&
-          (vm.asic[i].dc2dc.dc_temp < vm.asic[i].dc2dc.dc_temp_limit ||
-           vm.asic[i].dc2dc.dc_temp > DC2DC_TEMP_WRONG) &&
+          (vm.asic[i].dc2dc.dc_temp < vm.asic[i].dc2dc.dc_temp_limit || vm.asic[i].dc2dc.dc_temp > DC2DC_TEMP_WRONG) &&
           (vm.ac2dc[ASIC_TO_PSU_ID(i)].ac2dc_power_limit - vm.ac2dc[ASIC_TO_PSU_ID(i)].ac2dc_power > 2) );
 }
 
@@ -2127,8 +2144,9 @@ void asic_up_freq(int i, int wait_pll_lock, int disable_enable_engines, const ch
 
 // Each DC2DC takes 10 milli to poll.
 // All board takes 300 milli.
-void update_dc2dc_stats(int i, int restart_on_err = 1) {
+int update_dc2dc_stats_restart_if_error(int i, int restart_on_err = 1, int verbose = 0) {
   int overcurrent_err;
+  int to_ret = 0;
   int overcurrent_warning;
   uint8_t temp;
   int current;
@@ -2142,15 +2160,20 @@ void update_dc2dc_stats(int i, int restart_on_err = 1) {
               &overcurrent_warning,
               &vm.asic[i].dc2dc.dc_temp,
               &vm.asic[i].dc2dc.dc_current_16s,
-              &err);
+              &err, 
+              verbose);
+    if (overcurrent_err) {
+      to_ret++;
+    }
     if (err) {
       vm.err_dc2dc_i2c_error++;  
-      mg_event_x("dc2dc i2c error %d", i);
+      to_ret++;
+      mg_event_x(RED "dc2dc i2c error ASIC:%d" RESET, i);
       if (restart_on_err) {
         test_lost_address();        
         restart_asics_full(6, "Dc2Dc i2c error");
       }
-      return;
+      return to_ret;
     }
     
     //passert(err == 0);
@@ -2166,26 +2189,33 @@ void update_dc2dc_stats(int i, int restart_on_err = 1) {
     vm.asic[i].dc2dc.dc_power_watts_16s =
       vm.asic[i].dc2dc.dc_current_16s*VTRIM_TO_VOLTAGE_MILLI(vm.asic[i].dc2dc.vtrim)/1000;
   }
+  return to_ret;
 
 }
 
 
 
-void test_all_dc2dc() {
+int test_all_dc2dc(int verbose) {
+  int to_ret = 0;
   mg_event_x("Testing DC2DC");
   for(int i = 0; i < ASICS_COUNT; i++) {
      ASIC *a = &vm.asic[i];
-     if (a->asic_present) {
-       update_dc2dc_stats(i, 0);
+     if (a->asic_present) {      
+       to_ret += update_dc2dc_stats_restart_if_error(i, 0, verbose);
+     } else {
+       if (verbose) {
+          mg_event_x("skipping dc2dc test %d", i);
+       }
      }
    }
+  return to_ret;
 }
   
 
 
 void once_33milli_tasks_rt() {
   static int counter = 0;
-  update_dc2dc_stats(counter%ASICS_COUNT);
+  update_dc2dc_stats_restart_if_error(counter%ASICS_COUNT);
   counter++;
 }
 
@@ -2201,7 +2231,7 @@ void forget_all_limits() {
 
 
 
-void once_second_tasks_rt() {
+void once_second_tasks_rt_restart_if_error() {
   //psyslog("One-secs %d\n", vm.consecutive_jobs);
   //struct timeval tv;
   //start_stopper(&tv);
@@ -2233,7 +2263,7 @@ void once_second_tasks_rt() {
     vm.asic[jj].idle_asic_cycles_last_sec = vm.asic[jj].idle_asic_cycles_sec;
     push_asic_read(jj, NO_ENGINE, ADDR_IDLE_COUNTER, &vm.asic[jj].idle_asic_cycles_sec);
   }
-  squid_wait_asic_reads();
+  squid_wait_asic_reads_restart_if_error();
   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_MNG_COMMAND, BIT_ADDR_MNG_ZERO_IDLE_COUNTER);
   flush_spi_write();
 
@@ -2280,8 +2310,7 @@ void once_second_tasks_rt() {
   }
 
   // twice slow ASICs
-  if (partial_idle_this_run && partial_idle_last_run) {
-    
+  if (partial_idle_this_run && partial_idle_last_run) {    
      mg_event_x("Idle asic: %d", bad_asic);
      test_lost_address();
      partial_idle_this_run = 0;
@@ -2308,6 +2337,44 @@ void once_second_tasks_rt() {
 
 
 
+  // Decide fan speed
+  if (vm.userset_fan_level) {
+      set_fan_level(vm.userset_fan_level);      
+  } else {
+      int use_fan = 0;
+      int dont_use_fan = 0;     
+      for (int i = 0 ; i < ASICS_COUNT ; i++) {
+         if (vm.asic[i].asic_present) {
+           
+             if ((vm.asic[i].dc2dc.dc_temp <  60) || 
+                 (vm.asic[i].dc2dc.dc_temp > 150)) {
+                 // Very low temps
+                 dont_use_fan++;
+             } else {
+               // normal or high temps
+               if ((vm.asic[i].dc2dc.dc_temp) > (vm.asic[i].dc2dc.dc_temp_limit - 20)) {
+                  use_fan++;
+               }
+             }
+             
+             if (vm.asic[i].asic_temp >= (MAX_ASIC_TEMPERATURE-1)) {
+               use_fan++;
+             }
+         } // present
+      }// for
+     
+      if (dont_use_fan && !use_fan) {
+        set_fan_level(0);
+      } else {
+        set_fan_level(60);  
+      }
+   }
+  
+
+
+
+
+
 
   if (vm.consecutive_jobs == 0) {
     vm.start_mine_time = 0;
@@ -2320,10 +2387,10 @@ void once_second_tasks_rt() {
   // See if we can stop engines
   //psyslog("not_mining_time %d\n", vm.not_mining_time);
 
-  // Must update_ac2dc_stats before once_second_scaling_logic!
+  // Must update_ac2dc_stats before once_second_scaling_logic_restart_if_error!
   if (vm.consecutive_jobs  >= MIN_COSECUTIVE_JOBS_FOR_SCALING) {
     if (!read_ac2dc_errors(1)) {
-      once_second_scaling_logic();
+      once_second_scaling_logic_restart_if_error();
     } else {
       restart_asics_full(434, "BIST AC2DC fail");
     }
@@ -2336,11 +2403,23 @@ void once_second_tasks_rt() {
     ten_second_tasks();
   }
   if (one_sec_counter % 60 == 2) {
-    one_minute_tasks();
+    once_minute_scaling_logic_restart_if_error();
   }
 
-  if (one_sec_counter % (60*60*3) == 3) {
-    // once per hour forget scaling data
+
+  if (one_sec_counter % (60*30) == 3) {
+    // once per 1/2 hour forget scaling data
+    for (int xxx = 0; xxx < ASICS_COUNT ; xxx++) {
+      ASIC *a = &vm.asic[xxx];
+      if (a->asic_present) {
+         a->lazy_asic_count = 0;
+      }
+    }
+  }
+
+
+  if (one_sec_counter % (60*60*3) == 4) {
+    // once per 3 hour forget scaling data
     vm.tryed_power_cycle_to_revive_loops = 0;
     forget_all_limits();
   }
@@ -2380,7 +2459,7 @@ void poll_win_temp_rt() {
 
 
 //-------------------------------
-  squid_wait_asic_reads();
+  squid_wait_asic_reads_restart_if_error();
 //-------------------------------
 
   //printf("----------------------------- RANGE[%d] = %d\n",eng, range);
@@ -2406,7 +2485,7 @@ void poll_win_temp_rt() {
        uint16_t winner_engine = BROADCAST_READ_ENGINE(win_reg);
        //vm.last_minute_rate_mb += 1<<(vm.cur_leading_zeroes-32);
        //printf("WON:%x\n", winner_device);
-       win_reg = get_print_win(winner_device, winner_engine);
+       win_reg = get_print_win_restart_if_error(winner_device, winner_engine);
        //end_stopper(&tv,"WIN STOPPER");
        //try_push_job_to_mq();
   }
@@ -2497,13 +2576,12 @@ void try_push_job_to_mq() {
     }  
     if (vm.consecutive_jobs < MAX_CONSECUTIVE_JOBS_TO_COUNT) {
       vm.consecutive_jobs++;
-      //psyslog("U C=%d\n", vm.consecutive_jobs);
-      set_fan_level(vm.max_fan_level);      
+      //psyslog("U C=%d\n", vm.consecutive_jobs);      
     } 
   } else {
     // NO JOB - PUSH FAKE JOBS TO REMOVE POWER STRIKE
     set_light(LIGHT_GREEN, LIGHT_MODE_FAST_BLINK);
-    stop_all_work_rt();
+    stop_all_work_rt_restart_if_error();
     if (vm.consecutive_jobs > 0) {
       //int range = (rand()<<14);
       //int asic = vm.consecutive_jobs%ASICS_COUNT;
@@ -2591,7 +2669,7 @@ void once_2_msec_tasks_rt() {
   if (counter % (500) == 0) {
     struct timeval tv;
     //start_stopper(&tv);
-    once_second_tasks_rt();
+    once_second_tasks_rt_restart_if_error();
     //end_stopper(&tv,CYAN "ONE_SEC" RESET);
   }
 #endif  

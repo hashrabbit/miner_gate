@@ -25,7 +25,7 @@ typedef struct {
 
 
 #define HZ_TO_OFFSET(HZ) ((HZ-350)/5)
-#define ASIC_FREQ_MAX   1245
+#define ASIC_FREQ_MAX   1480
 #define ASIC_FREQ_MIN   350
 
 
@@ -211,6 +211,66 @@ typedef struct {
 #define	FREQ_1240	{248,3,1}
 #define	FREQ_1245	{249,3,1}
 #define	FREQ_1250	{250,3,1}
+#define	FREQ_1255	{251,3,1}
+#define	FREQ_1260	{252,3,1}
+#define	FREQ_1265	{253,3,1}
+#define	FREQ_1270	{254,3,1}
+#define	FREQ_1275	{255,3,1}
+#define	FREQ_1280	{256,3,1}
+#define FREQ_1285	{171,2,1}
+#define FREQ_1290	{172,2,1}
+#define FREQ_1295	{173,2,1}
+#define FREQ_1300	{173,2,1}
+#define FREQ_1305	{174,2,1}
+#define FREQ_1310	{175,2,1}
+#define FREQ_1315	{175,2,1}
+#define FREQ_1320	{176,2,1}
+#define FREQ_1325	{177,2,1}
+#define FREQ_1330	{177,2,1}
+#define FREQ_1335	{178,2,1}
+#define FREQ_1340	{179,2,1}
+#define FREQ_1345	{179,2,1}
+#define FREQ_1350	{180,2,1}
+#define FREQ_1355	{181,2,1}
+#define FREQ_1360	{181,2,1}
+#define FREQ_1365	{182,2,1}
+#define FREQ_1370	{183,2,1}
+#define FREQ_1375	{183,2,1}
+#define FREQ_1380	{184,2,1}
+#define FREQ_1385	{185,2,1}
+#define FREQ_1390	{185,2,1}
+#define FREQ_1395	{186,2,1}
+#define FREQ_1400	{187,2,1}
+#define FREQ_1405	{187,2,1}
+#define FREQ_1410	{188,2,1}
+#define FREQ_1415	{189,2,1}
+#define FREQ_1420	{189,2,1}
+#define FREQ_1425	{190,2,1}
+#define FREQ_1430	{191,2,1}
+#define FREQ_1435	{191,2,1}
+#define FREQ_1440	{192,2,1}
+#define FREQ_1445	{193,2,1}
+#define FREQ_1450	{193,2,1}
+#define FREQ_1455	{194,2,1}
+#define FREQ_1460	{195,2,1}
+#define FREQ_1465	{195,2,1}
+#define FREQ_1470	{196,2,1}
+#define FREQ_1475	{197,2,1}
+#define FREQ_1480	{198,2,1}
+#define FREQ_1485	{198,2,1}
+#define FREQ_1490	{199,2,1}
+#define FREQ_1495	{199,2,1}
+#define FREQ_1500 {200,2,1}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -222,11 +282,11 @@ void disable_engines_all_asics(int with_reset);
 void disable_engines_asic(int addr,int with_reset);
 void enable_engines_asic(int addr, uint32_t engines_mask[7], int with_unreset, int reset_others);
 void set_pll(int addr, int freq, int wait_dll_lock, int disale_enable_engines, const char* why);
-int enable_good_engines_all_asics_ok(int with_reset);
-void disable_asic_forever_rt(int addr, int assert_if_none_left, const char* why);
+int enable_good_engines_all_asics_ok_restart_if_error(int with_reset);
+void disable_asic_forever_rt_restart_if_error(int addr, int assert_if_none_left, const char* why);
 void enable_all_engines_all_asics(int with_reset);
 // return -1 if there is a problem
-int wait_dll_ready(int addr, const char* why);
+int wait_dll_ready_restart_if_error(int addr, const char* why);
 
 //void set_asic_freq(int addr, int new_freq);
 

@@ -107,9 +107,9 @@ typedef sha2_small_common_ctx_t sha256_ctx_t;
 #define BIT_ADDR_MNG_ZERO_IDLE_COUNTER  0x08 
 
 #define ADDR_DEBUG_CONTROL 0x9
-#define BIT_ADDR_DEBUG_DISABLE_TRANSMIT   0
-#define BIT_ADDR_DEBUG_STOP_SERIAL_CHAIN  1
-#define BIT_ADDR_DEBUG_DISABLE_ENGINE_TRANSACTIONS 2
+#define BIT_ADDR_DEBUG_DISABLE_TRANSMIT   1
+#define BIT_ADDR_DEBUG_STOP_SERIAL_CHAIN  2
+#define BIT_ADDR_DEBUG_DISABLE_ENGINE_TRANSACTIONS 4
 
 #define ADDR_TS_RSTN_0 0xE
 #define ADDR_TS_RSTN_1 0xF
@@ -290,6 +290,7 @@ typedef struct {
   uint32_t solved_jobs;
   uint32_t stacked_interrupt_mask; // 0xcafebabe - means not used.
 
+  uint32_t lazy_asic_count;
   uint32_t idle_asic_cycles_sec;
   uint32_t idle_asic_cycles_last_sec;
   uint32_t idle_asic_cycles_this_min;  
@@ -334,6 +335,7 @@ typedef struct {
   int crit_temp_downscale;
   int power_throttled;
   int user_disabled;
+  int bad_loop_count;
 } LOOP;
 
 
@@ -385,12 +387,12 @@ typedef struct {
 #define FET_T_72B_3PHASE     3
 #define FET_T_72A_I50        4
 #define FET_T_72B_I50        5
-//#define FET_T_78A_I50		 8
-#define FET_T_78B_I50		 9
+//#define FET_T_78A_I50		   8
+#define FET_T_78B_I50		     9
 //#define FET_T_78A_3PHASE	 10
-#define FET_T_78B_3PHASE	 11
+#define FET_T_78B_3PHASE	   11
 
-#define FET_ERRORS						0xF0
+#define FET_ERROR_CODES_START 			0xF0
 #define FET_ERROR_ILLEGAL_VALUE 		0xF1
 
 #define FET_ERROR_VPD_WRITE_ERROR 		0xF8
@@ -477,7 +479,7 @@ typedef struct {
   int dc2dc_total_power; 
   int total_mhash; 
   int concecutive_hw_errs;
-  int max_fan_level;
+  int userset_fan_level;
   int vtrim_max;
   int last_second_jobs;
   int this_second_jobs;  
@@ -506,9 +508,7 @@ typedef struct {
   int exiting;
   int did_asic_reset;
   int board_cooling_ever;   
-  
   int asic_count;
-  
 
   int this_min_failed_bist;
   WIN last_win;

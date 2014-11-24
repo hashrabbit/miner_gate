@@ -32,7 +32,9 @@ int get_mng_board_temp() {
   reg = (reg&0xFF)<<4 | (reg&0xF000)>>12;
   temp = (reg*625)/10000;
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);   
-
+  if (temp > 200) {
+      return 0;
+  }
   return temp;
 }
 
@@ -60,6 +62,9 @@ int get_top_board_temp() {
    i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err, 0);
 #endif   
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err, 0);   
+   if (temp > 200) {
+      return 0;
+   }
    return temp;
 }
 
@@ -88,6 +93,10 @@ int get_bottom_board_temp() {
 #endif  
 
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err, 0);   
+   if (temp > 200) {
+       return 0;
+   }
+
    return temp;
 }
 

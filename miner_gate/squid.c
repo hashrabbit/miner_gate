@@ -29,6 +29,7 @@
 #include "pwm_manager.h"
 #include "miner_gate.h"
 #ifdef MINERGATE
+#include "pll.h"
 #include "asic.h"
 #endif
 
@@ -72,12 +73,19 @@ unsigned long usec_stamp ()
 }
 #ifdef MINERGATE
 void reset_asic_queue();
+int test_all_dc2dc(int verbose);
 
-void test_all_loops() {
-  mg_event_x("Testing LOOPs");
-  reset_asic_queue();
+// Returns error 
+int test_all_loops_and_dc2dc(int disable_failed, int verbose) {
+  mg_event_x("Testing LOOPs (verbose=%d)", verbose);
+  int to_ret = 0;
+  to_ret += test_all_dc2dc(verbose);  
+  reset_asic_queue();    
   for (int l = 0 ; l < LOOP_COUNT; l++) {
     if (!vm.loop[l].enabled_loop) {
+      if (verbose) {
+        mg_event_x("skipping loop %d", l);
+      }
       continue;
     }
     
@@ -85,11 +93,23 @@ void test_all_loops() {
     //psyslog("Bad loop %x ", bypass_loops);
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
     if (test_serial(l) != 1) {
-      mg_event_x("Loop serial failed %d", l);
+      vm.loop[l].bad_loop_count++;
+      mg_event_x(RED "ERROR: Loop failed %d (%d) - look for bad ASICs there!" RESET, l,  vm.loop[l].bad_loop_count);
+      if (vm.loop[l].bad_loop_count >= MAX_LOOP_FAIL || disable_failed) {
+#ifdef MINERGATE        
+        for (int addr = l*ASICS_PER_LOOP; addr < (l+1)*ASICS_PER_LOOP; addr++) {
+            disable_asic_forever_rt_restart_if_error(addr,1,"Loop RT loss - disable us one-by-one to find the bad one");
+        }
+#endif
+      }
+      to_ret++;
+    } else {
+      //vm.loop[l].bad_loop_count=0;
     }
   }
-  write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops))&SQUID_LOOPS_MASK);
-  mg_event_x("Testing LOOPs done");
+  write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops)) & SQUID_LOOPS_MASK);
+  mg_event_x("Testing LOOPs done = ret=%d", to_ret);
+  return to_ret;
 }
 #endif
 void parse_squid_status(int v) {
@@ -499,7 +519,7 @@ int purge_fpga_queue(const char* why) {
 void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, uint32_t *p_value) {
 
   if (current_cmd_queue_ptr >= MAX_FPGA_CMD_QUEUE - 8) {
-    squid_wait_asic_reads();
+    squid_wait_asic_reads_restart_if_error();
   }
 
   if (current_cmd_queue_ptr == 0) {
@@ -573,31 +593,31 @@ static int spi_timeout_count = 0;
 int read_ac2dc_errors(int to_event);
 
 int revive_asics_if_one_got_reset(const char *why);
-uint32_t _read_reg_actual(QUEUED_REG_ELEMENT *e, int *err) {
+
+uint32_t _read_reg_actual_restart_if_error(QUEUED_REG_ELEMENT *e, int *err) {
   // uint32_t d1, d2;
   // printf("-!-read SERIAL: %x %x\n",d1,d2);
   int success = wait_rx_queue_ready();
   if (!success) {
     // TODO  - handle timeout?
     if (assert_serial_failures) {
-      
 #ifdef MINERGATE      
       //set_light_on_off(LIGHT_YELLOW, true);
       vm.err_read_timeouts2++;
 #endif      
       psyslog("READ TIMEOUT 0x%x 0x%x\n", e->addr, e->offset);
-      mg_event_x("Data Timeout on read %x:%x (%d)", e->addr, e->offset,spi_timeout_count);
       // Test loops?
       spi_timeout_count++;
 #ifdef MINERGATE
-      if (read_ac2dc_errors(1)) {
+      int problem = test_all_loops_and_dc2dc(vm.in_asic_reset,1);
+
+      mg_event_x("Data Timeout on read %x:%x (%d), (problem:%d)", e->addr, e->offset,spi_timeout_count, problem);
+      if (read_ac2dc_errors(1) || problem) {
         //usleep(1000000);
-        restart_asics_full(434, "read timeout AC2DC fail");
+        if (!vm.in_asic_reset) {
+          restart_asics_full(434, "read timeout on problem or AC2DC fail");
+        }
       }
-      // wait milli
-      //*err = 1;
-      //set_light_on_off(LIGHT_YELLOW, false);
-      test_all_loops();
       return 0;
 #endif
     } else {
@@ -681,7 +701,7 @@ int fpga_queue_status() {
 }
 
 
-int squid_wait_asic_reads() {
+int squid_wait_asic_reads_restart_if_error() {
   int err = 0;
   //struct timeval tv;
   flush_spi_write();
@@ -691,7 +711,7 @@ int squid_wait_asic_reads() {
     QUEUED_REG_ELEMENT *e = &cmd_queue[current_cmd_hw_queue_ptr++];
     if (e->b_read) {
       //start_stopper(&tv); 
-      e->value = _read_reg_actual(e, &err);
+      e->value = _read_reg_actual_restart_if_error(e, &err);
       //end_stopper(&tv,"X");    
       *(e->p_value) = e->value;
     } else {
@@ -719,7 +739,7 @@ int squid_wait_asic_reads() {
 
   if (err) { 
     reset_asic_queue();
-    revive_asics_if_one_got_reset("squid_wait_asic_reads");
+    revive_asics_if_one_got_reset("squid_wait_asic_reads_restart_if_error");
     return 0;
   }
 
@@ -738,13 +758,13 @@ void write_reg_asic(uint8_t addr, uint8_t engine, uint8_t offset, uint32_t value
 /*
 void write_reg_asic(ANY_ASIC, NO_ENGINE,uint8_t offset, uint32_t value) {
   write_reg_asic(ANY_ASIC, NO_ENGINE, offset, value);
-  // squid_wait_asic_reads()
+  // squid_wait_asic_reads_restart_if_error()
 }
 */
 
 uint32_t read_reg_asic(uint8_t addr, uint8_t engine, uint8_t offset) {
   uint32_t value;
   push_asic_read(addr, engine, offset, &value);
-  squid_wait_asic_reads();
+  squid_wait_asic_reads_restart_if_error();
   return value;
 }

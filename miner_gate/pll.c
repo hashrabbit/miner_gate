@@ -29,7 +29,7 @@
 
 
 
-pll_frequency_settings pfs[ASIC_FREQ_MAX] = {
+pll_frequency_settings pfs[] = {
 FREQ_350,
 FREQ_355  ,
 FREQ_360  ,
@@ -210,7 +210,13 @@ FREQ_1230,
 FREQ_1235,
 FREQ_1240,
 FREQ_1245,
-FREQ_1250
+FREQ_1250,
+  FREQ_1255,
+  FREQ_1260,
+  FREQ_1265,
+  FREQ_1270,
+  FREQ_1275,
+  FREQ_1280
 };
  
 
@@ -330,6 +336,17 @@ void disable_engines_asic(int addr, int with_reset) {
 void enable_engines_asic(int addr, uint32_t engines_mask[7], int with_unreset, int reset_others) {
   vm.asic[addr].engines_down = 0;
 
+  if (engines_mask[0] == 0 &&
+      engines_mask[1] == 0 &&
+      engines_mask[2] == 0 &&
+      engines_mask[3] == 0 &&
+      engines_mask[4] == 0 &&
+      engines_mask[5] == 0 &&
+      engines_mask[6] == 0) {
+    disable_asic_forever_rt_restart_if_error(addr, 0, "All engines disabled");
+  }
+
+
   if (with_unreset) {
     write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_0,engines_mask[0]);
     write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_1,engines_mask[1]);
@@ -370,8 +387,9 @@ void enable_engines_asic(int addr, uint32_t engines_mask[7], int with_unreset, i
 }
 
 
+void test_lost_address();
 
-int enable_good_engines_all_asics_ok(int with_reset) {
+int enable_good_engines_all_asics_ok_restart_if_error(int with_reset) {
     int i = 0;
     int reg;
     int killed_pll=0;
@@ -380,7 +398,14 @@ int enable_good_engines_all_asics_ok(int with_reset) {
         psyslog(RED "PLL %x stuck, killing ASIC Y\n" RESET, reg);
         //return 0;
         int addr = BROADCAST_READ_ADDR(reg);
-        disable_asic_forever_rt(addr,1, "can't enable");
+        if (addr < ASICS_COUNT) {
+          disable_asic_forever_rt_restart_if_error(addr,1, "can't enable");
+        } else {
+          mg_event_x("ASIC lost address, testing:\n");
+          test_lost_address();
+          restart_asics_full(123,"Lost adress asic");
+          return 0;
+        }
         killed_pll++;
       }
       usleep(10);
@@ -417,7 +442,7 @@ int enable_good_engines_all_asics_ok(int with_reset) {
 }
 
 
-int wait_dll_ready(int a_addr,const char* why) {
+int wait_dll_ready_restart_if_error(int a_addr,const char* why) {
    int dll;
    int i = 0;
    do {
@@ -432,13 +457,13 @@ int wait_dll_ready(int a_addr,const char* why) {
       psyslog(RED "Error::: PLL stuck:%x asic(%d/%d) LOOP:%d (%s), %d\n" RESET,dll, a_addr,addr,addr/ASICS_PER_LOOP,why,i);      
       write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x0);
       write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x1);
-      mg_event_x("ASIC ERROR PLL on address %d/%d", a_addr, addr);
+      mg_event_x(RED "ASIC ERROR PLL on ASIC:%d (%d)" RESET, a_addr, addr);
       usleep(10000);
       dll = read_reg_asic(addr, NO_ENGINE, ADDR_INTR_BC_PLL_NOT_READY);
       if (dll != 0) {
         psyslog(RED "Discovered stuck PLL %x\n" RESET, dll);
         if (addr >= 0 && addr < ASICS_COUNT) {
-          disable_asic_forever_rt(a_addr, 1, "Stuck PLL A");
+          disable_asic_forever_rt_restart_if_error(a_addr, 1, "Stuck PLL A");
           // Try again          
           return -1;
         } else {
@@ -460,7 +485,7 @@ int wait_dll_ready(int a_addr,const char* why) {
 void set_pll(int addr, int freq, int wait_dll_lock, int disable_enable_engines,  const char* why) {
   passert(vm.asic[addr].asic_present);
   passert(vm.asic[addr].dc2dc.dc2dc_present);  
-  DBG(DBG_SCALING, CYAN "ASIC %d: %dHz -> %dHz - (%s)\n" RESET, 
+  DBG(DBG_SCALING_HZ, CYAN "ASIC %d: %dHz -> %dHz - (%s)\n" RESET, 
     addr, 
     (vm.asic[addr].freq_hw), 
     (freq),
@@ -497,8 +522,8 @@ void set_pll(int addr, int freq, int wait_dll_lock, int disable_enable_engines, 
   vm.asic[addr].freq_hw = freq;
 
   if (wait_dll_lock) {
-    wait_dll_ready(addr, why);
-    while (wait_dll_ready(addr, why) != 0) {
+    wait_dll_ready_restart_if_error(addr, why);
+    while (wait_dll_ready_restart_if_error(addr, why) != 0) {
        psyslog("DLL STUCK, TRYING AGAIN c5432\n");
     }    
   }
@@ -508,7 +533,7 @@ void set_pll(int addr, int freq, int wait_dll_lock, int disable_enable_engines, 
   }   
 }
 
-void disable_asic_forever_rt(int addr, int passert_if_none_left, const char* why) {
+void disable_asic_forever_rt_restart_if_error(int addr, int passert_if_none_left, const char* why) {
   psyslog("Called disable ASIC reset in_reset:%d\n", vm.in_asic_reset);
   if (!vm.asic[addr].asic_present) {
     return;
@@ -516,7 +541,7 @@ void disable_asic_forever_rt(int addr, int passert_if_none_left, const char* why
 
   // After X minutes - restart miner
   if (!vm.in_asic_reset) {
-    mg_event_x("Run time failed crutial %d", addr);
+    mg_event_x("Run time failed crutial ASIC %d (%s)", addr, why);
     vm.err_runtime_disable++;  
     test_lost_address();
     restart_asics_full(9,"disable asic while running");
@@ -566,6 +591,6 @@ void disable_asic_forever_rt(int addr, int passert_if_none_left, const char* why
   }  
   psyslog("Disabing ASIC forever %d (0x%x) from loop %d (%s)\n", addr, addr, addr/ASICS_PER_LOOP, why);
   if (vm.asic_count == 0) {
-    exit_nicely(1,"All ASICs disabled");
+    exit_nicely(10,"All ASICs disabled");
   }
 }
