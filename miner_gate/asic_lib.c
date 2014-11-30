@@ -1014,6 +1014,8 @@ int count_ones(uint32_t i)
 // If ASIC rate is minimal, we still store the engines.
 int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const char *why) {
   int some_one_failed = 0;
+  struct timeval tv;
+  //start_stopper(&tv); 
 
   // PAUSE FPGA MQ TODO
 #if 0  
@@ -1106,6 +1108,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
       usleep(1);
     }
   } 
+  //end_stopper(&tv,"BIST0");
 
   
 ///////////////////
@@ -1142,6 +1145,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
   }
   squid_wait_asic_reads_restart_if_error();
 
+  //end_stopper(&tv,"BIST01");
 
 
   for (int addr = 0; addr < ASICS_COUNT; addr++) {
@@ -1209,7 +1213,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
   }
   
   DBG(DBG_SCALING_BIST, "FAILED BIST %d ASICS\n", some_one_failed);
-  //end_stopper(&tv,"READ BIST RES");
+  //end_stopper(&tv,"BIST1");
 
 
   // Return all interrupts
@@ -1246,6 +1250,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
    write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_WIN_CLEAR);
    //write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
    flush_spi_write();  
+   //end_stopper(&tv,"BIST2");
    return some_one_failed;
 }
 
@@ -1523,7 +1528,7 @@ void once_second_scaling_logic_restart_if_error() {
      
       start_stopper(&tv);      
       do_bist_loop_push_job("BIST_PERIOD_SECS");
-      end_stopper(&tv, "BIST");
+      end_stopper(&tv, "BIST_TOTAL");
       update_ac2dc_stats();
     }
 #endif

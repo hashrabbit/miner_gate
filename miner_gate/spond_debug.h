@@ -27,7 +27,7 @@
 #define DBG_SCALING_BIST 0
 #define DBG_SCALING_AC2DC 0
 #define DBG_SCALING_UP 0
-#define DBG_VTRIM 1
+#define DBG_VTRIM 0
 
 
 #define DBG_POWER 0
