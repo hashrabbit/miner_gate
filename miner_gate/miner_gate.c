@@ -89,7 +89,7 @@ minergate_adapter *adapters[0x100] = { 0 };
 int kill_app = 0;
 
 
-extern void save_rate_temp(int back_tmp, int back_tmp_b, int front_tmp, int total_mhash);
+extern void save_rate_temp(int back_tmp, int back_tmp_b, int front_tmp, int total_rate_mh);
 
 const char *last_err_loop;
 int test_serial(int loopid) {
@@ -214,6 +214,8 @@ static void sighandler(int sig)
   sigaction(SIGTERM, &termhandler, NULL);
   sigaction(SIGINT, &inthandler, NULL);
   psyslog( "EXIT::: got signal !\n" );
+  mg_event( "EXIT::: got signal !" );
+  
   exit_nicely(1,"Signal");
 }
 
@@ -459,7 +461,7 @@ void *connection_handler_thread(void *adptr) {
          passert(res);
        }
        adapter->next_rsp->rsp_count = rsp_count;
-       int mhashes_done = (vm.total_mhash/1000)*(int)(usec/1000);
+       int mhashes_done = (vm.total_rate_mh/1000)*(int)(usec/1000);
        adapter->next_rsp->gh_div_50_rate = ((mhashes_done/5)/930); // Don't know why
        //psyslog("mhash done=%d\n",adapter->next_rsp->gh_div_50_rate);
       // parse_minergate_packet(adapter->last_req, minergate_data_processor,
@@ -1099,7 +1101,7 @@ int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative_
     vm.ac2dc[PSU_0].ac2dc_power_limit -= decrease_top;
   } 
   
-  if (vm.ac2dc[PSU_0].ac2dc_power_limit < AC2DC_POWER_DECREASE_START_VOLTAGE) {
+  if (vm.ac2dc[PSU_0].ac2dc_power_limit < ac2dc_power_DECREASE_START_VOLTAGE) {
     if (vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) {
       vm.ac2dc[PSU_0].voltage_start = MIN(620,vm.ac2dc[PSU_0].voltage_start);
     } else {
@@ -1111,7 +1113,7 @@ int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative_
     vm.ac2dc[PSU_1].ac2dc_power_limit -= decrease_bottom;
   }
   
-  if (vm.ac2dc[PSU_1].ac2dc_power_limit < AC2DC_POWER_DECREASE_START_VOLTAGE) {
+  if (vm.ac2dc[PSU_1].ac2dc_power_limit < ac2dc_power_DECREASE_START_VOLTAGE) {
     if (vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) {
       vm.ac2dc[PSU_1].voltage_start = MIN(620,vm.ac2dc[PSU_1].voltage_start);
     } else {
@@ -1141,11 +1143,11 @@ int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative_
 }
 
 
-static int apl_105[5] = {0,AC2DC_POWER_LIMIT_105_MU,AC2DC_POWER_LIMIT_105_MU,AC2DC_POWER_LIMIT_105_EM,AC2DC_POWER_LIMIT_105_EM16};
-static int apl_114[5] = {0,AC2DC_POWER_LIMIT_114_MU,AC2DC_POWER_LIMIT_114_MU,AC2DC_POWER_LIMIT_114_EM,AC2DC_POWER_LIMIT_114_EM16};
-static int apl_119[5] = {0,AC2DC_POWER_LIMIT_119_MU,AC2DC_POWER_LIMIT_119_MU,AC2DC_POWER_LIMIT_119_EM,AC2DC_POWER_LIMIT_119_EM16};
-static int apl_195[5] = {0,AC2DC_POWER_LIMIT_195_MU,AC2DC_POWER_LIMIT_195_MU,AC2DC_POWER_LIMIT_195_EM,AC2DC_POWER_LIMIT_195_EM16};
-static int apl_210[5] = {0,AC2DC_POWER_LIMIT_210_MU,AC2DC_POWER_LIMIT_210_MU,AC2DC_POWER_LIMIT_210_EM,AC2DC_POWER_LIMIT_210_EM16};
+static int apl_105[5] = {0,ac2dc_power_LIMIT_105_MU,ac2dc_power_LIMIT_105_MU,ac2dc_power_LIMIT_105_EM,ac2dc_power_LIMIT_105_EM16};
+static int apl_114[5] = {0,ac2dc_power_LIMIT_114_MU,ac2dc_power_LIMIT_114_MU,ac2dc_power_LIMIT_114_EM,ac2dc_power_LIMIT_114_EM16};
+static int apl_119[5] = {0,ac2dc_power_LIMIT_119_MU,ac2dc_power_LIMIT_119_MU,ac2dc_power_LIMIT_119_EM,ac2dc_power_LIMIT_119_EM16};
+static int apl_195[5] = {0,ac2dc_power_LIMIT_195_MU,ac2dc_power_LIMIT_195_MU,ac2dc_power_LIMIT_195_EM,ac2dc_power_LIMIT_195_EM16};
+static int apl_210[5] = {0,ac2dc_power_LIMIT_210_MU,ac2dc_power_LIMIT_210_MU,ac2dc_power_LIMIT_210_EM,ac2dc_power_LIMIT_210_EM16};
 
 void store_last_voltage() {
   int r;
@@ -1248,6 +1250,28 @@ void read_last_voltage() {
 }
 
 
+
+int read_flags() {
+  FILE* file1 = fopen (MG_MINIMAL_RATE_FILE, "r");
+  FILE* file2 = fopen (MG_FLAG0_FILE, "r");
+  FILE* file3 = fopen (MG_FLAG1_FILE, "r");  
+
+  vm.minimal_rate_gh = 0;
+  if (file1) {
+    int ret =  fscanf (file1, "%d", &vm.minimal_rate_gh);
+    assert(ret == 1);  
+  }
+  
+  if (file2) {
+    int ret =  fscanf (file2, "%d", &vm.flag_0);
+    assert(ret == 1);      
+  }
+
+  if (file3) {
+    int ret =  fscanf (file3, "%x", &vm.flag_1);
+    assert(ret == 1);      
+  }
+}
 
 int read_work_mode() {
 	FILE* file = fopen (MG_CUSTOM_MODE_FILE, "r");
@@ -1699,7 +1723,15 @@ int main(int argc, char *argv[]) {
   setlogmask(LOG_UPTO(LOG_INFO));
   openlog("minergate", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
   syslog(LOG_NOTICE, "minergate started");
-  
+
+#ifdef AAAAAAAA_TESTER
+psyslog( "------------------------\n");
+psyslog( "------------------------\n");
+psyslog( "--  AAAAAAA TESTER   ---\n");
+psyslog( "------------------------\n");
+psyslog( "------------------------\n");
+psyslog( "------------------------\n"); 
+#endif
     
 #ifdef LIQUID_COOLING  
   psyslog( "------------------------\n");
@@ -1777,6 +1809,8 @@ int main(int argc, char *argv[]) {
 #endif
 
   read_work_mode();
+  read_flags();
+
   test_fix_ac2dc_limits();
   mg_event("Started!");
 

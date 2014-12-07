@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, uint32_t* p_value);
+//void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, uint32_t* p_value, int defval=0);
 int squid_wait_asic_reads_restart_if_error();
 void push_asic_write(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, uint32_t value);
 int squid_wait_asic_reads_restart_if_error();

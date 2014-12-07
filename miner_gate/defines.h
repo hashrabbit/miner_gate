@@ -15,6 +15,10 @@
 //#define SP2x 
 
 #define MG_CUSTOM_MODE_FILE "/etc/mg_custom_mode"
+#define MG_MINIMAL_RATE_FILE "/etc/mg_minimal_rate"
+#define MG_FLAG0_FILE "/etc/mg_flag_0"
+#define MG_FLAG1_FILE "/etc/mg_flag_1"
+
 
 
 // compilation flags
@@ -23,8 +27,13 @@
 #define RUNTIME_BIST
 //#ifdef SP2x
 #define SLOW_START_WORK
-//#define SLOW_STOP_WORK
 
+//#define AAAAAAAA_TESTER
+#ifdef AAAAAAAA_TESTER
+#define AAAAAAAA_TESTER_VALUE 0xAAAAAAAA
+#endif
+
+//#define SLOW_STOP_WORK
 //#endif
 //#define LIQUID_COOLING
 //#define REMO_STRESS
@@ -81,31 +90,31 @@
 #ifndef LIQUID_COOLING
 #define MAX_BOTTOM_TEMP 95
 #define MAX_TOP_TEMP 95
-#define MAX_MGMT_TEMP 55
+#define MAX_MGMT_TEMP 60
 #else
 #define MAX_BOTTOM_TEMP 95
 #define MAX_TOP_TEMP 95
-#define MAX_MGMT_TEMP 55
+#define MAX_MGMT_TEMP 60
 #endif
 
-#define AC2DC_POWER_DECREASE_START_VOLTAGE     (1240)
-#define AC2DC_POWER_LIMIT_105_EM  (800)
-#define AC2DC_POWER_LIMIT_114_EM  (1050)
-#define AC2DC_POWER_LIMIT_119_EM  (1100)
-#define AC2DC_POWER_LIMIT_195_EM  (1100)
-#define AC2DC_POWER_LIMIT_210_EM  (1250)
+#define ac2dc_power_DECREASE_START_VOLTAGE     (1240)
+#define ac2dc_power_LIMIT_105_EM  (800)
+#define ac2dc_power_LIMIT_114_EM  (1050)
+#define ac2dc_power_LIMIT_119_EM  (1100)
+#define ac2dc_power_LIMIT_195_EM  (1100)
+#define ac2dc_power_LIMIT_210_EM  (1250)
 
-#define AC2DC_POWER_LIMIT_105_MU  (800)
-#define AC2DC_POWER_LIMIT_114_MU  (1050)
-#define AC2DC_POWER_LIMIT_119_MU  (1200)
-#define AC2DC_POWER_LIMIT_195_MU  (1200)
-#define AC2DC_POWER_LIMIT_210_MU  (1300)
+#define ac2dc_power_LIMIT_105_MU  (800)
+#define ac2dc_power_LIMIT_114_MU  (1050)
+#define ac2dc_power_LIMIT_119_MU  (1200)
+#define ac2dc_power_LIMIT_195_MU  (1200)
+#define ac2dc_power_LIMIT_210_MU  (1300)
 
-#define AC2DC_POWER_LIMIT_105_EM16  (800)
-#define AC2DC_POWER_LIMIT_114_EM16  (800)
-#define AC2DC_POWER_LIMIT_119_EM16  (800)
-#define AC2DC_POWER_LIMIT_195_EM16  (800)
-#define AC2DC_POWER_LIMIT_210_EM16  (1800)
+#define ac2dc_power_LIMIT_105_EM16  (800)
+#define ac2dc_power_LIMIT_114_EM16  (800)
+#define ac2dc_power_LIMIT_119_EM16  (800)
+#define ac2dc_power_LIMIT_195_EM16  (800)
+#define ac2dc_power_LIMIT_210_EM16  (1800)
 
 
 

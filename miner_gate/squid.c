@@ -516,7 +516,7 @@ int purge_fpga_queue(const char* why) {
   return 0;
 }
 
-void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, uint32_t *p_value) {
+void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, uint32_t *p_value, int defval) {
 
   if (current_cmd_queue_ptr >= MAX_FPGA_CMD_QUEUE - 8) {
     squid_wait_asic_reads_restart_if_error();
@@ -540,7 +540,7 @@ void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,  uint32_t offset, u
 
   uint32_t d1;
   uint32_t d2;
-  create_serial_pkt(&d1, &d2, offset, 1, (((int)asic_addr) << 8) | engine_addr, 0, GENERAL_BITS_COMPLETION);
+  create_serial_pkt(&d1, &d2, offset, 1, (((int)asic_addr) << 8) | engine_addr, defval, GENERAL_BITS_COMPLETION);
   e->data[0] = d1;
   e->data[1] = d2;
 

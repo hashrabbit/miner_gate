@@ -305,10 +305,11 @@ typedef struct {
   int board_cooling_now;    
   int ac2dc_type;  // DISABLED=4
   int ac2dc_temp;
-  int ac2dc_power_last_last;    
-  int ac2dc_power_last;  
-  int ac2dc_power_now;  
-  int ac2dc_power;  
+  int ac2dc_power_last_last;
+  int ac2dc_power_last;
+  int ac2dc_power_now;
+  int ac2dc_power_assumed;
+  int ac2dc_power_measured; 
 
   int ac2dc_power_last_last_fake;    
   int ac2dc_power_last_fake;  
@@ -320,6 +321,7 @@ typedef struct {
   int force_generic_psu;
   int voltage_start; 
   int vtrim_start;
+  int total_hashrate;
 } AC2DC;
 
 
@@ -472,12 +474,14 @@ typedef struct {
   int vtrim_start_bottom;  
   */
   int voltage_max;
-
+  int minimal_rate_gh;
+  int flag_0;
+  int flag_1;  
  
   // ac2dc current and temperature
   uint32_t max_dc2dc_current_16s;  
   int dc2dc_total_power; 
-  int total_mhash; 
+  int total_rate_mh; 
   int concecutive_hw_errs;
   int userset_fan_level;
   int vtrim_max;

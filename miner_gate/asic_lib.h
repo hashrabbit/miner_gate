@@ -43,8 +43,8 @@ int do_bist_ok(bool store_limit = true, bool step_down_if_failed = true, int fas
 int do_bist_loop_push_job(const char* why);
 
 uint32_t crc32(uint32_t crc, const void *buf, size_t size);
-void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,uint32_t offset, uint32_t *p_value);
-void push_asic_write(uint8_t asic_addr, uint8_t engine_addr , uint32_t offset, uint32_t value);
+//void push_asic_read(uint8_t asic_addr, uint8_t engine_addr ,uint32_t offset, uint32_t *p_value, int defval=0);
+//void push_asic_write(uint8_t asic_addr, uint8_t engine_addr , uint32_t offset, uint32_t value);
 
 int enable_good_loops_ok();
 int allocate_addresses_to_devices();

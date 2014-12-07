@@ -525,18 +525,18 @@ void update_single_psu(AC2DC *ac2dc, int psu_id) {
       ac2dc->ac2dc_power_last_last = ac2dc->ac2dc_power_last;
       ac2dc->ac2dc_power_last = ac2dc->ac2dc_power_now;      
       ac2dc->ac2dc_power_now = i2c_getint(p); 
-      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
-      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power, ac2dc->ac2dc_power_last_last);        
-
+      ac2dc->ac2dc_power_assumed = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
+      ac2dc->ac2dc_power_assumed = MAX(ac2dc->ac2dc_power_assumed, ac2dc->ac2dc_power_last_last);        
+      ac2dc->ac2dc_power_measured = ac2dc->ac2dc_power_assumed;       
       DBG( DBG_POWER ,"PowerOut %d: R:%d PM:%d [PL:%d PLL:%d PLLL:%d]\n", 
                psu_id,
                p,
-               ac2dc->ac2dc_power,
+               ac2dc->ac2dc_power_assumed,
                ac2dc->ac2dc_power_now,
                ac2dc->ac2dc_power_last,
                ac2dc->ac2dc_power_last_last);
    } else {
-     DBG( DBG_SCALING_AC2DC ,"PowerOut: Error\n", ac2dc->ac2dc_power);
+     DBG( DBG_SCALING_AC2DC ,"PowerOut: Error\n", ac2dc->ac2dc_power_assumed);
    }
 //   i2c_write(PRIMARY_I2C_SWITCH, i2c_switch);  
 //   i2c_write(PRIMARY_I2C_SWITCH, i2c_switch);      
@@ -571,8 +571,9 @@ void *update_ac2dc_power_measurments_thread(void *ptr) {
       ac2dc->ac2dc_power_last_last= ac2dc->ac2dc_power_last;
       ac2dc->ac2dc_power_last = ac2dc->ac2dc_power_now;      
       ac2dc->ac2dc_power_now = ac2dc->ac2dc_power_now_fake; 
-      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
-      ac2dc->ac2dc_power = MAX(ac2dc->ac2dc_power, ac2dc->ac2dc_power_last_last);
+      ac2dc->ac2dc_power_assumed = MAX(ac2dc->ac2dc_power_now, ac2dc->ac2dc_power_last);
+      ac2dc->ac2dc_power_assumed = MAX(ac2dc->ac2dc_power_assumed, ac2dc->ac2dc_power_last_last);
+      ac2dc->ac2dc_power_measured = ac2dc->ac2dc_power_assumed;
       if (!ac2dc->force_generic_psu) {
 #ifndef SP2x        
         if (ac2dc_check_connected(psu_id)) {
