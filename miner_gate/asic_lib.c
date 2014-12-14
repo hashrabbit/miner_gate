@@ -1984,8 +1984,6 @@ void dump_watts() {
 
 void ten_second_tasks() {
   static char x[200]; 
-  
-  //psyslog("MQ 10sec:%d\n", read_spi(ADDR_SQUID_MQ_SENT));
   sprintf(x, "uptime:%d rst:%d\n", 
           time(NULL) - vm.start_run_time, 
           vm.err_restarted);
@@ -2258,6 +2256,7 @@ void once_second_tasks_rt_restart_if_error() {
      push_work_rsp(&old_w, 1);
   }
   */
+  psyslog("MQ 1 sec:%d\n", read_spi(ADDR_SQUID_MQ_SENT));
 
   // I2C stats
   //read_ac2dc_errors(0);

@@ -1501,7 +1501,13 @@ ddd1:
 void configure_mq(uint32_t interval, uint32_t increments, int pause)
 {
   //interval = interval * 20;
-  uint32_t val = MAKE_MQ_CONFIG(interval, increments, pause);
+  int fpga_type = MQ_CONFIG_TIMER_UNITS_IN_USEC_10MB; // 10MB
+  if (vm.flag_0 == 1) {
+    fpga_type = MQ_CONFIG_TIMER_UNITS_IN_USEC_5MB;
+  } else if (vm.flag_0 == 2) {
+    fpga_type = MQ_CONFIG_TIMER_UNITS_IN_USEC_2_5MB;
+  }
+  uint32_t val = MAKE_MQ_CONFIG(interval, fpga_type, increments, pause);
   write_spi(ADDR_SQUID_MQ_CONFIG, val);
   flush_spi_write();
 }
@@ -1547,7 +1553,9 @@ void restart_asics_full(int reason,const char * why) {
   psyslog("-------- SOFT RESET 0.11 -----------\n");  
   test_all_loops_and_dc2dc(0,0);
   psyslog("-------- SOFT RESET 0.2 -----------\n");  
-  if (read_ac2dc_errors(1)) {
+  if (read_ac2dc_errors(1) || 
+      vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_6 ||
+      vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) {
     psyslog("sleep 1 second\n");
     usleep(1000000);
     update_ac2dc_power_measurments();

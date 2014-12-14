@@ -369,6 +369,18 @@ int read_ac2dc_errors(int to_event) {
     AC2DC* ac2dc = &vm.ac2dc[PSU_0];
     p0 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
     p0 &= (~0x2);
+    if (p0) {
+      psyslog("AC2DC TOP 79:%x\n",i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err));
+      psyslog("AC2DC TOP 7a:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7a, &err));
+      psyslog("AC2DC TOP 7b:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7b, &err));
+      psyslog("AC2DC TOP 7c:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7c, &err));
+      psyslog("AC2DC TOP 7d:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7d, &err));
+      psyslog("AC2DC TOP 81:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x81, &err));
+    }
+    if (p0 & 0x4000) {
+      int r7b = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7b, &err);
+      psyslog("AC2DC TOP 7b:%x\n",r7b);
+    }
     i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);
   }
   if (vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
@@ -376,11 +388,21 @@ int read_ac2dc_errors(int to_event) {
     AC2DC* ac2dc = &vm.ac2dc[PSU_1];
     p1 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
     p1 &= (~0x2);
+    if(p1) {
+      psyslog("AC2DC BOT 79:%x\n",i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err));
+      psyslog("AC2DC BOT 7a:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7a, &err));
+      psyslog("AC2DC BOT 7b:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7b, &err));
+      psyslog("AC2DC BOT 7c:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7c, &err));
+      psyslog("AC2DC BOT 7d:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7d, &err));
+      psyslog("AC2DC BOT 81:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x81, &err));
+    }
+   
+
     i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);    
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  
   int problem = (((p0 != 0) && (p0 != 0x4000)) || ((p1 != 0) && (p1 != 0x4000)));
-  if (problem) {
+  if (problem || 1) {
     vm.err_murata++;
     if (to_event) {
       //mg_event_x(RED "AC2DC status: %x %x" RESET,p0,p1);

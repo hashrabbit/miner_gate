@@ -61,7 +61,7 @@
 #ifdef SP2x
 #define MAX_ASIC_TEMPERATURE ASIC_TEMP_125
 #else
-#define MAX_ASIC_TEMPERATURE ASIC_TEMP_120
+#define MAX_ASIC_TEMPERATURE ASIC_TEMP_125
 #endif
 #define MAX_FAN_LEVEL                   100
 
@@ -122,10 +122,10 @@
 #define IDLE_TIME_TO_PAUSE_ENGINES 30
 #define DC_TEMP_LIMIT              140
 
-#ifndef REMO_STRESS
-#define MQ_TIMER_USEC 500
+#ifndef SP2x // 3x
+#define MQ_TIMER_USEC 400
 #else
-#define MQ_TIMER_USEC 160
+#define MQ_TIMER_USEC 1500
 #endif
 //#define MQ_TIMER_USEC 450  // for 10MB
 //#define MQ_TIMER_USEC 225  // for 5MB

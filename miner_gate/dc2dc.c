@@ -727,7 +727,7 @@ void dc2dc_get_errors(
         five_volt_err || 
         (overtemp & 0x80) ||
         verbose) {
-      mg_event_x( "DC2DC ASIC WARNING [%d]: 7B=0x%2x, 7A=%2x, 78=%2x, 7D=%2x 79=%x 80=%x",
+      psyslog( "DC2DC ASIC WARNING [%d]: 7B=0x%2x, 7A=%2x, 78=%2x, 7D=%2x 79=%x 80=%x",
         addr,problems, gen_stat2, gen_stat, overtemp,r79,r80);
       i2c_write(dc2dc_channel_i2c_addr, 0x03);
     }

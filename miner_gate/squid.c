@@ -94,7 +94,7 @@ int test_all_loops_and_dc2dc(int disable_failed, int verbose) {
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
     if (test_serial(l) != 1) {
       vm.loop[l].bad_loop_count++;
-      mg_event_x(RED "ERROR: Loop failed %d (%d) - look for bad ASICs there!" RESET, l,  vm.loop[l].bad_loop_count);
+      mg_event_x(RED "ERROR: Loop failed %d !" RESET, l);
       if (vm.loop[l].bad_loop_count >= MAX_LOOP_FAIL || disable_failed) {
 #ifdef MINERGATE        
         for (int addr = l*ASICS_PER_LOOP; addr < (l+1)*ASICS_PER_LOOP; addr++) {
