@@ -282,6 +282,7 @@ typedef struct {
   uint32_t not_brocken_engines[ENGINE_BITMASCS]; // 
   uint32_t last_bist_passed_engines[ENGINE_BITMASCS];  
   int last_bad_win_engine;
+  int wanted_pll_freq;
   int last_bad_win_engine_count; 
   int not_brocken_engines_count;
   int too_hot_concecutive_reads;
@@ -501,6 +502,9 @@ typedef struct {
   ASIC asic[ASICS_COUNT];
   //uint32_t not_brocken_engines[ASICS_COUNT];
   int in_asic_reset;
+  int corruptions_count;
+  int spi_timeout_count;
+
   
   // our loop and dc2dc data
   LOOP loop[LOOP_COUNT];

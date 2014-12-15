@@ -396,8 +396,6 @@ int read_ac2dc_errors(int to_event) {
       psyslog("AC2DC BOT 7d:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7d, &err));
       psyslog("AC2DC BOT 81:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x81, &err));
     }
-   
-
     i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);    
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  

@@ -61,11 +61,9 @@ int dc2dc_can_up(int i, int *pp);
 void dc2dc_down(int i, int *err, const char* why);
 void dc2dc_up(int i, int *err, const char* why);
 int asic_can_down_freq(int i);
-void asic_down_freq(int i, int wait_pll_lock, int disable_enable_engines,const char* why);
-void asic_down_freq_completly(int i, int wait_pll_lock, int disable_enable_engines, const  char* why);
 int asic_can_up_freq(int i);
 void asic_up_freq(int i, int wait_pll_lock,int disable_enable_engines,const char* why);
-void asic_up_freq_max(int i, int wait_pll_lock,int disable_enable_engines,const  char* why);
+void asic_up_freq_max(int i, const  char* why);
 void print_chiko(int with_asics);
 
 void ping_watchdog();

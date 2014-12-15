@@ -588,8 +588,8 @@ int wait_rx_queue_ready() {
   return ((q_status & BIT_STATUS_SERIAL_Q_RX_NOT_EMPTY) != 0);
 }
 
-static int corruptions_count = 0;
-static int spi_timeout_count = 0;
+//static int corruptions_count = 0;
+//static int spi_timeout_count = 0;
 int read_ac2dc_errors(int to_event);
 
 int revive_asics_if_one_got_reset(const char *why);
@@ -604,14 +604,14 @@ uint32_t _read_reg_actual_restart_if_error(QUEUED_REG_ELEMENT *e, int *err) {
 #ifdef MINERGATE      
       //set_light_on_off(LIGHT_YELLOW, true);
       vm.err_read_timeouts2++;
+      vm.spi_timeout_count++;
 #endif      
       psyslog("READ TIMEOUT 0x%x 0x%x\n", e->addr, e->offset);
       // Test loops?
-      spi_timeout_count++;
+
 #ifdef MINERGATE
       int problem = test_all_loops_and_dc2dc(vm.in_asic_reset,1);
-
-      mg_event_x("Data Timeout on read %x:%x (%d), (problem:%d)", e->addr, e->offset,spi_timeout_count, problem);
+      mg_event_x("Data Timeout on read %x:%x (%d), (problem:%d)", e->addr, e->offset,vm.spi_timeout_count, problem);
       if (read_ac2dc_errors(1) || problem) {
         //usleep(1000000);
         if (!vm.in_asic_reset) {
@@ -624,7 +624,7 @@ uint32_t _read_reg_actual_restart_if_error(QUEUED_REG_ELEMENT *e, int *err) {
       return 0;
     }
   } 
-  spi_timeout_count = 0;
+  //vm.spi_timeout_count = 0;
 
   uint32_t values[2];
   read_spi_mult(ADDR_SQUID_SERIAL_READ, 2, values);
@@ -634,8 +634,9 @@ uint32_t _read_reg_actual_restart_if_error(QUEUED_REG_ELEMENT *e, int *err) {
   if ((e->addr != got_addr) || (e->offset != got_offset)) {
     // Data returned corrupted :(
     if (assert_serial_failures) {
-      corruptions_count++;
 #ifdef MINERGATE        
+      vm.corruptions_count++;
+
       //set_light_on_off(LIGHT_YELLOW, true);
 #endif
       psyslog("Data corruption A: READ:0x%x 0x%x (0x%x 0x%x)/ GOT:0x%x 0x%x (0x%x 0x%x) \n", 
@@ -656,12 +657,13 @@ uint32_t _read_reg_actual_restart_if_error(QUEUED_REG_ELEMENT *e, int *err) {
       vm.err_read_corruption++;
 
       mg_event_x("Data corruption %d on read %x:%x (%x:%x) got %x:%x (%x:%x) - ql=%d", 
-              corruptions_count, e->addr, e->offset, e->data[0],e->data[1],
+              vm.corruptions_count, e->addr, e->offset, e->data[0],e->data[1],
               got_addr, got_offset,
               values[0], values[1], current_cmd_queue_ptr);
       //set_light_on_off(LIGHT_YELLOW, true);
-      if (corruptions_count > 100) {
-        passert(0);
+      if (vm.corruptions_count > 40) {
+         restart_asics_full(11,"Too much data corruptions");
+         return 0;
       }
       *err = 1;
       return 0;
@@ -706,7 +708,7 @@ int squid_wait_asic_reads_restart_if_error() {
   //struct timeval tv;
   flush_spi_write();
   // printf("HERE!\n");
-  corruptions_count = 0;
+  //vm.corruptions_count = 0;
   while (fpga_queue_status() == FPGA_QUEUE_WORKING) {
     QUEUED_REG_ELEMENT *e = &cmd_queue[current_cmd_hw_queue_ptr++];
     if (e->b_read) {
@@ -718,10 +720,8 @@ int squid_wait_asic_reads_restart_if_error() {
       passert(0);
     }
 #ifdef MINERGATE  
-    if (spi_timeout_count >= 15) {
-          spi_timeout_count = 0;
-          reset_asic_queue();
-          print_chiko(0);
+    if (vm.spi_timeout_count >= 20) {
+          vm.spi_timeout_count = 0;
           vm.err_read_timeouts++;  
           restart_asics_full(11,"Too much timeouts");
           return 0;

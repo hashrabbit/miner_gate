@@ -1359,7 +1359,7 @@ int read_work_mode() {
   } else {
     int top_fix = 0;
     int bot_fix = 0;
-
+    
 
     if ((vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_MURATA_NEW) && 
          (vm.ac2dc[PSU_0].ac2dc_power_limit   >= 1300)) {
@@ -1371,6 +1371,16 @@ int read_work_mode() {
         vm.ac2dc[PSU_1].ac2dc_power_limit = 1300;
     }
      
+    if ((vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) && 
+            (vm.ac2dc[PSU_0].ac2dc_power_limit   >= 1600)) {
+          vm.ac2dc[PSU_0].ac2dc_power_limit = 1600;
+    }
+       
+    if ((vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) && 
+             (vm.ac2dc[PSU_1].ac2dc_power_limit   >= 1600)) {
+           vm.ac2dc[PSU_1].ac2dc_power_limit = 1600;
+    }
+        
 
       
     int psu_type = vm.ac2dc[PSU_0].ac2dc_type;
@@ -1536,8 +1546,10 @@ void restart_asics_full(int reason,const char * why) {
          working_asics_before_restart++;
      }
   }
-     
-
+#ifdef MINERGATE  
+  vm.spi_timeout_count = 0;
+  vm.corruptions_count = 0;
+#endif
   
   mg_event_x("restart_asics_full (%s)", why);
   psyslog("-------- SOFT RESET 0 (asics:%d) -----------\n", working_asics_before_restart);  
@@ -1553,9 +1565,13 @@ void restart_asics_full(int reason,const char * why) {
   psyslog("-------- SOFT RESET 0.11 -----------\n");  
   test_all_loops_and_dc2dc(0,0);
   psyslog("-------- SOFT RESET 0.2 -----------\n");  
-  if (read_ac2dc_errors(1) || 
-      vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_6 ||
-      vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) {
+  if (read_ac2dc_errors(1) 
+#ifndef SP2x
+  || 
+      (vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) ||
+      (vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_EMERSON_1_6)
+#endif
+) {
     psyslog("sleep 1 second\n");
     usleep(1000000);
     update_ac2dc_power_measurments();
