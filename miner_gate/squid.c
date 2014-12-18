@@ -92,7 +92,8 @@ int test_all_loops_and_dc2dc(int disable_failed, int verbose) {
     unsigned int bypass_loops = ((~(1 << l)) & SQUID_LOOPS_MASK);
     //psyslog("Bad loop %x ", bypass_loops);
     write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
-    if (test_serial(l) != 1) {
+    if (vm.loop[l].enabled_loop && 
+        (test_serial(l) != 1)) {
       vm.loop[l].bad_loop_count++;
       mg_event_x(RED "ERROR: Loop failed %d !" RESET, l);
       if (vm.loop[l].bad_loop_count >= MAX_LOOP_FAIL || disable_failed) {

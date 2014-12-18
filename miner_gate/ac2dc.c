@@ -400,7 +400,7 @@ int read_ac2dc_errors(int to_event) {
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  
   int problem = (((p0 != 0) && (p0 != 0x4000)) || ((p1 != 0) && (p1 != 0x4000)));
-  if (problem || 1) {
+  if (problem) {
     vm.err_murata++;
     if (to_event) {
       //mg_event_x(RED "AC2DC status: %x %x" RESET,p0,p1);

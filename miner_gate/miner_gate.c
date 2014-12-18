@@ -429,7 +429,6 @@ void *connection_handler_thread(void *adptr) {
             push_work_rsp(&work,1);
          }
          //vm.consecutive_jobs = 0;
-         vm.all_engines_enable_countdown = SLOW_START_STATE_HALF;
          pthread_mutex_unlock(&asic_mutex);
 
          
@@ -1546,6 +1545,7 @@ void restart_asics_full(int reason,const char * why) {
          working_asics_before_restart++;
      }
   }
+  vm.next_bist_countdown = BIST_PERIOD_SECS;
 #ifdef MINERGATE  
   vm.spi_timeout_count = 0;
   vm.corruptions_count = 0;
@@ -1563,15 +1563,9 @@ void restart_asics_full(int reason,const char * why) {
   // Close all possible i2c devices
   //update_ac2dc_power_measurments();
   psyslog("-------- SOFT RESET 0.11 -----------\n");  
-  test_all_loops_and_dc2dc(0,0);
+  int bad_dc2dc = test_all_loops_and_dc2dc(0,0);
   psyslog("-------- SOFT RESET 0.2 -----------\n");  
-  if (read_ac2dc_errors(1) 
-#ifndef SP2x
-  || 
-      (vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) ||
-      (vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_EMERSON_1_6)
-#endif
-) {
+  if (read_ac2dc_errors(1) || bad_dc2dc) {
     psyslog("sleep 1 second\n");
     usleep(1000000);
     update_ac2dc_power_measurments();
@@ -1583,10 +1577,6 @@ void restart_asics_full(int reason,const char * why) {
   i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err);    
 #endif
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);
-  
-  vm.all_engines_enable_countdown = SLOW_START_STATE_HALF;
-
-  psyslog(":::all_engines_enable_countdown %d\n", vm.all_engines_enable_countdown);
   // Test AC2DC    
   static ASIC asics[ASICS_COUNT];
   int has_chiko = -1;
@@ -1729,7 +1719,6 @@ void restart_asics_full(int reason,const char * why) {
   psyslog("-------- SOFT RESET DONE -----------\n");     
   vm.in_asic_reset = 0;
   mg_event_x("Restart ASICS done :)%d", vm.in_asic_reset);
-  vm.all_engines_enable_countdown = SLOW_START_STATE_HALF;
 }
 
 
@@ -1777,17 +1766,6 @@ psyslog( "------------------------\n");
   psyslog( "------------------------\n");
   psyslog( "------------------------\n"); 
   mg_event_x("---- RUNNING REMOSTRESS -----");
-#endif
-
-
-#ifdef SLOW_START_WORK
-  psyslog( "------------------------\n");
-   psyslog( "------------------------\n");
-   psyslog( "--RUNNING SLOWSTART----\n");
-   psyslog( "------------------------\n");
-   psyslog( "------------------------\n");
-   psyslog( "------------------------\n");
-   mg_event_x("---- RUNNING SLOWSTART -----");
 #endif
 
   enable_sinal_handler();
@@ -1974,7 +1952,6 @@ psyslog( "------------------------\n");
   }
 
   vm.in_asic_reset = 0;
-  vm.all_engines_enable_countdown = SLOW_START_STATE_HALF;
 
   vm.asic_count = 0;
   for (int j =0;j< ASICS_COUNT;j++) {    

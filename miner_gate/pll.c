@@ -482,6 +482,78 @@ int wait_dll_ready_restart_if_error(int a_addr,const char* why) {
 }
 
 
+void set_plls_to_wanted(const char* why) {
+  int addr;
+  for (addr = 0; addr < ASICS_COUNT; addr++) {    
+     ASIC* a = &vm.asic[addr];
+     if (a->asic_present && a->wanted_pll_freq) {
+       int freq = a->wanted_pll_freq;
+       a->wanted_pll_freq = 0xcafebabe;
+
+       DBG(DBG_SCALING_HZ, CYAN "ASIC %d: %dHz -> %dHz - (%s)\n" RESET, 
+        addr, 
+        (vm.asic[addr].freq_hw), 
+        (freq),
+         why);
+    
+
+      disable_engines_asic(addr, 0);
+
+    
+      passert(freq <= ASIC_FREQ_MAX);
+      passert(freq >= ASIC_FREQ_MIN);
+      passert(vm.asic[addr].engines_down);
+      pll_frequency_settings *ppfs;
+      ppfs = &pfs[HZ_TO_OFFSET(freq)];
+      uint32_t pll_config = 0;
+      uint32_t M = ppfs->m_mult;
+      uint32_t P = ppfs->p_postdiv;
+      uint32_t N = ppfs->n_prediv;
+      pll_config = (M - 1) & 0xFF;
+      pll_config |= ((N - 1) & 0x1F) << 8;
+      pll_config |= ((P - 1) & 0x1F) << 13;
+      pll_config |= 0x100000;
+      //printf("Pll %d %x->%x\n",addr,vm.asic[addr].freq_hw, freq);
+      write_reg_asic(addr, NO_ENGINE, ADDR_PLL_CONFIG, pll_config);
+
+      write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x0);
+      write_reg_asic(addr, NO_ENGINE, ADDR_PLL_ENABLE, 0x1);
+
+      flush_spi_write();
+      vm.asic[addr].freq_hw = freq;
+    }
+  }
+  usleep(3000);
+  static uint32_t pll_not_ready[ASICS_COUNT];
+  for (addr = 0; addr < ASICS_COUNT; addr++) { 
+    ASIC* a = &vm.asic[addr];
+    if (a->asic_present && (a->wanted_pll_freq == 0xcafebabe)) {
+      push_asic_read(addr, NO_ENGINE, ADDR_INTR_BC_PLL_NOT_READY, &(pll_not_ready[addr]));
+    }
+  }
+  squid_wait_asic_reads_restart_if_error();
+
+
+  for (addr = 0; addr < ASICS_COUNT; addr++) { 
+    ASIC* a = &vm.asic[addr];
+    if (a->asic_present && (a->wanted_pll_freq == 0xcafebabe) && pll_not_ready[addr]) {
+      while (wait_dll_ready_restart_if_error(addr, why) != 0) {
+         psyslog("PLL STUCK, TRYING AGAIN c5432\n");
+      }    
+    }
+  }
+
+
+  for (addr = 0; addr < ASICS_COUNT; addr++) {    
+      ASIC* a = &vm.asic[addr];
+      if (a->asic_present && (a->wanted_pll_freq == 0xcafebabe)) {
+        enable_engines_asic(addr,vm.asic[addr].not_brocken_engines, 0,0);
+      }
+      a->wanted_pll_freq = 0;
+  }
+}
+
+
 void set_pll(int addr, int freq, int wait_dll_lock, int disable_enable_engines,  const char* why) {
   passert(vm.asic[addr].asic_present);
   passert(vm.asic[addr].dc2dc.dc2dc_present);  

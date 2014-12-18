@@ -335,6 +335,7 @@ typedef struct {
   int     asic_temp_sum; // if asics disabled or missing give them fake temp
   int     asic_hz_sum; // if asics disabled or missing give them fake temp
   int asics_failing_bist;
+  int wins_this_ten_min;
   int crit_temp_downscale;
   int power_throttled;
   int user_disabled;
@@ -455,7 +456,7 @@ typedef struct {
   uint8_t asics_shut_down_powersave;
   uint32_t not_mining_time; // in seconds how long we are not mining
   uint32_t mining_time; 
-  uint32_t all_engines_enable_countdown;
+  int32_t next_bist_countdown; 
 
   
   int temp_mgmt;

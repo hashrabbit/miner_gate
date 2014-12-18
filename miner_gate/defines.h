@@ -26,7 +26,6 @@
 #define RESET_MQ_ON_BIST
 #define RUNTIME_BIST
 //#ifdef SP2x
-#define SLOW_START_WORK
 
 //#define AAAAAAAA_TESTER
 #ifdef AAAAAAAA_TESTER
@@ -80,7 +79,7 @@
 
 // In seconds
 #define BIST_PERIOD_SECS                                    20 // MUST BE MORE THEN 7
-#define BIST_PERIOD_SECS_LONG                               60 // MUST BE MORE THEN 16
+#define BIST_PERIOD_SECS_LONG                               120 // MUST BE MORE THEN 16
 
 
 #define DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD          100 // unlimited

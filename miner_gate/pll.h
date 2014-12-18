@@ -282,6 +282,8 @@ void disable_engines_all_asics(int with_reset);
 void disable_engines_asic(int addr,int with_reset);
 void enable_engines_asic(int addr, uint32_t engines_mask[7], int with_unreset, int reset_others);
 void set_pll(int addr, int freq, int wait_dll_lock, int disale_enable_engines, const char* why);
+void set_plls_to_wanted(const char* why);
+
 int enable_good_engines_all_asics_ok_restart_if_error(int with_reset);
 void disable_asic_forever_rt_restart_if_error(int addr, int assert_if_none_left, const char* why);
 void enable_all_engines_all_asics(int with_reset);
