@@ -1956,7 +1956,8 @@ void ten_second_tasks() {
    ping_watchdog();
    if ((vm.total_rate_mh > 0) &&
        (vm.total_rate_mh/1000 < vm.minimal_rate_gh)) {
-      exit_nicely(1,"Hash rate too low");
+      mg_event_x(RED "HASH RATE: %d" RESET, vm.total_rate_mh/1000)
+      exit_nicely(1,RED "Hash rate too low !!!!" RESET);
    }
  }
 
