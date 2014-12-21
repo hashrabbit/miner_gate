@@ -158,13 +158,12 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   set_light(LIGHT_GREEN, LIGHT_MODE_OFF);
   leds_periodic_100_msecond();
   set_light_on_off(LIGHT_GREEN, LIGHT_MODE_OFF);
-  
-  
   //execl("/usr/local/bin/kill_cgminer", "/usr/local/bin/kill_cgminer", NULL);
   psyslog("Closing socket %d\n", socket_fd);
   close(socket_fd);
   save_rate_temp(0,0,0,0);  
   mg_event(why);
+  vm.in_exit = 1;
   if (!recursive) {
     recursive++;
     stop_all_work_rt_restart_if_error();
@@ -679,7 +678,6 @@ int discover_good_loops_restart_12v() {
       }
 #else 
       mg_event_x("Loop missing in discovery %d (code %d)", i, x);
-      
 #endif
       
       for (int h = i * ASICS_PER_LOOP; h < (i + 1) * ASICS_PER_LOOP; h++) {
@@ -1623,6 +1621,7 @@ void restart_asics_full(int reason,const char * why) {
   vm.consecutive_jobs = 10;
   vm.start_run_time = time(NULL);
   vm.err_restarted++;
+  vm.in_asic_reset = 2;
 
   
   print_stack();
@@ -1730,7 +1729,7 @@ int main(int argc, char *argv[]) {
   printf(RESET);  
   vm.start_run_time = time(NULL);
   int s;
-  vm.in_asic_reset = 1;
+  vm.in_asic_reset = 2;
   srand(time(NULL));
   //enable_reg_debug = 1;
   setlogmask(LOG_UPTO(LOG_INFO));
@@ -1814,7 +1813,7 @@ psyslog( "------------------------\n");
   read_flags();
 
   test_fix_ac2dc_limits();
-  mg_event("Started!");
+  mg_event("\nStarted!");
 
 
 

@@ -534,14 +534,14 @@ int allocate_addresses_to_devices() {
                   count_ones(vm.asic[addr].not_brocken_engines[4]) +
                   count_ones(vm.asic[addr].not_brocken_engines[5]) +
                   count_ones(vm.asic[addr].not_brocken_engines[6]);
-
+          psyslog("asic_present %d = 1\n", addr);
           vm.asic[addr].asic_present = 1;
           vm.asic[addr].freq_bist_limit = (ASIC_FREQ_MAX); // todo - discover
         } else {
           if (!vm.asic[addr].dc2dc.dc2dc_present) {
               write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_CHIP_ADDR, addr << 8);
           }
-
+          psyslog("asic_present %d = 0\n", addr);
           vm.asic[addr].asic_present = 0;
           for (int i = 0; i < ENGINE_BITMASCS; i++) {
             vm.asic[addr].not_brocken_engines[i] = 0;
@@ -2250,7 +2250,7 @@ void once_second_tasks_rt_restart_if_error() {
       // if 90% idle - restart
       if (vm.asic[jj].idle_asic_cycles_sec/100000 > 90) {
         test_lost_address();
-        mg_event_x("ASIC %d idle:%d\n",jj,vm.asic[jj].idle_asic_cycles_sec/100000);
+        mg_event_x("ASIC %d idle:%d",jj,vm.asic[jj].idle_asic_cycles_sec/100000);
         restart_asics_full(17,"Asic IDLE when should not be IDLE");
         partial_idle_this_run = 0;
         return;
@@ -2522,7 +2522,7 @@ void try_push_job_to_mq() {
     }
     
     if (vm.consecutive_jobs == 0) {
-      mg_event_x("Start work");
+      psyslog("Start work");
     }  
     if (vm.consecutive_jobs < MAX_CONSECUTIVE_JOBS_TO_COUNT) {
       vm.consecutive_jobs++;
@@ -2539,7 +2539,7 @@ void try_push_job_to_mq() {
       //write_reg_asic(asic,NO_ENGINE,ADDR_NONCE_RANGE,range);
       //flush_spi_write();
       if (vm.consecutive_jobs == 0) {
-        mg_event_x("Stop work");
+        psyslog("Stop work");
       }
     } 
   }

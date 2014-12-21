@@ -20,6 +20,9 @@
 #include <spond_debug.h>
 #include <ctime>
 #include <unistd.h>
+#ifdef MINERGATE
+#include "asic.h"    
+#endif
 
 
 char glob_buf_x[700];
@@ -100,6 +103,11 @@ int end_stopper(struct timeval *tv, const char *name) {
 
 void mg_event(const char *s, int nl) {
    time_t rawtime;
+#ifdef MINERGATE
+  if (vm.in_exit) return;
+#endif   
+
+   
    char buffer[80];
    psyslog("Critical: %s\n", s);
    if (nl) {

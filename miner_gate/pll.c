@@ -611,58 +611,66 @@ void disable_asic_forever_rt_restart_if_error(int addr, int passert_if_none_left
     return;
   }
 
-  // After X minutes - restart miner
-  if (!vm.in_asic_reset) {
+  print_stack();
+  
+
+  // RUN TIME
+  if (vm.in_asic_reset == 0) {
     mg_event_x("Run time failed crutial ASIC %d (%s)", addr, why);
     vm.err_runtime_disable++;  
     test_lost_address();
     restart_asics_full(9,"disable asic while running");
     return;
   }
-
+  else if (vm.in_asic_reset == 1) { 
+    // IN RESET
+    return;
+  }else  {// IN MAIN OR END OF RESET
   
-  memset(vm.asic[addr].not_brocken_engines, 0, sizeof(vm.asic[addr].not_brocken_engines));
-  vm.asic[addr].asic_present = 0;
-  //vm.asic[addr].dc2dc.dc2dc_present = 0; 
-  if (why) {
-    vm.asic[addr].why_disabled = why;
-  }
-  int err;
-  write_reg_asic(addr, NO_ENGINE,ADDR_GLOBAL_HASH_RESETN,0);
-  write_reg_asic(addr, NO_ENGINE,ADDR_GLOBAL_CLK_EN,0);
-  write_reg_asic(addr, NO_ENGINE,ADDR_INTR_MASK,0xFFFF);
-  write_reg_asic(addr, NO_ENGINE,ADDR_DEBUG_CONTROL,BIT_ADDR_DEBUG_DISABLE_TRANSMIT);
-  flush_spi_write();
-  mg_event_x("Asic disable %d: %s",addr,vm.asic[addr].why_disabled);
-
-  for (int i = 0; i < ENGINE_BITMASCS; i++) {
-     vm.asic[addr].not_brocken_engines[i] = 0;
-  }
-  vm.asic[addr].not_brocken_engines[ENGINE_BITMASCS-1] = 0;  
-  disable_engines_asic(addr, 1);
-
-/*
-  if (!dc2dc_is_removed(addr)) {
-    int err;
-    //dc2dc_disable_dc2dc(addr,&err);
-  }
-  */
-  
-  if (vm.asic[addr].cooling_down) {
-    if (vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now > 0) {
-        vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now--;
+    
+    memset(vm.asic[addr].not_brocken_engines, 0, sizeof(vm.asic[addr].not_brocken_engines));
+    vm.asic[addr].asic_present = 0;
+    //vm.asic[addr].dc2dc.dc2dc_present = 0; 
+    if (why) {
+      vm.asic[addr].why_disabled = why;
     }
-    vm.asic[addr].cooling_down = 0;
-  }
-  // dc2dc_disable_dc2dc(addr,&err);
-  vm.asic_count = 0;
-  for (int j =0;j< ASICS_COUNT;j++) {    
-     if (vm.asic[j].asic_present) {
-         vm.asic_count++;
-     }
-  }  
-  psyslog("Disabing ASIC forever %d (0x%x) from loop %d (%s)\n", addr, addr, addr/ASICS_PER_LOOP, why);
-  if (vm.asic_count == 0) {
-    exit_nicely(10,"All ASICs disabled");
+    int err;
+    write_reg_asic(addr, NO_ENGINE,ADDR_GLOBAL_HASH_RESETN,0);
+    write_reg_asic(addr, NO_ENGINE,ADDR_GLOBAL_CLK_EN,0);
+    write_reg_asic(addr, NO_ENGINE,ADDR_INTR_MASK,0xFFFF);
+    write_reg_asic(addr, NO_ENGINE,ADDR_DEBUG_CONTROL,BIT_ADDR_DEBUG_DISABLE_TRANSMIT);
+    flush_spi_write();
+    mg_event_x("Asic disable %d: %s",addr,vm.asic[addr].why_disabled);
+
+    for (int i = 0; i < ENGINE_BITMASCS; i++) {
+       vm.asic[addr].not_brocken_engines[i] = 0;
+    }
+    vm.asic[addr].not_brocken_engines[ENGINE_BITMASCS-1] = 0;  
+    disable_engines_asic(addr, 1);
+
+  /*
+    if (!dc2dc_is_removed(addr)) {
+      int err;
+      //dc2dc_disable_dc2dc(addr,&err);
+    }
+    */
+    
+    if (vm.asic[addr].cooling_down) {
+      if (vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now > 0) {
+          vm.ac2dc[ASIC_TO_BOARD_ID(addr)].board_cooling_now--;
+      }
+      vm.asic[addr].cooling_down = 0;
+    }
+    // dc2dc_disable_dc2dc(addr,&err);
+    vm.asic_count = 0;
+    for (int j =0;j< ASICS_COUNT;j++) {    
+       if (vm.asic[j].asic_present) {
+           vm.asic_count++;
+       }
+    }  
+    psyslog("Disabing ASIC forever %d (0x%x) from loop %d (%s)\n", addr, addr, addr/ASICS_PER_LOOP, why);
+    if (vm.asic_count == 0) {
+      exit_nicely(10,"All ASICs disabled");
+    }
   }
 }

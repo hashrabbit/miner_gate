@@ -16,6 +16,10 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "spond_debug.h"
+#ifdef MINERGATE
+#include "asic.h"    
+#endif
+
 
 static int file;
 pthread_mutex_t i2cm = PTHREAD_MUTEX_INITIALIZER;

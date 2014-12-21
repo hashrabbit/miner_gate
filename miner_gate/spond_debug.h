@@ -106,13 +106,25 @@ int print_time_delta();
   }
 #define pabort(X...)                                                           \
   { _pabort(X); }
-  
+
+#ifdef MINERGATE
+#define psyslog(X...)                                                          \
+  {                                                                            \
+    if (!vm.in_exit) {                                                    \
+      print_time_delta();                                                        \
+      syslog(LOG_WARNING, X);                                                    \
+      printf(X);                                                                 \
+    }                                                  \
+  }
+#else     
 #define psyslog(X...)                                                          \
   {                                                                            \
     print_time_delta();                                                        \
     syslog(LOG_WARNING, X);                                                    \
     printf(X);                                                                 \
   }
+#endif      
+
 
 void _passert(int cond, const char *s = NULL);
 void _pabort(const char *s);

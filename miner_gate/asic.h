@@ -417,6 +417,7 @@ typedef struct {
 typedef struct {
   // Fans set to high
   int fan_level;
+  int in_exit;
   uint32_t good_loops;
 
   int mgmt_temp_max;
