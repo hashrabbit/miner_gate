@@ -78,8 +78,8 @@
 #define MAX_CONSECUTIVE_JOBS_TO_COUNT (200)
 
 // In seconds
-#define BIST_PERIOD_SECS                                    20 // MUST BE MORE THEN 7
-#define BIST_PERIOD_SECS_LONG                               120 // MUST BE MORE THEN 16
+#define BIST_PERIOD_SECS                                    20
+#define BIST_PERIOD_SECS_LONG                               180
 
 
 #define DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD          100 // unlimited
@@ -133,6 +133,8 @@
 #define MQ_INCREMENTS 60
 // MQ_TIMER_USEC*MQ_INCREMENTS = 30000
 #define MQ_TOO_FULL   50  // 15 per job - 2 jobs inside only
+#define MQ_TOO_FULL_CUST   150 
+
 
 #define RT_THREAD_PERIOD   (2000)
 #define JOB_TRY_PUSH_MILLI (2)   // Try each 10 milli

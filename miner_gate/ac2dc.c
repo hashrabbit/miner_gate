@@ -243,9 +243,8 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
 		  revision_size = 2;
 
 	  }
-	  else if (ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_6) // EMRSN1200
-	  	  {
-
+	  else if (ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_6) // EMRSN1600
+ 	  {
 		  pnr_offset = 0x34;
 		  pnr_size = 15;
 		  model_offset = 0x57;
@@ -254,8 +253,7 @@ int ac2dc_get_vpd(ac2dc_vpd_info_t *pVpd, int psu_id, AC2DC *ac2dc) {
 		  serial_size = 13; // this includes the model and the serial . serial naked is 0x5b/9 (instead of 57/13)
 		  revision_offset = 0x61;
 		  revision_size = 2;
-
-	  	  }
+	  }
 
 	  if (NULL == pVpd) {
 	    psyslog("call ac2dc_get_vpd performed without allocating sturcture first\n");
@@ -368,7 +366,7 @@ int read_ac2dc_errors(int to_event) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
     AC2DC* ac2dc = &vm.ac2dc[PSU_0];
     p0 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
-    p0 &= (~0x2);
+    p0 &= (~0x3);
     if (p0) {
       psyslog("AC2DC TOP 79:%x\n",i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err));
       psyslog("AC2DC TOP 7a:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7a, &err));
@@ -387,7 +385,7 @@ int read_ac2dc_errors(int to_event) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
     AC2DC* ac2dc = &vm.ac2dc[PSU_1];
     p1 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
-    p1 &= (~0x2);
+    p1 &= (~0x3);
     if(p1) {
       psyslog("AC2DC BOT 79:%x\n",i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err));
       psyslog("AC2DC BOT 7a:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7a, &err));
@@ -399,10 +397,11 @@ int read_ac2dc_errors(int to_event) {
     i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);    
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  
+  
   int problem = (((p0 != 0) && (p0 != 0x4000)) || ((p1 != 0) && (p1 != 0x4000)));
   if (problem) {
     vm.err_murata++;
-    if (to_event) {
+    if (to_event ) {
       //mg_event_x(RED "AC2DC status: %x %x" RESET,p0,p1);
       psyslog(RED  "AC2DC status: %x %x\n" RESET,p0,p1);
     } else {
@@ -460,7 +459,12 @@ void test_fix_ac2dc_limits() {
         usleep(3000000);
 */
          if ((p & AC2DC_I2C_READ_STATUS_IOUT_OC_ERR) &&
-            (vm.ac2dc[PSU_0].ac2dc_power_limit > 1270)) {
+              (
+                (vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_2) && (vm.ac2dc[PSU_0].ac2dc_power_limit > 1270)
+                ||
+                (vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) && (vm.ac2dc[PSU_0].ac2dc_power_limit > 1560)
+               )
+             ){
           mg_event_x("update 0 work mode %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
           update_work_mode(5, 0, false);
         }     
@@ -498,8 +502,13 @@ void test_fix_ac2dc_limits() {
         usleep(3000000);
 */
         if ((p & AC2DC_I2C_READ_STATUS_IOUT_OC_ERR) &&
-            (vm.ac2dc[PSU_1].ac2dc_power_limit > 1270)) {
-          mg_event_x("update bottom work mode %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
+             (
+               (vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_EMERSON_1_2) && (vm.ac2dc[PSU_1].ac2dc_power_limit > 1270)
+               ||
+               (vm.ac2dc[PSU_1].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) && (vm.ac2dc[PSU_1].ac2dc_power_limit > 1570)
+             ) 
+             ){
+          mg_event_x("update bottom work mode %d", vm.ac2dc[PSU_1].ac2dc_power_limit);
           update_work_mode(0, 5, false);
         }
         mg_event_x("AC2DC bottom fail on %d", vm.ac2dc[PSU_1].ac2dc_power_limit);

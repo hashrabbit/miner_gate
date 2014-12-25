@@ -727,8 +727,8 @@ void dc2dc_get_errors(
         five_volt_err || 
         (overtemp & 0x80) ||
         verbose) {
-      psyslog( "DC2DC ASIC WARNING [%d]: 7B=0x%2x, 7A=%2x, 78=%2x, 7D=%2x 79=%x 80=%x",
-        addr,problems, gen_stat2, gen_stat, overtemp,r79,r80);
+      DBG(DBG_POWER, "DC2DC ASIC WARNING [%d]: 7B=0x%2x, 7A=%2x, 78=%2x, 7D=%2x 79=%x 80=%x",
+              addr,problems, gen_stat2, gen_stat, overtemp,r79,r80);
       i2c_write(dc2dc_channel_i2c_addr, 0x03);
     }
     
@@ -738,7 +738,7 @@ void dc2dc_get_errors(
   
     if (overtemp & 0x40) {
       if (!vm.asic[addr].ot_warned_a) {
-         psyslog("DC2DC TEMPWARNING[%d]: 7B=0x%2x, 7A=%2x, 78=%2x, 7D=%2x 79=%x 80=%x" ,
+         DBG(DBG_POWER,"DC2DC TEMPWARNING[%d]: 7B=0x%2x, 7A=%2x, 78=%2x, 7D=%2x 79=%x 80=%x" ,
           addr,problems, gen_stat2, gen_stat, overtemp, r79, r80);
         vm.asic[addr].ot_warned_a = 1;
       }

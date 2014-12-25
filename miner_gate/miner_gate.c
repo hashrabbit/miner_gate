@@ -177,10 +177,9 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
     store_last_voltage();
   }
 */
-  
+  set_fan_level(30);
   if (vm.exiting) {
     psyslog("Recursive exit (%s)!\n", why);
-    set_fan_level(30);
     exit(0);
   }
   pthread_mutex_unlock(&i2cm);
@@ -201,7 +200,6 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   psyslog("Dye (%s)!\n", why);
   //set_light(LIGHT_GREEN, LIGHT_MODE_OFF);
   usleep(seconds_sleep_before_exit*1000*1000);
-  set_fan_level(20);  
   set_light_on_off(LIGHT_GREEN, LIGHT_MODE_OFF);
   exit(0);
 }
@@ -1526,7 +1524,9 @@ void test_lost_address() {
     for (int i = 0; i < ASICS_COUNT; i++) { 
       if (vm.loop[vm.asic[i].loop_address].enabled_loop) {
         int reg = read_reg_asic(i, NO_ENGINE,ADDR_VERSION);
-        mg_event_x("ASIC lost address: [%d %x]",i , reg);
+        if (reg == 0) {
+          mg_event_x(RED "ASIC lost address: [%d %x]" RESET,i , reg);
+        }
       } else {
         mg_event_x("ASIC lost address: [%d NA]",i);
       }
@@ -1538,6 +1538,7 @@ void test_lost_address() {
 void restart_asics_full(int reason,const char * why) {  
   int err;
   int working_asics_before_restart = 0;
+  vm.disasics = 0;
   for (int j =0;j< ASICS_COUNT;j++) {    
      if (vm.asic[j].asic_present) {
          working_asics_before_restart++;
@@ -1548,7 +1549,7 @@ void restart_asics_full(int reason,const char * why) {
   vm.spi_timeout_count = 0;
   vm.corruptions_count = 0;
 #endif
-  
+  vm.slowstart = 5;
   mg_event_x("restart_asics_full (%s)", why);
   psyslog("-------- SOFT RESET 0 (asics:%d) -----------\n", working_asics_before_restart);  
   if(vm.in_asic_reset != 0) {
@@ -1566,6 +1567,7 @@ void restart_asics_full(int reason,const char * why) {
   if (read_ac2dc_errors(1) || bad_dc2dc) {
     psyslog("sleep 1 second\n");
     usleep(1000000);
+    //dc2dc_init();
     update_ac2dc_power_measurments();
     test_all_loops_and_dc2dc(0,0);
   }
@@ -1618,7 +1620,7 @@ void restart_asics_full(int reason,const char * why) {
    */
 
   
-  vm.consecutive_jobs = 10;
+  vm.consecutive_jobs = 1;
   vm.start_run_time = time(NULL);
   vm.err_restarted++;
   vm.in_asic_reset = 2;
@@ -1791,7 +1793,7 @@ psyslog( "------------------------\n");
   i2c_init(&pError);  
   leds_init();
   read_generic_ac2dc();
-  ac2dc_init();
+  ac2dc_init();  
   set_light(LIGHT_GREEN, LIGHT_MODE_SLOW_BLINK);
   //update_ac2dc_power_measurments(PSU_1, &vm.ac2dc[PSU_1]);
   //update_ac2dc_power_measurments(PSU_0, &vm.ac2dc[PSU_0]);
@@ -1808,7 +1810,6 @@ psyslog( "------------------------\n");
      fclose(file);
   }
 #endif
-
   read_work_mode();
   read_flags();
 
@@ -1820,6 +1821,7 @@ psyslog( "------------------------\n");
   vm.temp_mgmt = get_mng_board_temp();
   vm.temp_top = get_top_board_temp();
   vm.temp_bottom = get_bottom_board_temp();
+  set_fan_level(vm.userset_fan_level);
 
   // Try once to see if some boards disabled.
   int no_bp = 0;  
@@ -1876,6 +1878,7 @@ psyslog( "------------------------\n");
   //exit(0);
   reset_sw_rt_queue();
   //set_light(LIGHT_YELLOW, LIGHT_MODE_ON);
+  set_fan_level(vm.userset_fan_level);
 
 
   // test SPI
@@ -1920,6 +1923,7 @@ psyslog( "------------------------\n");
 
 
   set_nonce_range_in_engines(0xFFFFFFFF);
+  set_fan_level(vm.userset_fan_level);
   set_initial_voltage_freq();
   while (BROADCAST_READ_ADDR(read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_CONDUCTOR_BUSY))) {
    printf("Waiting conductor buzy\n");

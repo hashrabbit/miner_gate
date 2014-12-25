@@ -394,10 +394,15 @@ int enable_good_engines_all_asics_ok_restart_if_error(int with_reset) {
     int reg;
     int killed_pll=0;
     while ((reg = read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_PLL_NOT_READY)) != 0) {
-      if (i++ > 100) {
-        psyslog(RED "PLL %x stuck, killing ASIC Y\n" RESET, reg);
+      if (i > 100) {
+          mg_event_x("Total mayhem asic %d\n", reg);
+          restart_asics_full(123,"Total mayhem");
+          return 0;
+      }
+      if (i++ > 50) {
         //return 0;
         int addr = BROADCAST_READ_ADDR(reg);
+        psyslog(RED "PLL %x stuck, killing ASIC (%d)\n" RESET, reg, addr);
         if (addr < ASICS_COUNT) {
           disable_asic_forever_rt_restart_if_error(addr,1, "can't enable");
         } else {
@@ -495,11 +500,7 @@ void set_plls_to_wanted(const char* why) {
         (vm.asic[addr].freq_hw), 
         (freq),
          why);
-    
-
       disable_engines_asic(addr, 0);
-
-    
       passert(freq <= ASIC_FREQ_MAX);
       passert(freq >= ASIC_FREQ_MIN);
       passert(vm.asic[addr].engines_down);
@@ -606,7 +607,11 @@ void set_pll(int addr, int freq, int wait_dll_lock, int disable_enable_engines, 
 }
 
 void disable_asic_forever_rt_restart_if_error(int addr, int passert_if_none_left, const char* why) {
-  psyslog("Called disable ASIC reset in_reset:%d\n", vm.in_asic_reset);
+  psyslog("Called disable ASIC reset in_reset:%d, (%d) %s\n", vm.in_asic_reset,vm.disasics, why);
+  vm.disasics++;
+  if (vm.disasics > 30) {
+    exit_nicely(1,"Disasics");
+  }
   if (!vm.asic[addr].asic_present) {
     return;
   }
@@ -625,9 +630,7 @@ void disable_asic_forever_rt_restart_if_error(int addr, int passert_if_none_left
   else if (vm.in_asic_reset == 1) { 
     // IN RESET
     return;
-  }else  {// IN MAIN OR END OF RESET
-  
-    
+  } else  {// IN MAIN OR END OF RESET  
     memset(vm.asic[addr].not_brocken_engines, 0, sizeof(vm.asic[addr].not_brocken_engines));
     vm.asic[addr].asic_present = 0;
     //vm.asic[addr].dc2dc.dc2dc_present = 0; 

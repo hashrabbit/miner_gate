@@ -613,13 +613,14 @@ uint32_t _read_reg_actual_restart_if_error(QUEUED_REG_ELEMENT *e, int *err) {
 #ifdef MINERGATE
       int problem = test_all_loops_and_dc2dc(vm.in_asic_reset,1);
       mg_event_x("Data Timeout on read %x:%x (%d), (problem:%d)", e->addr, e->offset,vm.spi_timeout_count, problem);
+      print_stack();
       if (read_ac2dc_errors(1) || problem) {
         //usleep(1000000);
         if (!vm.in_asic_reset) {
           restart_asics_full(434, "read timeout on problem or AC2DC fail");
+          return 0;
         }
       }
-      return 0;
 #endif
     } else {
       return 0;

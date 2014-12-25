@@ -48,6 +48,7 @@ void init_pwm() {
   passert(f != NULL);
   fprintf(f, "%d", PWM_VALUE(0));
   fclose(f);
+  set_fan_level(40);
 }
 
 void kill_fan() {

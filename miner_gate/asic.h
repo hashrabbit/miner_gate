@@ -427,6 +427,7 @@ typedef struct {
   int tryed_power_cycle_to_revive_loops;
 
   int last_chiko_time;
+  int disasics;
   int err_restarted;  
   int err_unexpected_reset;  
   int err_unexpected_reset2;  
@@ -504,6 +505,7 @@ typedef struct {
   ASIC asic[ASICS_COUNT];
   //uint32_t not_brocken_engines[ASICS_COUNT];
   int in_asic_reset;
+  int slowstart;
   int corruptions_count;
   int spi_timeout_count;
 

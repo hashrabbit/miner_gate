@@ -110,7 +110,7 @@ int print_time_delta();
 #ifdef MINERGATE
 #define psyslog(X...)                                                          \
   {                                                                            \
-    if (!vm.in_exit) {                                                    \
+    if (/*!vm.in_exit*/1) {                                                    \
       print_time_delta();                                                        \
       syslog(LOG_WARNING, X);                                                    \
       printf(X);                                                                 \

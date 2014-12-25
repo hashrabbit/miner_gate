@@ -56,7 +56,6 @@ static int one_sec_counter = 0;
 int total_devices = 0;
 extern int enable_reg_debug;
 int update_ac2dc_power_measurments();
-void change_all_pending_plls(const char* why);
 
 RT_JOB *add_to_sw_rt_queue(const RT_JOB *work);
 void reset_sw_rt_queue();
@@ -182,8 +181,8 @@ void act_on_temperature(int addr, int* can_upscale) {
     if (a->dc2dc.max_vtrim_temperature > VTRIM_MIN) {
       // Down 1 click on voltage, full down on FREQ 
       if (dc2dc_can_down(addr)) {
-        a->dc2dc.max_vtrim_temperature = a->dc2dc.vtrim - 1;
-        dc2dc_down(addr,&err,"too hot A");
+        a->dc2dc.max_vtrim_temperature = a->dc2dc.vtrim - 2;
+        dc2dc_down(addr,2 , &err,"too hot A");
         set_pll(addr, ASIC_FREQ_MIN,1, 1,"too hot B");      
         if (!a->cooling_down) {            
           a->cooling_down = 1;
@@ -195,9 +194,9 @@ void act_on_temperature(int addr, int* can_upscale) {
   } else if (a->cooling_down && *can_upscale) {
     // Cooling down complete
     asic_up_freq_max_request(addr, "Cooling done");
-    change_all_pending_plls("Cooling done");
+    set_plls_to_wanted("Cooling done");
     *can_upscale = 0;
-    vm.next_bist_countdown = 1;
+    vm.next_bist_countdown = MIN(1, vm.next_bist_countdown);
   }
     //printf("Set pll %x %d to %d\n",i,vm.hammer[i].freq_hw,vm.hammer[i].freq_wanted);
     
@@ -400,11 +399,39 @@ void push_to_hw_queue_rt(RT_JOB *work, int with_force_this) {
   
   passert(work->work_id_in_hw < (0xFF - MQ_INCREMENTS));
   PUSH_JOB(ADDR_JOBID, work->work_id_in_hw);
+  
+/*
+  if (vm.consecutive_jobs < 30) {
+    psyslog("consecutive_jobs %d, vm.engine_size %d",vm.consecutive_jobs, vm.engine_size/(30-vm.consecutive_jobs));
+    write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_NONCE_RANGE, vm.engine_size/(30-vm.consecutive_jobs));
+  }else if (vm.consecutive_jobs < 35) {
+    psyslog("consecutive_jobs %d, vm.engine_size %d",vm.consecutive_jobs, vm.engine_size);
+    write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_NONCE_RANGE, vm.engine_size);    
+  }
+*/
   //DBG(DBG_WINS,"PUSH:JOB ID:%d  ---\n",work->work_id_in_hw);  
   if (with_force_this) {
-    write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB_IF_FIFO_FULL);
+    push_mq_write(ANY_ASIC, NO_ENGINE,ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB_IF_FIFO_FULL);
   }
+#if 0  
+  if (vm.slowstart) {    
+    vm.slowstart--;
+
+    if (vm.ac2dc[PSU_0].ac2dc_type  == AC2DC_TYPE_EMERSON_1_6 || vm.ac2dc[PSU_1].ac2dc_type  == AC2DC_TYPE_EMERSON_1_6) {
+      psyslog("1 vm.slowstart %d\n",vm.slowstart);
+      for (int a = 0 ; a < ASICS_COUNT; a++) {
+        if (vm.asic[a].asic_present && (a%2)) {
+          psyslog("Enable %d\n", a)
+          push_mq_write(a, ANY_ENGINE,ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+        }
+      }                
+    }
+  }else {
+     PUSH_JOB(ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+  }
+#else 
   PUSH_JOB(ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+#endif
   FLUSH_JOB();
   uint32_t status = read_spi(ADDR_SQUID_STATUS);
 //  parse_squid_status(status);
@@ -868,7 +895,7 @@ int do_bist_loop_push_job(const char* why) {
   if (vm.did_asic_reset) {
        return 0;
   }
- 
+  vm.slowstart = 5;
   try_push_job_to_mq();
   try_push_job_to_mq();  
   end_stopper(&tv,"Bist");
@@ -1156,7 +1183,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
   }
 
   
-  change_all_pending_plls("Downscaled");
+  set_plls_to_wanted("Downscaled");
   //end_stopper(&tv,"change_all_pending_plls!");
 
   
@@ -1473,13 +1500,13 @@ void once_second_scaling_logic_restart_if_error() {
         write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
         flush_spi_write();
       }
-      end_stopper(&tv, "BIST UPSCALE THINK");
-      change_all_pending_plls("Upscaled");
-      end_stopper(&tv, "BIST UPSCALE DO");      
+      //end_stopper(&tv, "BIST UPSCALE THINK");
+      set_plls_to_wanted("Upscaled");
+      //end_stopper(&tv, "BIST UPSCALE DO");      
       write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);  
       write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);
       do_bist_loop_push_job("BIST_PERIOD_SECS");
-      end_stopper(&tv, "BIST UPSCALE BIST");      
+      //end_stopper(&tv, "BIST UPSCALE BIST");      
       update_ac2dc_stats();
     }
 #endif
@@ -1498,7 +1525,7 @@ void once_second_scaling_logic_restart_if_error() {
         } else {
           disable_asic_forever_rt_restart_if_error(xx, 1, "too lazy");
         }
-        mg_event_x("Lazy ASIC [%d] - consider disabling it", xx);
+        mg_event_x(RED "Lazy ASIC [%d] - consider disabling it if this happens more then every 10 minutes" RESET, xx);
     } 
     vm.asic[xx].dc2dc.revolted = 0;
   }
@@ -1519,8 +1546,7 @@ void once_second_scaling_logic_restart_if_error() {
     int do_bist = 0;
     if (
      !psu_pimped[psu] &&
-     ((vm.ac2dc[psu].ac2dc_power_limit+4) < (vm.ac2dc[psu].ac2dc_power_now
-                                               +vm.ac2dc[psu].ac2dc_power_last)/2)) {
+     ((vm.ac2dc[psu].ac2dc_power_limit+5) < (vm.ac2dc[psu].ac2dc_power_now+vm.ac2dc[psu].ac2dc_power_last)/2)) {
       // down random DC2DC
       int i = 5;
       do_bist = 1;
@@ -1531,9 +1557,8 @@ void once_second_scaling_logic_restart_if_error() {
         ASIC *a = &vm.asic[addr];
         if (a->asic_present) {
           if (dc2dc_can_down(addr)) {
-            dc2dc_down(addr,&err,"AC2DC too high A");
-             DBG(DBG_SCALING_UP,"DOWNSCALE %d ((power:%d))\n", addr,
-                vm.ac2dc[psu].ac2dc_power_assumed);
+            dc2dc_down(addr,2,&err,"AC2DC too high A");
+             DBG(DBG_SCALING_UP,"DOWNSCALE %d ((power:%d))\n", addr,vm.ac2dc[psu].ac2dc_power_assumed);
           }
         }
         i--;
@@ -1547,7 +1572,7 @@ void once_second_scaling_logic_restart_if_error() {
         vm.asic[xx].dc2dc.revolted = 0;
     }
     if (do_bist) {
-      do_bist_loop_push_job("AC2DC too high");
+      vm.next_bist_countdown = MIN(3, vm.next_bist_countdown);
     }
   }
 
@@ -1942,7 +1967,7 @@ void ten_second_tasks() {
   //store_last_voltage();
   dump_watts();
   //restart_asics();
-  
+  set_fan_level(vm.userset_fan_level);
   //write_reg_asic(12, NO_ENGINE,ADDR_GOT_ADDR, 0);
   revive_asics_if_one_got_reset("ten_second_tasks");
 
@@ -1998,10 +2023,10 @@ int dc2dc_can_up(int i, int *pp) {
 }
 
 
-void dc2dc_down(int i, int *err, const  char* why) {
+void dc2dc_down(int i, int clicks, int *err, const  char* why) {
   passert((vm.asic[i].dc2dc.vtrim > VTRIM_MIN));
   // - 2.7 milli-volt
-  vm.asic[i].dc2dc.vtrim--;
+  vm.asic[i].dc2dc.vtrim-=clicks;
   vm.asic[i].dc2dc.revolted=1;
   
   dc2dc_set_vtrim(i, vm.asic[i].dc2dc.vtrim, 1, err, why);
@@ -2038,11 +2063,6 @@ int asic_can_down_freq(int i) {
   return (vm.asic[i].freq_hw > ASIC_FREQ_MIN);
 }
 
-
-void change_all_pending_plls(const char *why) {
-  int addr;
-  set_plls_to_wanted(why);
-}
 
 
 
@@ -2141,9 +2161,9 @@ int update_dc2dc_stats_restart_if_error(int i, int restart_on_err = 1, int verbo
     if (overcurrent_warning) {
       // Downscale ASIC voltage
       if (vm.asic[i].dc2dc.vtrim > VTRIM_MIN) {
-        dc2dc_down(i, &err, "OC warning");
+        dc2dc_down(i, 2, &err, "OC warning");
         vm.asic[i].dc2dc.max_vtrim_currentwise = vm.asic[i].dc2dc.vtrim;
-        vm.next_bist_countdown = 1;
+        vm.next_bist_countdown = MIN(1, vm.next_bist_countdown);        
       }
     }
 
@@ -2296,41 +2316,6 @@ void once_second_tasks_rt_restart_if_error() {
   }
 */
 
-
-
-  // Decide fan speed
-  if (vm.userset_fan_level) {
-      set_fan_level(vm.userset_fan_level);      
-  } else {
-      int use_fan = 0;
-      int dont_use_fan = 0;     
-      for (int i = 0 ; i < ASICS_COUNT ; i++) {
-         if (vm.asic[i].asic_present) {
-           
-             if ((vm.asic[i].dc2dc.dc_temp <  60) || 
-                 (vm.asic[i].dc2dc.dc_temp > 150)) {
-                 // Very low temps
-                 dont_use_fan++;
-             } else {
-               // normal or high temps
-               if ((vm.asic[i].dc2dc.dc_temp) > (vm.asic[i].dc2dc.dc_temp_limit - 20)) {
-                  use_fan++;
-               }
-             }
-             
-             if (vm.asic[i].asic_temp >= (MAX_ASIC_TEMPERATURE-1)) {
-               use_fan++;
-             }
-         } // present
-      }// for
-     
-      if (dont_use_fan && !use_fan) {
-        set_fan_level(0);
-      } else {
-        set_fan_level(60);  
-      }
-   }
-  
 
   if (vm.consecutive_jobs == 0) {
     vm.start_mine_time = 0;
@@ -2523,6 +2508,7 @@ void try_push_job_to_mq() {
     
     if (vm.consecutive_jobs == 0) {
       psyslog("Start work");
+      vm.slowstart = 5;
     }  
     if (vm.consecutive_jobs < MAX_CONSECUTIVE_JOBS_TO_COUNT) {
       vm.consecutive_jobs++;
@@ -2532,12 +2518,7 @@ void try_push_job_to_mq() {
     set_light(LIGHT_GREEN, LIGHT_MODE_FAST_BLINK);
     stop_all_work_rt_restart_if_error();
     if (vm.consecutive_jobs > 0) {
-      //int range = (rand()<<14);
-      //int asic = vm.consecutive_jobs%ASICS_COUNT;
       vm.consecutive_jobs--;
-      //psyslog("D C=%d\n");
-      //write_reg_asic(asic,NO_ENGINE,ADDR_NONCE_RANGE,range);
-      //flush_spi_write();
       if (vm.consecutive_jobs == 0) {
         psyslog("Stop work");
       }
@@ -2590,7 +2571,8 @@ void once_2_msec_tasks_rt() {
 
   
   if ((counter % ((JOB_TRY_PUSH_MILLI*1000)/RT_THREAD_PERIOD)) == 0) {
-    if ((mqsize < MQ_TOO_FULL)) {
+    if ((mqsize < MQ_TOO_FULL)/* || (vm.slowstart != 0 && mqsize < MQ_TOO_FULL_CUST)*/
+        ) {
 #ifdef INFILOOP_TEST
       printf("\n<%d OK>\n",mqsize);
 #endif

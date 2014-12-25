@@ -58,7 +58,7 @@ int count_ones(uint32_t i);
 
 int dc2dc_can_down(int i);
 int dc2dc_can_up(int i, int *pp);
-void dc2dc_down(int i, int *err, const char* why);
+void dc2dc_down(int i, int clicks,int *err, const char* why);
 void dc2dc_up(int i, int *err, const char* why);
 int asic_can_down_freq(int i);
 int asic_can_up_freq(int i);
