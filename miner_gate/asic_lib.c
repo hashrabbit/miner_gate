@@ -1661,7 +1661,7 @@ void once_minute_scaling_logic_restart_if_error() {
   if (vm.mining_time > 100) {
     for (int b = 0; b < BOARD_COUNT; b++) {
       if (vm.board_working_asics[b] &&  vm.wins_last_minute[b] == 0) {
-        mg_event_x("Idle board:%d", b);
+        mg_event_x(RED "Idle board:%d" RESET, b);
         restart_asics_full(77,"Idle board");
         return;
       }
@@ -2271,7 +2271,7 @@ void once_second_tasks_rt_restart_if_error() {
       // if 90% idle - restart
       if (vm.asic[jj].idle_asic_cycles_sec/100000 > 90) {
         test_lost_address();
-        mg_event_x("ASIC %d idle:%d",jj,vm.asic[jj].idle_asic_cycles_sec/100000);
+        mg_event_x(RED "ASIC %d idle:%d" RESET,jj,vm.asic[jj].idle_asic_cycles_sec/100000);
         restart_asics_full(17,"Asic IDLE when should not be IDLE");
         partial_idle_this_run = 0;
         return;
@@ -2293,7 +2293,7 @@ void once_second_tasks_rt_restart_if_error() {
 
   // twice slow ASICs
   if (partial_idle_this_run && partial_idle_last_run) {    
-     mg_event_x("Idle asic: %d", bad_asic);
+     mg_event_x(RED "Idle asic: %d" RED, bad_asic);
      test_lost_address();
      partial_idle_this_run = 0;
      restart_asics_full(19,"Asic partial-IDLE twice");
