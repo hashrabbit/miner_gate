@@ -1766,6 +1766,7 @@ void print_production() {
 void print_scaling() {
   int err;
   vm.total_rate_mh = 0;
+  
   FILE *f = fopen("/var/log/asics", "w");
   if (!f) {
     psyslog("Failed to save ASIC state\n");
@@ -1778,7 +1779,7 @@ void print_scaling() {
   int total_loops=0;
   int total_asics=0;
   int expected_rate=0;
-  fprintf(f, GREEN "Uptime:%d | FPGA ver:%d | BIST in %d\n" , time(NULL) - vm.start_run_time, vm.fpga_ver,vm.next_bist_countdown);
+  fprintf(f, GREEN "Uptime:%d | FPGA ver:%d | BIST in %d\n" , vm.uptime, vm.fpga_ver,vm.next_bist_countdown);
 
 
   
@@ -1934,11 +1935,9 @@ void print_scaling() {
    fprintf(f, " %d purge_queue3  ", vm.err_purge_queue3);  
    fprintf(f, " %d bad_idle\n", vm.err_bad_idle);     
    fprintf(f, " %d err_murata\n", vm.err_murata);     
-   
-
-   
    print_adapter(f, false);
-   fclose(f);
+   fclose(f);   
+   print_production();
 }
 
 
@@ -1979,7 +1978,8 @@ void ten_second_tasks() {
  save_rate_temp(vm.temp_top, vm.temp_bottom,  vm.temp_mgmt, (vm.consecutive_jobs)?vm.total_rate_mh:0);
  if (vm.consecutive_jobs > 0) {
    ping_watchdog();
-   if ((vm.total_rate_mh > 0) &&
+   if ((vm.uptime > 60*10) &&
+       (vm.total_rate_mh > 0) &&
        (vm.total_rate_mh/1000 < vm.minimal_rate_gh)) {
       mg_event_x(RED "HASH RATE: %d" RESET, vm.total_rate_mh/1000)
       exit_nicely(1,RED "Hash rate too low !!!!" RESET);
@@ -2232,6 +2232,7 @@ void once_second_tasks_rt_restart_if_error() {
 
   // I2C stats
   //read_ac2dc_errors(0);
+  vm.uptime = time(NULL) - vm.start_run_time;
   if (vm.consecutive_jobs >= MIN_COSECUTIVE_JOBS_FOR_SCALING) {
       if ((vm.start_mine_time == 0)) {
         vm.start_mine_time = time(NULL);
@@ -2342,13 +2343,23 @@ void once_second_tasks_rt_restart_if_error() {
   }
   if (one_sec_counter % 10 == 0) {
     ten_second_tasks();
+  }  
+  if (one_sec_counter % 60 == 1) {
+   
   }
   if (one_sec_counter % 60 == 2) {
+      // Once every minute
+      system("/usr/bin/pkill -9 watchdog");
+    }
+  if (one_sec_counter % 60 == 3) {
+    // Once every minute
+    system("/sbin/watchdog -T 90 -t 140 /dev/watchdog0");
     once_minute_scaling_logic_restart_if_error();
   }
 
   // 10 minute
   if (one_sec_counter % 60*10 == 2) {
+    psyslog("Uptime %d\n",vm.uptime);
     for (int l = 0; l < LOOP_COUNT; l++) {
           if (vm.loop[l].enabled_loop && 
               (vm.loop[l].wins_this_ten_min == 0)) {
@@ -2384,7 +2395,6 @@ void once_second_tasks_rt_restart_if_error() {
   }
   //psyslog("One-secs done 1\n")
   print_scaling();
-  print_production();
   write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);
   ++one_sec_counter;
 }
@@ -2655,7 +2665,6 @@ void *squid_regular_state_machine_rt(void *p) {
   gettimeofday(&tv, NULL);
   int usec;
   print_scaling();
-  print_production();
   //do_bist_loop_push_job("First BIST!");
   // Cancel wins:  
   vm.hw_errs = 0;

@@ -423,6 +423,7 @@ typedef struct {
   int mgmt_temp_max;
   int start_mine_time;
   int start_run_time;  
+  unsigned int uptime;
   // pll can be changed
   int tryed_power_cycle_to_revive_loops;
 

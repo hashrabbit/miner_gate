@@ -171,12 +171,6 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   recursive++;  
   err2 = 0;
 
-/*
-  if ((time(NULL) - vm.start_run_time) > 20) {
-    // if over minute - store voltages
-    store_last_voltage();
-  }
-*/
   set_fan_level(30);
   if (vm.exiting) {
     psyslog("Recursive exit (%s)!\n", why);
@@ -199,8 +193,11 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   }
   psyslog("Dye (%s)!\n", why);
   //set_light(LIGHT_GREEN, LIGHT_MODE_OFF);
+  system("/usr/bin/pkill -9 watchdog");
   usleep(seconds_sleep_before_exit*1000*1000);
+  usleep(1000*200);
   set_light_on_off(LIGHT_GREEN, LIGHT_MODE_OFF);
+  system("/sbin/watchdog -T 5 -t 2 /dev/watchdog0");
   exit(0);
 }
 
@@ -1621,7 +1618,7 @@ void restart_asics_full(int reason,const char * why) {
 
   
   vm.consecutive_jobs = 1;
-  vm.start_run_time = time(NULL);
+  //vm.start_run_time = time(NULL);
   vm.err_restarted++;
   vm.in_asic_reset = 2;
 
@@ -1737,7 +1734,9 @@ int main(int argc, char *argv[]) {
   setlogmask(LOG_UPTO(LOG_INFO));
   openlog("minergate", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
   syslog(LOG_NOTICE, "minergate started");
-
+  system("/usr/bin/pkill -9 watchdog");
+  usleep(1000*200);
+  system("/sbin/watchdog -T 80 -t 140 /dev/watchdog0");
 #ifdef AAAAAAAA_TESTER
 psyslog( "------------------------\n");
 psyslog( "------------------------\n");
@@ -1971,7 +1970,7 @@ psyslog( "------------------------\n");
   passert(s == 0);
   minergate_adapter *adapter = new minergate_adapter;
   passert((int)adapter);
-
+  usleep(1000*1000);
   while ((adapter->connection_fd =
               accept(socket_fd, (struct sockaddr *)&address, &address_length)) >
          -1) {
