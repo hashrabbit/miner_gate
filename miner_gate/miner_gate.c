@@ -197,6 +197,7 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   usleep(seconds_sleep_before_exit*1000*1000);
   usleep(1000*200);
   set_light_on_off(LIGHT_GREEN, LIGHT_MODE_OFF);
+  psyslog("HW WD 5s");  
   system("/sbin/watchdog -T 5 -t 2 /dev/watchdog0");
   exit(0);
 }
@@ -890,6 +891,19 @@ void read_try_12v_fix() {
 }
 
 
+void read_try_fw_ver() {
+  FILE* file = fopen ("/fw_ver", "r");
+  if (file == 0) {
+    vm.try_12v_fix = 1;
+  } else {
+    int res = fscanf (file, "%s", &vm.fw_ver);
+    fclose (file);
+    passert(res == 1);
+  } 
+}
+
+
+
 void read_generic_ac2dc() {
 #ifndef  SP2x
   FILE* file = fopen ("/etc/mg_generic_psu", "r");
@@ -1261,6 +1275,18 @@ int read_flags() {
 
   if (file3) {
     int ret =  fscanf (file3, "%x", &vm.flag_1);
+    if (vm.flag_1 & 0x1) {
+      vm.bist_mode = BIST_MODE_MINIMAL;
+    }
+    
+    if (vm.flag_1 & 0x4) {
+      vm.dont_psyslog = 1;
+    }
+
+    if (vm.flag_1 & 0x8) {
+      vm.alt_bistword = 1;
+    }
+
     assert(ret == 1);      
   }
 }
@@ -1535,6 +1561,7 @@ void test_lost_address() {
 void restart_asics_full(int reason,const char * why) {  
   int err;
   int working_asics_before_restart = 0;
+  system("/usr/bin/pkill -9 watchdog");
   vm.disasics = 0;
   for (int j =0;j< ASICS_COUNT;j++) {    
      if (vm.asic[j].asic_present) {
@@ -1550,7 +1577,7 @@ void restart_asics_full(int reason,const char * why) {
   mg_event_x("restart_asics_full (%s)", why);
   psyslog("-------- SOFT RESET 0 (asics:%d) -----------\n", working_asics_before_restart);  
   if(vm.in_asic_reset != 0) {
-    print_stack();
+    //print_stack();
     mg_event_x("Recursive restart_asics (%s)", why);
     passert(0);
   }
@@ -1568,6 +1595,8 @@ void restart_asics_full(int reason,const char * why) {
     update_ac2dc_power_measurments();
     test_all_loops_and_dc2dc(0,0);
   }
+  psyslog("HW WD 240s");
+  system("/sbin/watchdog -T 240 -t 400 /dev/watchdog0");
   psyslog("-------- SOFT RESET 0.3 -----------\n");  
   i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);
 #ifndef SP2x  
@@ -1621,11 +1650,7 @@ void restart_asics_full(int reason,const char * why) {
   //vm.start_run_time = time(NULL);
   vm.err_restarted++;
   vm.in_asic_reset = 2;
-
-  
-  print_stack();
-  
-  
+  //print_stack();
   psyslog("-------- SOFT RESET 1 -----------\n");  
   test_fix_ac2dc_limits();
   psyslog("-------- SOFT RESET 2 -----------\n"); 
@@ -1674,10 +1699,10 @@ void restart_asics_full(int reason,const char * why) {
   for(int i = 0; i < ASICS_COUNT; i++) {
     if (vm.asic[i].asic_present) {
       vm.asic[i] = asics[i];
-      psyslog("ASIC %d present: %d\n", i, vm.asic[i].asic_present);    
+      //psyslog("ASIC %d present: %d\n", i, vm.asic[i].asic_present);    
       if ((!vm.asic[i].asic_present) ||
            (vm.asic[i].user_disabled)) {
-        psyslog("Disable ASIC %d\n", i);
+        //psyslog("Disable ASIC %d\n", i);
         if (!vm.asic[i].asic_present) {
           vm.asic[i].asic_present = 1;
         }
@@ -1736,7 +1761,8 @@ int main(int argc, char *argv[]) {
   syslog(LOG_NOTICE, "minergate started");
   system("/usr/bin/pkill -9 watchdog");
   usleep(1000*200);
-  system("/sbin/watchdog -T 80 -t 140 /dev/watchdog0");
+  psyslog("HW WD 180s");
+  system("/sbin/watchdog -T 180 -t 200 /dev/watchdog0");
 #ifdef AAAAAAAA_TESTER
 psyslog( "------------------------\n");
 psyslog( "------------------------\n");
@@ -1784,8 +1810,10 @@ psyslog( "------------------------\n");
   reset_squid();
   psyslog("init_spi\n");
   init_spi();
+  init_pwm();
   psyslog("ac2dc_init\n");
   read_try_12v_fix();
+  read_try_fw_ver();
   int pError;
   vm.fpga_ver = read_spi(ADDR_SQUID_REVISION);
   vm.vtrim_max = VTRIM_MAX;
@@ -1817,9 +1845,9 @@ psyslog( "------------------------\n");
 
 
 
-  vm.temp_mgmt = get_mng_board_temp();
-  vm.temp_top = get_top_board_temp();
-  vm.temp_bottom = get_bottom_board_temp();
+  vm.temp_mgmt = get_mng_board_temp(&vm.temp_mgmt_r);
+  vm.temp_top = get_top_board_temp(&vm.temp_top_r);
+  vm.temp_bottom = get_bottom_board_temp(&vm.temp_bottom_r);
   set_fan_level(vm.userset_fan_level);
 
   // Try once to see if some boards disabled.
@@ -1850,9 +1878,10 @@ psyslog( "------------------------\n");
     }
 #endif
     // Try once more...
-    vm.temp_mgmt = get_mng_board_temp();
-    vm.temp_top = get_top_board_temp();
-    vm.temp_bottom = get_bottom_board_temp();
+   
+  vm.temp_mgmt = get_mng_board_temp(&vm.temp_mgmt_r);
+  vm.temp_top = get_top_board_temp(&vm.temp_top_r);
+  vm.temp_bottom = get_bottom_board_temp(&vm.temp_bottom_r);
 
     int bp = 0;
     for (int p = 0; p < BOARD_COUNT; p++) {
@@ -1867,7 +1896,6 @@ psyslog( "------------------------\n");
       passert(0);
     }
   }
-  init_pwm();
   // Enable ALL dc2dc
   dc2dc_init();
   print_scaling();  

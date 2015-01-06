@@ -412,6 +412,8 @@ typedef struct {
 #define SLOW_START_STATE_REST     1
 #define SLOW_START_STATE_WORKING  0
 
+#define BIST_MODE_NORMAL 0
+#define BIST_MODE_MINIMAL 1
 
 
 typedef struct {
@@ -426,7 +428,9 @@ typedef struct {
   unsigned int uptime;
   // pll can be changed
   int tryed_power_cycle_to_revive_loops;
-
+  int dont_psyslog;
+  int alt_bistword;  
+  int bist_mode;
   int last_chiko_time;
   int disasics;
   int err_restarted;  
@@ -465,6 +469,10 @@ typedef struct {
   int temp_mgmt;
   int temp_top;
   int temp_bottom;  
+  int temp_mgmt_r;
+  int temp_top_r;
+  int temp_bottom_r;  
+
 
   // Stoped all work
   uint8_t stopped_all_work;
@@ -497,6 +505,8 @@ typedef struct {
   int hw_errs;
   int fpga_ver;
   int try_12v_fix;
+  unsigned char fw_ver[20];  
+  //unsigned char type[20];    
   int cur_leading_zeroes;
   // We give less LZ then needed to do faster scaling.
   // When system just started, search optimal speed agressively

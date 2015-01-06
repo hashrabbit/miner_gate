@@ -359,57 +359,65 @@ static pthread_t ac2dc_thread;
 // returns non-zero in case of error
 int read_ac2dc_errors(int to_event) {  
   int err;
-  int p0 = 0;
-  int p1 = 0;
+  int r79_0 = 0;
+  int r79_1 = 0;
+  int r7b_0 = 0;
+  int r7b_1 = 0;  
 #ifndef SP2x   
   if (vm.ac2dc[PSU_0].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_0_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
     AC2DC* ac2dc = &vm.ac2dc[PSU_0];
-    p0 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
-    p0 &= (~0x3);
-    if (p0) {
-      psyslog("AC2DC TOP 79:%x\n",i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err));
-      psyslog("AC2DC TOP 7a:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7a, &err));
-      psyslog("AC2DC TOP 7b:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7b, &err));
-      psyslog("AC2DC TOP 7c:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7c, &err));
-      psyslog("AC2DC TOP 7d:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7d, &err));
-      psyslog("AC2DC TOP 81:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x81, &err));
-    }
-    if (p0 & 0x4000) {
-      int r7b = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7b, &err);
-      psyslog("AC2DC TOP 7b:%x\n",r7b);
+    r79_0 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
+    r7b_0 = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7b, &err);    
+    r79_0 &= (~0x3);
+    if (r79_0 && (r79_0 != 0x4000)) {
+      psyslog("AC2DC TOP 79:%x 7b:%x", r79_0, r7b_0);
+     // psyslog(" 7a:%x",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7a, &err));
+     // psyslog(" 7b:%x",r7b_0);
+     // psyslog(" 7c:%x",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7c, &err));
+     // psyslog(" 7d:%x",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7d, &err));
+     // psyslog(" 81:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x81, &err));
     }
     i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);
   }
   if (vm.ac2dc[PSU_1].ac2dc_type != AC2DC_TYPE_UNKNOWN) {
     i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_AC2DC_PSU_1_PIN | PRIMARY_I2C_SWITCH_DEAULT);      
     AC2DC* ac2dc = &vm.ac2dc[PSU_1];
-    p1 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
-    p1 &= (~0x3);
-    if(p1) {
-      psyslog("AC2DC BOT 79:%x\n",i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err));
-      psyslog("AC2DC BOT 7a:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7a, &err));
-      psyslog("AC2DC BOT 7b:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7b, &err));
-      psyslog("AC2DC BOT 7c:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7c, &err));
-      psyslog("AC2DC BOT 7d:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7d, &err));
-      psyslog("AC2DC BOT 81:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x81, &err));
+    r79_1 = i2c_read_word(mgmt_addr[ac2dc->ac2dc_type], 0x79, &err);
+    r7b_1 = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7b, &err);    
+    r79_1 &= (~0x3);
+    if(r79_1 && (r79_1 != 0x4000)) {
+      psyslog("AC2DC TOP 79:%x 7b:%x", r79_1, r7b_1);
+      //psyslog(" 7a:%x",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7a, &err));
+      //psyslog(" 7b:%x",r7b_1);
+      //psyslog(" 7c:%x",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7c, &err));
+      //psyslog(" 7d:%x",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x7d, &err));
+      //psyslog(" 81:%x\n",i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], 0x81, &err));
     }
-    i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);    
+    i2c_write(mgmt_addr[ac2dc->ac2dc_type], 0x03);
   }
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);  
+
+  int problem_top = (r79_0 != 0);
+  if ((r79_0 == 0x4000) && (r7b_0 == 0x20)) {
+    problem_top = 0;
+  }
+
+  int problem_bot = (r79_1 != 0);
+  if ((r79_1 == 0x4000) && (r7b_1 == 0x20)) {
+    problem_bot = 0;
+  }
   
-  int problem = (((p0 != 0) && (p0 != 0x4000)) || ((p1 != 0) && (p1 != 0x4000)));
+  int problem = problem_top || problem_bot;
+  
   if (problem) {
     vm.err_murata++;
-    if (to_event ) {
-      //mg_event_x(RED "AC2DC status: %x %x" RESET,p0,p1);
-      psyslog(RED  "AC2DC status: %x %x\n" RESET,p0,p1);
-    } else {
-      psyslog(RED  "AC2DC status: %x %x\n" RESET,p0,p1);
-    }
+    //mg_event_x(RED "AC2DC status: %x %x" RESET,r79_0,r79_1);
+    psyslog(RED  "AC2DC status: %x:%x %x:%x\n" RESET,r79_0,r7b_0,r79_1,r7b_1);
   }
+  
   int ppp = 0;
-  if ((p0 & 0x8000) && (vm.board_working_asics[BOARD_0] > 0)) {
+  if ((r79_0 & 0x8000) && (vm.board_working_asics[BOARD_0] > 0)) {
       // in this error - restore loop error count
       for (int l = 0; l < ASICS_PER_BOARD ; l++) { 
         vm.loop[l].bad_loop_count = 0;
@@ -417,7 +425,7 @@ int read_ac2dc_errors(int to_event) {
       ppp=1;
   }
 
-  if ((p1 & 0x8000) && (vm.board_working_asics[BOARD_1] > 0)) {
+  if ((r79_1 & 0x8000) && (vm.board_working_asics[BOARD_1] > 0)) {
       // in this error - restore loop error count
       for (int l = ASICS_PER_BOARD; l < ASICS_COUNT; l++) { 
         vm.loop[l].bad_loop_count = 0;
@@ -445,26 +453,18 @@ void test_fix_ac2dc_limits() {
       if (ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_2) {
         q = i2c_read_byte(mgmt_addr[ac2dc->ac2dc_type], AC2DC_I2C_READ_FAULTS, &err);     
       }
-      psyslog("0 PSU STAT:%x %x\n", p, q);
+      psyslog("TOP PSU STAT:%x %x\n", p, q);
       if ((p & (AC2DC_I2C_READ_STATUS_IOUT_OP_ERR | AC2DC_I2C_READ_STATUS_IOUT_OC_ERR)) ||
               ((ac2dc->ac2dc_type == AC2DC_TYPE_EMERSON_1_2) && (q != 0x1f))) {            
         psyslog("AC2DC OVERCURRENT 0:%x\n",p);
         PSU12vPowerCycleALL();
-/*
-        i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_WRITE_PROTECT,0x0,&err);
-        usleep(3000000);
-        i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,revive_code_off[ac2dc->ac2dc_type],&err);
-        usleep(3000000);
-        i2c_write_byte(mgmt_addr[ac2dc->ac2dc_type],AC2DC_I2C_ON_OFF,0x80,&err);
-        usleep(3000000);
-*/
-         if ((p & AC2DC_I2C_READ_STATUS_IOUT_OC_ERR) &&
+        if ((p & AC2DC_I2C_READ_STATUS_IOUT_OC_ERR) &&
               (
                 (vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_2) && (vm.ac2dc[PSU_0].ac2dc_power_limit > 1270)
                 ||
                 (vm.ac2dc[PSU_0].ac2dc_type == AC2DC_TYPE_EMERSON_1_6) && (vm.ac2dc[PSU_0].ac2dc_power_limit > 1560)
                )
-             ){
+            ){
           mg_event_x("update 0 work mode %d", vm.ac2dc[PSU_0].ac2dc_power_limit);
           update_work_mode(5, 0, false);
         }     

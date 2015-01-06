@@ -28,6 +28,7 @@
 #define DBG_SCALING_AC2DC 0
 #define DBG_SCALING_UP 0
 #define DBG_VTRIM 0
+#define DBG_DC2DC 1
 
 
 #define DBG_POWER 0
@@ -110,7 +111,7 @@ int print_time_delta();
 #ifdef MINERGATE
 #define psyslog(X...)                                                          \
   {                                                                            \
-    if (/*!vm.in_exit*/1) {                                                    \
+    if (!vm.dont_psyslog) {                                                    \
       print_time_delta();                                                        \
       syslog(LOG_WARNING, X);                                                    \
       printf(X);                                                                 \

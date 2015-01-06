@@ -710,17 +710,19 @@ void dc2dc_get_errors(
       int verbose) {
   
   //  psyslog("CURRENT %d:%d =%d\n",addr, chanel_id*2 ,(*current)/16);
-    int gen_stat = i2c_read_byte(dc2dc_channel_i2c_addr, 0x78);
-    int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A); 
+    //int gen_stat = i2c_read_byte(dc2dc_channel_i2c_addr, 0x78);
+    //int gen_stat2 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7A); 
     int problems = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7b);
-    int r79 = i2c_read_word(dc2dc_channel_i2c_addr, 0x79);
-    int r80 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x80);
+    //int r79 = i2c_read_word(dc2dc_channel_i2c_addr, 0x79);
+    //int r80 = i2c_read_byte(dc2dc_channel_i2c_addr, 0x80);
     *overcurrent_err |= (problems & 0x80);
     *overcurrent_warning |= (problems & 0x20);
-    int overtemp = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7d);
-    int five_volt_err = ((r79 & 0xc) != 0);
-
+    //int overtemp = i2c_read_byte(dc2dc_channel_i2c_addr, 0x7d);
+    //int five_volt_err = ((r79 & 0xc) != 0);
     
+    i2c_write(dc2dc_channel_i2c_addr, 0x03);
+
+    /*
     if ((problems&0xDF) || 
         (gen_stat&0xFC != 0) || 
         (gen_stat2) || 
@@ -732,10 +734,13 @@ void dc2dc_get_errors(
       i2c_write(dc2dc_channel_i2c_addr, 0x03);
     }
     
+    
     if (*overcurrent_warning) {
       i2c_write(dc2dc_channel_i2c_addr, 0x03);
     }
-  
+    */
+
+    /*
     if (overtemp & 0x40) {
       if (!vm.asic[addr].ot_warned_a) {
          DBG(DBG_POWER,"DC2DC TEMPWARNING[%d]: 7B=0x%2x, 7A=%2x, 78=%2x, 7D=%2x 79=%x 80=%x" ,
@@ -744,6 +749,7 @@ void dc2dc_get_errors(
       }
       i2c_write(dc2dc_channel_i2c_addr, 0x03);
     }
+    */
 }
 
 

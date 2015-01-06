@@ -18,9 +18,9 @@
 #include <unistd.h>
 
 
-int get_mng_board_temp();
-int get_top_board_temp();
-int get_bottom_board_temp();
+int get_mng_board_temp(int *real_temp);
+int get_top_board_temp(int *real_temp);
+int get_bottom_board_temp(int *real_temp);
 
 
 #endif

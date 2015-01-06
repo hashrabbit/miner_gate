@@ -69,7 +69,7 @@
 #define DC2DC_TEMP_WRONG                200
 
 #define MAX_LOOP_FAIL   4
-#define MAX_LAZY_FAIL   4
+#define MAX_LAZY_FAIL   6
 
 //#define MAX_AMPERS_DC2DC_SP20    (180*16) 
 
@@ -80,6 +80,7 @@
 // In seconds
 #define BIST_PERIOD_SECS                                    20
 #define BIST_PERIOD_SECS_LONG                               180
+#define BIST_PERIOD_SECS_VERY_LONG                          100
 
 
 #define DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD          100 // unlimited

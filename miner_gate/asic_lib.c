@@ -400,15 +400,6 @@ void push_to_hw_queue_rt(RT_JOB *work, int with_force_this) {
   passert(work->work_id_in_hw < (0xFF - MQ_INCREMENTS));
   PUSH_JOB(ADDR_JOBID, work->work_id_in_hw);
   
-/*
-  if (vm.consecutive_jobs < 30) {
-    psyslog("consecutive_jobs %d, vm.engine_size %d",vm.consecutive_jobs, vm.engine_size/(30-vm.consecutive_jobs));
-    write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_NONCE_RANGE, vm.engine_size/(30-vm.consecutive_jobs));
-  }else if (vm.consecutive_jobs < 35) {
-    psyslog("consecutive_jobs %d, vm.engine_size %d",vm.consecutive_jobs, vm.engine_size);
-    write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_NONCE_RANGE, vm.engine_size);    
-  }
-*/
   //DBG(DBG_WINS,"PUSH:JOB ID:%d  ---\n",work->work_id_in_hw);  
   if (with_force_this) {
     push_mq_write(ANY_ASIC, NO_ENGINE,ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB_IF_FIFO_FULL);
@@ -455,7 +446,6 @@ void set_nonce_range_in_asic(int addr,unsigned int max_range) {
   for (i=0;i< ASICS_COUNT;i++) {
     if (vm.asic[i].asic_present) {
       if ((i == addr) && (vm.asic[i].asic_present)) {
-        psyslog("%d range: %x (%x * 193 )\n", i, current_nonce, vm.engine_size);
         write_reg_asic(i, ANY_ENGINE, ADDR_NONCE_RANGE, vm.engine_size);
       }
      
@@ -516,7 +506,7 @@ int allocate_addresses_to_devices() {
       // Disable all other loops
       unsigned int bypass_loops = (~(1 << l)) & SQUID_LOOPS_MASK;
    
-      psyslog("ADDR_SQUID_LOOP_BYPASS = %x (loop %d)\n", bypass_loops, l);
+      //psyslog("ADDR_SQUID_LOOP_BYPASS = %x (loop %d)\n", bypass_loops, l);
       write_spi(ADDR_SQUID_LOOP_BYPASS, bypass_loops);
 
       // Give 8 addresses
@@ -541,7 +531,6 @@ int allocate_addresses_to_devices() {
             disable_asic_forever_rt_restart_if_error(addr, (addr == (ASICS_COUNT-1)) , "User disabled");
             continue;
         }
-        psyslog("Enabling ASIC: (%d)\n",  addr);
 
         if (  vm.asic[addr].dc2dc.dc2dc_present &&
               read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT)) {
@@ -561,14 +550,14 @@ int allocate_addresses_to_devices() {
                   count_ones(vm.asic[addr].not_brocken_engines[4]) +
                   count_ones(vm.asic[addr].not_brocken_engines[5]) +
                   count_ones(vm.asic[addr].not_brocken_engines[6]);
-          psyslog("asic_present %d = 1\n", addr);
+          //psyslog("asic_present %d = 1\n", addr);
           vm.asic[addr].asic_present = 1;
           vm.asic[addr].freq_bist_limit = (ASIC_FREQ_MAX); // todo - discover
         } else {
           if (!vm.asic[addr].dc2dc.dc2dc_present) {
               write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_CHIP_ADDR, addr << 8);
           }
-          psyslog("asic_present %d = 0\n", addr);
+          //psyslog("asic_present %d = 0\n", addr);
           vm.asic[addr].asic_present = 0;
           for (int i = 0; i < ENGINE_BITMASCS; i++) {
             vm.asic[addr].not_brocken_engines[i] = 0;
@@ -577,8 +566,8 @@ int allocate_addresses_to_devices() {
           int err;
           //dc2dc_disable_dc2dc(addr,&err);
           //vm.asic[addr].dc2dc.dc2dc_present = 0;
-          psyslog("Disabling asic %d dc2dc present: (%d)\n", 
-            addr, vm.asic[addr].dc2dc.dc2dc_present);
+          //psyslog("Disabling asic %d dc2dc present: (%d)\n", 
+           // addr, vm.asic[addr].dc2dc.dc2dc_present);
         }
       }
 
@@ -596,7 +585,7 @@ int allocate_addresses_to_devices() {
       psyslog(RED "ASICS in loop %d: 0\n" RESET, l);
     }
   }
-  psyslog("ADDR_SQUID_LOOP_BYPASS = %x\n", (~(vm.good_loops))&SQUID_LOOPS_MASK);
+  //psyslog("ADDR_SQUID_LOOP_BYPASS = %x\n", (~(vm.good_loops))&SQUID_LOOPS_MASK);
   write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops))&SQUID_LOOPS_MASK);
 
   // Validate all got address
@@ -1100,15 +1089,22 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
   for (int addr = 0; addr < ASICS_COUNT; addr++) {
     ASIC* a = &vm.asic[addr];
     if (a->asic_present) { 
-     push_asic_read(addr, NO_ENGINE, ADDR_WIN_0, &a->last_bist_passed_engines[0]);
-     push_asic_read(addr, NO_ENGINE, ADDR_WIN_1, &a->last_bist_passed_engines[1]);     
      if (!fast_bist) {
+       push_asic_read(addr, NO_ENGINE, ADDR_WIN_0, &a->last_bist_passed_engines[0]);      
        push_asic_read(addr, NO_ENGINE, ADDR_WIN_1, &a->last_bist_passed_engines[1]);
        push_asic_read(addr, NO_ENGINE, ADDR_WIN_2, &a->last_bist_passed_engines[2]);
        push_asic_read(addr, NO_ENGINE, ADDR_WIN_3, &a->last_bist_passed_engines[3]);
        push_asic_read(addr, NO_ENGINE, ADDR_WIN_4, &a->last_bist_passed_engines[4]);
        push_asic_read(addr, NO_ENGINE, ADDR_WIN_5, &a->last_bist_passed_engines[5]);
        push_asic_read(addr, NO_ENGINE, ADDR_WIN_6, &a->last_bist_passed_engines[6]);
+     } else { 
+       if (!vm.vm.alt_bistword) {
+         push_asic_read(addr, NO_ENGINE, ADDR_WIN_0, &a->last_bist_passed_engines[0]);
+         push_asic_read(addr, NO_ENGINE, ADDR_WIN_1, &a->last_bist_passed_engines[1]);     
+       } else {
+         push_asic_read(addr, NO_ENGINE, ADDR_WIN_3, &a->last_bist_passed_engines[3]);
+         push_asic_read(addr, NO_ENGINE, ADDR_WIN_4, &a->last_bist_passed_engines[4]);     
+       }
      }
     }
   }
@@ -1124,7 +1120,6 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
         int passed = 0;
      
       if (!fast_bist) {
-        
         int bad_asic = (a->last_bist_passed_engines[6] > 0x1);
         if (bad_asic) {
           psyslog("ASIC %d is evil\n", addr);
@@ -1165,10 +1160,18 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
                     vm.asic[addr].not_brocken_engines_count);
           
       } else {
-          passed = (vm.asic[addr].not_brocken_engines[0] == 
-                    vm.asic[addr].last_bist_passed_engines[0]) &&
-                   (vm.asic[addr].not_brocken_engines[1] == 
-                    vm.asic[addr].last_bist_passed_engines[1]);
+          if (!vm.alt_bistword) {
+            passed = (vm.asic[addr].not_brocken_engines[0] == 
+                      vm.asic[addr].last_bist_passed_engines[0]) &&
+                     (vm.asic[addr].not_brocken_engines[1] == 
+                      vm.asic[addr].last_bist_passed_engines[1]);
+          } 
+          else {
+            passed = (vm.asic[addr].not_brocken_engines[2] == 
+                      vm.asic[addr].last_bist_passed_engines[2]) &&
+                     (vm.asic[addr].not_brocken_engines[3] == 
+                      vm.asic[addr].last_bist_passed_engines[3]);
+          }
       }
 
   
@@ -1463,51 +1466,56 @@ void once_second_scaling_logic_restart_if_error() {
     if (vm.next_bist_countdown <= 0) {
       DBG(DBG_SCALING_BIST,"BIST!\n");
       start_stopper(&tv);
-      vm.next_bist_countdown = BIST_PERIOD_SECS_LONG;
 
-      for (int xx = 0; xx < ASICS_COUNT ; xx++) {
-        vm.asic[xx].dc2dc.revolted = 0;
-      }
-      
-      //end_stopper(&tv, "UPVOLT1");
-      for (int psu = 0 ; psu < PSU_COUNT ; psu++) {
-        int i=0; 
-        DBG(DBG_SCALING_UP,"UPSCALING PSU %d (power:%d)\n", psu, vm.ac2dc[psu].ac2dc_power_assumed);
-        if (vm.ac2dc[psu].board_cooling_now == 0) {
-          while(i < DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD) {
-            // Find most optimal to up-volt
-            int best = best_asic_to_upvolt(psu);
-            int why_not = -1;
-            if ((best == -1) || (!dc2dc_can_up(best, &why_not))) {
-              DBG(DBG_SCALING_UP,"CANNOT UPSCALE %d (why_not = %d)\n", best, why_not);
-              i=DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD;
-            } else {
-              i++;
-              ASIC *a = &vm.asic[best];
-              DBG(DBG_SCALING_UP,"UPSCALE %d ((power:%d))\n", best, vm.ac2dc[psu].ac2dc_power_assumed);
-              psu_pimped[psu] = 1;
-              dc2dc_up(best, &err,"upvolt time");
-              vm.next_bist_countdown = BIST_PERIOD_SECS;
-            }
-          }
-        } else {
-          DBG(DBG_SCALING_UP,"IN COOLDOWN\n");
-          vm.next_bist_countdown = BIST_PERIOD_SECS;
+      if (vm.bist_mode == BIST_MODE_NORMAL) {
+        vm.next_bist_countdown = BIST_PERIOD_SECS_LONG;
+        for (int xx = 0; xx < ASICS_COUNT ; xx++) {
+          vm.asic[xx].dc2dc.revolted = 0;
         }
-
-        write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_WIN_LEADING_0, 60);
-        write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_BIST_NONCE_RANGE, 0x10000000); 
-        write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
-        flush_spi_write();
+        
+        for (int psu = 0 ; psu < PSU_COUNT ; psu++) {
+          int i=0; 
+          DBG(DBG_SCALING_UP,"UPSCALING PSU %d (power:%d)\n", psu, vm.ac2dc[psu].ac2dc_power_assumed);
+          if (vm.ac2dc[psu].board_cooling_now == 0) {
+            while(i < DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD) {
+              // Find most optimal to up-volt
+              int best = best_asic_to_upvolt(psu);
+              int why_not = -1;
+              if ((best == -1) || (!dc2dc_can_up(best, &why_not))) {
+                DBG(DBG_SCALING_UP,"CANNOT UPSCALE %d (why_not = %d)\n", best, why_not);
+                i=DC2DCS_TO_UPVOLT_EACH_BIST_PER_BOARD;
+              } else {
+                i++;
+                ASIC *a = &vm.asic[best];
+                DBG(DBG_SCALING_UP,"UPSCALE %d ((power:%d))\n", best, vm.ac2dc[psu].ac2dc_power_assumed);
+                psu_pimped[psu] = 1;
+                dc2dc_up(best, &err,"upvolt time");
+                vm.next_bist_countdown = BIST_PERIOD_SECS;
+              }
+            }
+          } else {
+            DBG(DBG_SCALING_UP,"IN COOLDOWN\n");
+            vm.next_bist_countdown = BIST_PERIOD_SECS;
+          }
+          write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_WIN_LEADING_0, 60);
+          write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_BIST_NONCE_RANGE, 0x10000000); 
+          write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_FIFO_LOAD);
+          flush_spi_write();
+        }
+        //end_stopper(&tv, "BIST UPSCALE THINK");
+        set_plls_to_wanted("Upscaled");
+        //end_stopper(&tv, "BIST UPSCALE DO");      
+        //write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);  
+        //write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);
+        do_bist_loop_push_job("BIST_PERIOD_SECS");
+        //end_stopper(&tv, "BIST UPSCALE BIST");      
+        update_ac2dc_stats();
       }
-      //end_stopper(&tv, "BIST UPSCALE THINK");
-      set_plls_to_wanted("Upscaled");
-      //end_stopper(&tv, "BIST UPSCALE DO");      
-      write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);  
-      write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);
-      do_bist_loop_push_job("BIST_PERIOD_SECS");
-      //end_stopper(&tv, "BIST UPSCALE BIST");      
-      update_ac2dc_stats();
+      else if (vm.bist_mode == BIST_MODE_MINIMAL ) {
+        vm.next_bist_countdown = BIST_PERIOD_SECS_VERY_LONG;
+        do_bist_loop_push_job("BIST_PERIOD_SECS");
+        update_ac2dc_stats();
+      }
     }
 #endif
 
@@ -1540,31 +1548,33 @@ void once_second_scaling_logic_restart_if_error() {
   if (vm.did_asic_reset) {
     return;
   }
+  int do_bist = 0;
 
   // If AC2DC too high - reduce voltage on ASIC
-  for (int psu = 0 ; psu < PSU_COUNT ; psu++) {
-    int do_bist = 0;
-    if (
-     !psu_pimped[psu] &&
-     ((vm.ac2dc[psu].ac2dc_power_limit+5) < (vm.ac2dc[psu].ac2dc_power_now+vm.ac2dc[psu].ac2dc_power_last)/2)) {
-      // down random DC2DC
-      int i = 5;
-      do_bist = 1;
-      vm.ac2dc[psu].ac2dc_power_last = vm.ac2dc[psu].ac2dc_power_now;
-      vm.ac2dc[psu].ac2dc_power_now = 0;
-      while(i) {
-        int addr = best_asic_to_downvolt(psu);  
-        ASIC *a = &vm.asic[addr];
-        if (a->asic_present) {
-          if (dc2dc_can_down(addr)) {
-            dc2dc_down(addr,2,&err,"AC2DC too high A");
-             DBG(DBG_SCALING_UP,"DOWNSCALE %d ((power:%d))\n", addr,vm.ac2dc[psu].ac2dc_power_assumed);
+  if (vm.bist_mode != BIST_MODE_MINIMAL ) {
+    for (int psu = 0 ; psu < PSU_COUNT ; psu++) {
+      do_bist = 0;
+      if (
+       !psu_pimped[psu] &&
+       ((vm.ac2dc[psu].ac2dc_power_limit+5) < (vm.ac2dc[psu].ac2dc_power_now+vm.ac2dc[psu].ac2dc_power_last)/2)) {
+        // down random DC2DC
+        int i = 5;
+        do_bist = 1;
+        vm.ac2dc[psu].ac2dc_power_last = vm.ac2dc[psu].ac2dc_power_now;
+        vm.ac2dc[psu].ac2dc_power_now = 0;
+        while(i) {
+          int addr = best_asic_to_downvolt(psu);  
+          ASIC *a = &vm.asic[addr];
+          if (a->asic_present) {
+            if (dc2dc_can_down(addr)) {
+              dc2dc_down(addr,2,&err,"AC2DC too high A");
+               DBG(DBG_SCALING_UP,"DOWNSCALE %d ((power:%d))\n", addr,vm.ac2dc[psu].ac2dc_power_assumed);
+            }
           }
+          i--;
         }
-        i--;
       }
     }
-
     //DBG(DBG_SCALING_UP,"here 1\n");
    
     
@@ -1779,6 +1789,10 @@ void print_scaling() {
   int total_loops=0;
   int total_asics=0;
   int expected_rate=0;
+  fprintf(f, "%s\n", vm.fw_ver);  
+  if (vm.bist_mode != BIST_MODE_NORMAL) {
+    fprintf(f, RED "BIST MODE:%d\n" RESET, vm.bist_mode);
+  }
   fprintf(f, GREEN "Uptime:%d | FPGA ver:%d | BIST in %d\n" , vm.uptime, vm.fpga_ver,vm.next_bist_countdown);
 
 
@@ -1887,7 +1901,7 @@ void print_scaling() {
   }
   // print last loop
   // print total hash power
-  fprintf(f, RESET "\n[H:HW:%dGh (%d),W:%d,L:%d,A:%d,MMtmp:%d TMP:(%d)=>=>=>(%d,%d)]\n",
+  fprintf(f, RESET "\n[H:HW:%dGh (%d),W:%d,L:%d,A:%d,MMtmp:%d TMP:(%d/%d)=>=>=>(%d/%d , %d/%d)]\n",
                 (vm.total_rate_mh)/1000,
                 vm.minimal_rate_gh,
                 total_watt/16,
@@ -1895,8 +1909,11 @@ void print_scaling() {
                 total_asics,
                 vm.mgmt_temp_max,
                 vm.temp_mgmt,
+                vm.temp_mgmt_r,                
                 vm.temp_top,
-                vm.temp_bottom
+                vm.temp_top_r,                
+                vm.temp_bottom,
+                vm.temp_bottom_r                
   );
 
 
@@ -1970,9 +1987,9 @@ void ten_second_tasks() {
   //write_reg_asic(12, NO_ENGINE,ADDR_GOT_ADDR, 0);
   revive_asics_if_one_got_reset("ten_second_tasks");
 
-  vm.temp_mgmt = get_mng_board_temp();
-  vm.temp_top = get_top_board_temp();
-  vm.temp_bottom = get_bottom_board_temp();
+  vm.temp_mgmt = get_mng_board_temp(&vm.temp_mgmt_r);
+  vm.temp_top = get_top_board_temp(&vm.temp_top_r);
+  vm.temp_bottom = get_bottom_board_temp(&vm.temp_bottom_r);
 
   
  save_rate_temp(vm.temp_top, vm.temp_bottom,  vm.temp_mgmt, (vm.consecutive_jobs)?vm.total_rate_mh:0);
@@ -2132,7 +2149,7 @@ int update_dc2dc_stats_restart_if_error(int i, int restart_on_err = 1, int verbo
   uint8_t temp;
   int current;
   int err;
-
+  //DBG(DBG_DC2DC, "T %d", i);
   if (vm.asic[i].dc2dc.dc2dc_present) {
     //printf("Updating dc2dc %d\n", i);
     dc2dc_get_all_stats(
@@ -2178,7 +2195,8 @@ int update_dc2dc_stats_restart_if_error(int i, int restart_on_err = 1, int verbo
 
 int test_all_dc2dc(int verbose) {
   int to_ret = 0;
-  mg_event_x("Testing DC2DC");
+  //mg_event_x("Testing DC2DC");
+  psyslog("Test DC2DC");
   for(int i = 0; i < ASICS_COUNT; i++) {
      ASIC *a = &vm.asic[i];
      if (a->asic_present) {      
@@ -2189,6 +2207,7 @@ int test_all_dc2dc(int verbose) {
        }
      }
    }
+  psyslog("Test DC2DC done");  
   return to_ret;
 }
   
@@ -2196,7 +2215,11 @@ int test_all_dc2dc(int verbose) {
 
 void once_33milli_tasks_rt() {
   static int counter = 0;
-  update_dc2dc_stats_restart_if_error(counter%ASICS_COUNT);
+  if ((((one_sec_counter+counter)%15) == 0)  ||
+      (vm.next_bist_countdown < 2))
+  if (vm.consecutive_jobs) {
+    update_dc2dc_stats_restart_if_error(counter%ASICS_COUNT);
+  }
   counter++;
 }
 
@@ -2353,7 +2376,8 @@ void once_second_tasks_rt_restart_if_error() {
     }
   if (one_sec_counter % 60 == 3) {
     // Once every minute
-    system("/sbin/watchdog -T 90 -t 140 /dev/watchdog0");
+    psyslog("HW WD 240s");
+    system("/sbin/watchdog -T 240 -t 400 /dev/watchdog0");
     once_minute_scaling_logic_restart_if_error();
   }
 
