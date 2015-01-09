@@ -89,8 +89,8 @@
 #endif
 
 #ifndef LIQUID_COOLING
-#define MAX_BOTTOM_TEMP 95
-#define MAX_TOP_TEMP 95
+#define MAX_BOTTOM_TEMP 87
+#define MAX_TOP_TEMP 87
 #define MAX_MGMT_TEMP 60
 #else
 #define MAX_BOTTOM_TEMP 95

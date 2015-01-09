@@ -1098,7 +1098,7 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
        push_asic_read(addr, NO_ENGINE, ADDR_WIN_5, &a->last_bist_passed_engines[5]);
        push_asic_read(addr, NO_ENGINE, ADDR_WIN_6, &a->last_bist_passed_engines[6]);
      } else { 
-       if (!vm.vm.alt_bistword) {
+       if (!vm.alt_bistword) {
          push_asic_read(addr, NO_ENGINE, ADDR_WIN_0, &a->last_bist_passed_engines[0]);
          push_asic_read(addr, NO_ENGINE, ADDR_WIN_1, &a->last_bist_passed_engines[1]);     
        } else {

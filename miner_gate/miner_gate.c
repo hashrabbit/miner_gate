@@ -694,12 +694,12 @@ int discover_good_loops_restart_12v() {
     			  vm.asic[h].why_disabled = "Loop user disabled!";
     			}
     			if (err) {
-    			  vm.asic[h].why_disabled = "i2c BAD, btw!";
+    			  vm.asic[h].why_disabled = "no power to DC2DC";
     			} else {
     			  if (overcurrent_err) {
-    				vm.asic[h].why_disabled = "i2c good but OC!!";
+    				vm.asic[h].why_disabled = "DC2DC overcurrent detected";
     			  } else {
-    				vm.asic[h].why_disabled = "i2c good, no OC";
+    				vm.asic[h].why_disabled = "serial problem";
     			  }
     			}
     			vm.asic[h].dc2dc.dc2dc_present = 0;
