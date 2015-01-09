@@ -1102,8 +1102,8 @@ int do_bist_ok(bool store_limit, bool step_down_if_failed, int fast_bist ,const 
          push_asic_read(addr, NO_ENGINE, ADDR_WIN_0, &a->last_bist_passed_engines[0]);
          push_asic_read(addr, NO_ENGINE, ADDR_WIN_1, &a->last_bist_passed_engines[1]);     
        } else {
-         push_asic_read(addr, NO_ENGINE, ADDR_WIN_3, &a->last_bist_passed_engines[3]);
-         push_asic_read(addr, NO_ENGINE, ADDR_WIN_4, &a->last_bist_passed_engines[4]);     
+         push_asic_read(addr, NO_ENGINE, ADDR_WIN_2, &a->last_bist_passed_engines[2]);
+         push_asic_read(addr, NO_ENGINE, ADDR_WIN_3, &a->last_bist_passed_engines[3]);     
        }
      }
     }
