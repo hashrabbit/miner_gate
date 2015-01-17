@@ -497,6 +497,7 @@ typedef struct {
   int total_rate_mh; 
   int concecutive_hw_errs;
   int userset_fan_level;
+  int wanted_fan_level;  
   int vtrim_max;
   int last_second_jobs;
   int this_second_jobs;  

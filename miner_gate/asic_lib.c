@@ -1983,7 +1983,43 @@ void ten_second_tasks() {
   //store_last_voltage();
   dump_watts();
   //restart_asics();
-  set_fan_level(vm.userset_fan_level);
+  if (vm.userset_fan_level != 0) {
+    set_fan_level(vm.wanted_fan_level);
+  } else {
+    int fan_needs_up = 0;
+    int fan_needs_down = 1;    
+    
+    for (int i = 0; i < ASICS_COUNT; i++) {
+      if (vm.asic[i].asic_temp >= (MAX_ASIC_TEMPERATURE - 2)) {
+        fan_needs_down = 0;
+      }
+
+      
+      if (vm.asic[i].asic_temp >= (MAX_ASIC_TEMPERATURE - 1)) {
+        fan_needs_up = 1;
+      }
+    }
+
+    if (fan_needs_up) {
+      vm.wanted_fan_level += 10;
+      DBG(DBG_FAN, "Fan UP to %d\n", vm.wanted_fan_level);      
+    }
+
+    if ((vm.uptime > 60*5) && fan_needs_down) {
+       vm.wanted_fan_level -= 1;
+       DBG(DBG_FAN, "Fan DOWN to %d\n", vm.wanted_fan_level);       
+    }
+
+    if (vm.wanted_fan_level > 80) {
+      vm.wanted_fan_level = 80;
+    }
+
+    if (vm.wanted_fan_level < 10) {
+      vm.wanted_fan_level = 10;
+    }
+
+    set_fan_level(vm.wanted_fan_level);    
+  }
   //write_reg_asic(12, NO_ENGINE,ADDR_GOT_ADDR, 0);
   revive_asics_if_one_got_reset("ten_second_tasks");
 

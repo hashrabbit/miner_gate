@@ -1103,6 +1103,7 @@ int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative_
     &vm.ac2dc[PSU_1].ac2dc_power_limit,    
     &vm.max_dc2dc_current_16s);
 
+
   if (decrease_top > 0) {
     vm.ac2dc[PSU_0].ac2dc_power_limit -= decrease_top;
   } 
@@ -1309,6 +1310,11 @@ int read_work_mode() {
     &vm.ac2dc[2].ac2dc_power_limit, 
     &vm.ac2dc[3].ac2dc_power_limit,      
     &vm.max_dc2dc_current_16s);
+  if (vm.userset_fan_level) {
+    vm.wanted_fan_level = vm.userset_fan_level;
+  } else {
+    vm.wanted_fan_level = 60;
+  }
 
    assert(ret == 11);  
    assert(vm.userset_fan_level <= 100);
@@ -1350,7 +1356,12 @@ int read_work_mode() {
     &vm.ac2dc[PSU_1].ac2dc_power_limit,    
     &vm.max_dc2dc_current_16s);
   fclose(file);
-  
+  if (vm.userset_fan_level) {
+    vm.wanted_fan_level = vm.userset_fan_level;
+  } else {
+    vm.wanted_fan_level = 60;
+  }
+
   
   //vm.ac2dc[PSU_1].ac2dc_power_limit = vm.ac2dc[PSU_0].ac2dc_power_limit;
   assert(vm.userset_fan_level <= 100);

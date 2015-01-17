@@ -40,6 +40,8 @@
 #define DBG_BIST 0
 #define DBG_REGS 0
 
+#define DBG_FAN 1
+
 
 #define RED "\x1b[31m"
 #define GREEN "\x1b[32m"
