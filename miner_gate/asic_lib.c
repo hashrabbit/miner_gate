@@ -1786,6 +1786,7 @@ void print_scaling() {
   //asic_iter_init(&hi);
 
   int wanted_hash_power=0;
+  int total_psu_watts = 0;
   int total_loops=0;
   int total_asics=0;
   int expected_rate=0;
@@ -1830,6 +1831,11 @@ void print_scaling() {
         vm.board_cooling_ever
       );
     vm.ac2dc[psu].total_hashrate = 0;
+    if (vm.ac2dc[psu].ac2dc_in_power) {
+      total_psu_watts += vm.ac2dc[psu].ac2dc_in_power;
+    } else { 
+      total_psu_watts += (vm.ac2dc[psu].ac2dc_power_measured)*11/10;
+    }
   }
 
   int total_watt=0;
@@ -1901,7 +1907,7 @@ void print_scaling() {
   }
   // print last loop
   // print total hash power
-  fprintf(f, RESET "\n[H:HW:%dGh (%d),W:%d,L:%d,A:%d,MMtmp:%d TMP:(%d/%d)=>=>=>(%d/%d , %d/%d)]\n",
+  fprintf(f, RESET "\n[H:HW:%dGh (%d),DC-W:%d,L:%d,A:%d,MMtmp:%d TMP:(%d/%d)=>=>=>(%d/%d , %d/%d)]\n",
                 (vm.total_rate_mh)/1000,
                 vm.minimal_rate_gh,
                 total_watt/16,
@@ -1931,6 +1937,8 @@ void print_scaling() {
            vm.asic[0].idle_asic_cycles_sec*10/100000, (vm.asic[0].idle_asic_cycles_last_min*10) / 6000000, 
            vm.last_minute_rate_mb/1000, 
            vm.asic_count, vm.wins_last_minute[BOARD_0], vm.wins_last_minute[BOARD_1]);
+    fprintf(f, "wall watts:%d\n",            
+            total_psu_watts); 
    fprintf(f, "Fan:%d, conseq:%d\n", vm.fan_level, vm.consecutive_jobs);
    fprintf(f, "AC2DC BAD: %d %d\n" , 0, 0);
    fprintf(f, "R/NR: %d/%d\n", vm.mining_time, vm.not_mining_time);
@@ -2010,12 +2018,12 @@ void ten_second_tasks() {
        DBG(DBG_FAN, "Fan DOWN to %d\n", vm.wanted_fan_level);       
     }
 
-    if (vm.wanted_fan_level > 80) {
-      vm.wanted_fan_level = 80;
+    if (vm.wanted_fan_level > 90) {
+      vm.wanted_fan_level = 90;
     }
 
-    if (vm.wanted_fan_level < 10) {
-      vm.wanted_fan_level = 10;
+    if (vm.wanted_fan_level < 6) {
+      vm.wanted_fan_level = 6;
     }
 
     set_fan_level(vm.wanted_fan_level);    

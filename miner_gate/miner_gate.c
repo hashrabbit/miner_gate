@@ -1313,7 +1313,7 @@ int read_work_mode() {
   if (vm.userset_fan_level) {
     vm.wanted_fan_level = vm.userset_fan_level;
   } else {
-    vm.wanted_fan_level = 60;
+    vm.wanted_fan_level = 50;
   }
 
    assert(ret == 11);  
@@ -1359,7 +1359,7 @@ int read_work_mode() {
   if (vm.userset_fan_level) {
     vm.wanted_fan_level = vm.userset_fan_level;
   } else {
-    vm.wanted_fan_level = 60;
+    vm.wanted_fan_level = 50;
   }
 
   
