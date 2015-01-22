@@ -171,7 +171,7 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   recursive++;  
   err2 = 0;
 
-  set_fan_level(30);
+  set_fan_level(10);
   if (vm.exiting) {
     psyslog("Recursive exit (%s)!\n", why);
     exit(0);
