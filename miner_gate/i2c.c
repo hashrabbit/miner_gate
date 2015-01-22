@@ -168,6 +168,9 @@ void i2c_write(uint8_t addr, uint8_t value, int *pError, int verbose) {
        //print_stack();
   } else {
     if (i2c_smbus_write_byte(file, value) == -1) {
+#ifdef MINERGATE    
+    vm.err_i2c++;
+#endif      
       if (verbose) {
        psyslog(RED "i2c write 0x%x = 0x%x error2\n" RESET, addr, value); 
       }
@@ -200,6 +203,9 @@ uint8_t i2c_read_byte(uint8_t addr, uint8_t command, int *pError, int verbose) {
     r = i2c_smbus_read_byte_data(file, command, pError);
     res = r & 0xFF;
     if (*pError) {
+ #ifdef MINERGATE    
+      vm.err_i2c++;
+#endif     
       if (verbose) 
         psyslog(RED "i2c read byte 0x%x 0x%x error2\n" RESET, addr, command);
      // passert(0);
@@ -228,6 +234,9 @@ uint8_t i2c_waddr_read_byte(uint8_t addr, uint16_t dev_addr, int *pError, int ve
 
   i2c_set_address(addr, pError);
   if (*pError != 0) {
+#ifdef MINERGATE    
+    vm.err_i2c++;
+#endif    
     if (verbose)
       psyslog(RED "i2c read byte 0x%x 0x%x error1\n" RESET, addr, command);
     passert(0);
@@ -279,6 +288,9 @@ void i2c_write_byte(uint8_t addr, uint8_t command, uint8_t value, int *pError, i
   passert(pError);
   i2c_set_address(addr, pError);
   if (*pError != 0) {
+#ifdef MINERGATE    
+    vm.err_i2c++;
+#endif    
     if (verbose)
       psyslog(RED "i2c write byte 0x%x 0x%x = 0x%x error5\n" RESET, addr, command, value);
 
@@ -303,6 +315,7 @@ uint16_t i2c_read_word(uint8_t addr, uint8_t command, int *pError, int verbose) 
   i2c_set_address(addr, pError);
   if ( *pError != 0) {
 #ifdef MINERGATE
+      vm.err_i2c++;
       if (verbose)
   	    psyslog(RED "i2c read word 0x%x 0x%x error7\n" RESET, addr, command);
 #else
@@ -314,6 +327,7 @@ uint16_t i2c_read_word(uint8_t addr, uint8_t command, int *pError, int verbose) 
     r = i2c_smbus_read_word_data(file, command, pError);
     if ( *pError != 0) {
 #ifdef MINERGATE
+      vm.err_i2c++;
       if (verbose)
       	psyslog(RED "i2c read word 0x%x 0x%x error8\n" RESET, addr, command, *pError);
 #else
@@ -337,6 +351,9 @@ void i2c_write_word(uint8_t addr, uint8_t command, uint16_t value,
   pthread_mutex_lock(&i2cm);
   i2c_set_address(addr, pError);
   if (pError != NULL && *pError != 0) {
+#ifdef MINERGATE    
+    vm.err_i2c++;
+#endif
     if (verbose)
       psyslog(RED "i2c write word 0x%x 0x%x = 0x%x error9\n" RESET, addr, command, value);        
   } else {

@@ -447,6 +447,7 @@ typedef struct {
   int err_bad_idle;
   int err_murata;  
   int dc2dc_temp_ignore;  
+  int err_i2c; 
 
   int err_read_timeouts2;  
   int err_read_corruption;  

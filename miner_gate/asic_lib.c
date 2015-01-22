@@ -1990,6 +1990,11 @@ void ten_second_tasks() {
   mg_status(x);
   //store_last_voltage();
   dump_watts();
+
+  if (vm.err_i2c >= 130) {
+    exit_nicely(1,"Bad i2c");
+  }
+  
   //restart_asics();
   if (vm.userset_fan_level != 0) {
     set_fan_level(vm.wanted_fan_level);
