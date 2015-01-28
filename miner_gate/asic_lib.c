@@ -538,7 +538,7 @@ int allocate_addresses_to_devices() {
           total_devices++;
           asics_in_loop++;
           for (int i = 0; i < ENGINE_BITMASCS-1; i++) {
-            vm.asic[addr].not_brocken_engines[i] = ENABLED_ENGINES_MASK;
+            vm.asic[addr].not_brocken_engines[i] = vm.enabled_engines_mask;
           }
           vm.asic[addr].not_brocken_engines[ENGINE_BITMASCS-1] = 0x1;
           
@@ -944,7 +944,8 @@ void on_failed_bist(int addr, bool store_limit, bool step_down_if_failed) {
       vm.asic[addr].not_brocken_engines[5],
       vm.asic[addr].not_brocken_engines[6]
     );
-    if (vm.asic[addr].not_brocken_engines_count < 100) {
+    if ((vm.enabled_engines_mask == 0xFFFFFFFF) && 
+        (vm.asic[addr].not_brocken_engines_count < 100)) {
       disable_asic_forever_rt_restart_if_error(addr,1, "Asic all engines fail BIST");
     } else {
       disable_engines_asic(addr,0);

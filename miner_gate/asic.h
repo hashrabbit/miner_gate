@@ -464,6 +464,7 @@ typedef struct {
   uint8_t asics_shut_down_powersave;
   uint32_t not_mining_time; // in seconds how long we are not mining
   uint32_t mining_time; 
+  uint32_t enabled_engines_mask;
   int32_t next_bist_countdown; 
 
   

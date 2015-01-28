@@ -199,6 +199,7 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   set_light_on_off(LIGHT_GREEN, LIGHT_MODE_OFF);
   psyslog("HW WD 5s");  
   system("/sbin/watchdog -T 5 -t 2 /dev/watchdog0");
+  print_stack();
   exit(0);
 }
 
@@ -641,7 +642,7 @@ int discover_good_loops_restart_12v() {
     	  if (! dc2dc_is_removed(h)){
     		  vm.asic[h].asic_present = 1;
     		  for (int x = 0; x < ENGINE_BITMASCS-1; x++) {
-    			  vm.asic[h].not_brocken_engines[x] = ENABLED_ENGINES_MASK;
+    			  vm.asic[h].not_brocken_engines[x] = vm.enabled_engines_mask;
     		  }
     		  vm.asic[h].not_brocken_engines[ENGINE_BITMASCS-1] = 0x1;
     	  } else {
@@ -1276,6 +1277,7 @@ int read_flags() {
 
   if (file3) {
     int ret =  fscanf (file3, "%x", &vm.flag_1);
+    psyslog("------------\nFLAG1 = 0x%x\n-----------\n", vm.flag_1);
     if (vm.flag_1 & 0x1) {
       vm.bist_mode = BIST_MODE_MINIMAL;
     }
@@ -1286,6 +1288,10 @@ int read_flags() {
 
     if (vm.flag_1 & 0x8) {
       vm.alt_bistword = 1;
+    }
+
+    if (vm.flag_1 & 0x10) {
+      vm.enabled_engines_mask = 0x0a000a0a;
     }
 
     assert(ret == 1);      
@@ -1313,7 +1319,7 @@ int read_work_mode() {
   if (vm.userset_fan_level) {
     vm.wanted_fan_level = vm.userset_fan_level;
   } else {
-    vm.wanted_fan_level = 50;
+    vm.wanted_fan_level = 40;
   }
 
    assert(ret == 11);  
@@ -1359,7 +1365,7 @@ int read_work_mode() {
   if (vm.userset_fan_level) {
     vm.wanted_fan_level = vm.userset_fan_level;
   } else {
-    vm.wanted_fan_level = 50;
+    vm.wanted_fan_level = 40;
   }
 
   
@@ -1763,6 +1769,7 @@ void print_scaling();
 int main(int argc, char *argv[]) {
   printf(RESET);  
   vm.start_run_time = time(NULL);
+  vm.enabled_engines_mask = 0xffffffff;
   int s;
   vm.in_asic_reset = 2;
   srand(time(NULL));

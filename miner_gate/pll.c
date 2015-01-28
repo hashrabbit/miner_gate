@@ -239,13 +239,13 @@ void init_asic_clocks(int addr) {
   write_reg_asic(addr, ANY_ENGINE, ADDR_CONTROL_SET1, BIT_ADDR_CONTROL_FIFO_RESET_N);
   write_reg_asic(addr, ANY_ENGINE, ADDR_CONTROL_SET0, BIT_ADDR_CONTROL_IDLE_WHEN_FIFO_EMPTY);
 
-  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_0,ENABLED_ENGINES_MASK);
-  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_1,ENABLED_ENGINES_MASK);
-  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_2,ENABLED_ENGINES_MASK);
-  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_3,ENABLED_ENGINES_MASK);
-  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_4,ENABLED_ENGINES_MASK);
-  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_5,ENABLED_ENGINES_MASK);
-  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_6,ENABLED_ENGINES_MASK);
+  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_0,vm.enabled_engines_mask);
+  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_1,vm.enabled_engines_mask);
+  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_2,vm.enabled_engines_mask);
+  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_3,vm.enabled_engines_mask);
+  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_4,vm.enabled_engines_mask);
+  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_5,vm.enabled_engines_mask);
+  write_reg_asic(addr, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_6,vm.enabled_engines_mask);
 }
 
 
@@ -257,13 +257,13 @@ void enable_all_engines_all_asics(int with_reset) {
   }
 
   if (with_reset) {
-     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_0,ENABLED_ENGINES_MASK);
-     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_1,ENABLED_ENGINES_MASK);
-     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_2,ENABLED_ENGINES_MASK);
-     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_3,ENABLED_ENGINES_MASK);
-     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_4,ENABLED_ENGINES_MASK);
-     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_5,ENABLED_ENGINES_MASK);
-     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_6,ENABLED_ENGINES_MASK);
+     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_0,vm.enabled_engines_mask);
+     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_1,vm.enabled_engines_mask);
+     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_2,vm.enabled_engines_mask);
+     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_3,vm.enabled_engines_mask);
+     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_4,vm.enabled_engines_mask);
+     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_5,vm.enabled_engines_mask);
+     write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_SERIAL_RESETN_ENGINES_6,vm.enabled_engines_mask);
   }
 #ifdef ASSAFS_EXPERIMENTAL_PLL
      write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_CONTROL_SET1, BIT_ADDR_CONTROL_USE_1XCK);
@@ -271,13 +271,13 @@ void enable_all_engines_all_asics(int with_reset) {
    write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_CONTROL_SET1, BIT_ADDR_CONTROL_FIFO_RESET_N);
    write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_WIN_LEADING_0, vm.cur_leading_zeroes);   
 
-   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_0,ENABLED_ENGINES_MASK);
-   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_1,ENABLED_ENGINES_MASK);
-   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_2,ENABLED_ENGINES_MASK);
-   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_3,ENABLED_ENGINES_MASK);
-   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_4,ENABLED_ENGINES_MASK);
-   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_5,ENABLED_ENGINES_MASK);
-   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_6,ENABLED_ENGINES_MASK);
+   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_0,vm.enabled_engines_mask);
+   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_1,vm.enabled_engines_mask);
+   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_2,vm.enabled_engines_mask);
+   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_3,vm.enabled_engines_mask);
+   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_4,vm.enabled_engines_mask);
+   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_5,vm.enabled_engines_mask);
+   write_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_ENABLE_ENGINES_6,vm.enabled_engines_mask);
   flush_spi_write();
 }
 
@@ -431,12 +431,12 @@ int enable_good_engines_all_asics_ok_restart_if_error(int with_reset) {
 
      if (vm.asic[h].asic_present) {
       vm.asic[h].engines_down = 0;
-      if ((vm.asic[h].not_brocken_engines[0] != ENABLED_ENGINES_MASK) ||
-          (vm.asic[h].not_brocken_engines[1] != ENABLED_ENGINES_MASK) ||
-          (vm.asic[h].not_brocken_engines[2] != ENABLED_ENGINES_MASK) ||
-          (vm.asic[h].not_brocken_engines[3] != ENABLED_ENGINES_MASK) ||
-          (vm.asic[h].not_brocken_engines[4] != ENABLED_ENGINES_MASK) ||
-          (vm.asic[h].not_brocken_engines[5] != ENABLED_ENGINES_MASK) ||
+      if ((vm.asic[h].not_brocken_engines[0] != vm.enabled_engines_mask) ||
+          (vm.asic[h].not_brocken_engines[1] != vm.enabled_engines_mask) ||
+          (vm.asic[h].not_brocken_engines[2] != vm.enabled_engines_mask) ||
+          (vm.asic[h].not_brocken_engines[3] != vm.enabled_engines_mask) ||
+          (vm.asic[h].not_brocken_engines[4] != vm.enabled_engines_mask) ||
+          (vm.asic[h].not_brocken_engines[5] != vm.enabled_engines_mask) ||
           (vm.asic[h].not_brocken_engines[6] != 0x1))
         {
           enable_engines_asic(h, vm.asic[h].not_brocken_engines, 0, 0);

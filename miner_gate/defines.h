@@ -47,8 +47,7 @@
 
 
 
-//#define ENABLED_ENGINES_MASK   0xFFFFFFFF
-#define ENABLED_ENGINES_MASK     0xFFFFFFFF
+//#define vm.enabled_engines_mask   0xFFFFFFFF
 #define ALLOWED_BIST_FAILURE_ENGINES    2
 #define LEADER_ASIC_ADDR                3        
 
