@@ -24,11 +24,11 @@
 #define DBG_SCALING_TMP 0
 #define DBG_SCALING_INIT 0
 #define DBG_SCALING_HZ 0
-#define DBG_SCALING_BIST 1
+#define DBG_SCALING_BIST 0
 #define DBG_SCALING_AC2DC 0
 #define DBG_SCALING_UP 0
 #define DBG_VTRIM 0
-#define DBG_DC2DC 1
+#define DBG_DC2DC 0
 
 
 #define DBG_POWER 0
@@ -40,7 +40,7 @@
 #define DBG_BIST 0
 #define DBG_REGS 0
 
-#define DBG_FAN 1
+#define DBG_FAN 0
 
 
 #define RED "\x1b[31m"
