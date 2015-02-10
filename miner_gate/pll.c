@@ -387,7 +387,7 @@ void enable_engines_asic(int addr, uint32_t engines_mask[7], int with_unreset, i
 }
 
 
-void test_lost_address();
+int test_lost_address();
 
 int enable_good_engines_all_asics_ok_restart_if_error(int with_reset) {
     int i = 0;

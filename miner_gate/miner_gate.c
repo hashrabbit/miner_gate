@@ -142,9 +142,12 @@ void store_last_voltage();
 // returns error
 int update_dc2dc_stats_restart_if_error(int i, int restart_on_oc = 1, int verbose = 0);
 
+void reset_i2c();
+
 void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   int i, err2;
   static int recursive = 0;
+  reset_i2c();
 
   if (recursive > 5) {
     exit(0);
@@ -200,6 +203,7 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   psyslog("HW WD 5s");  
   system("/sbin/watchdog -T 5 -t 2 /dev/watchdog0");
   print_stack();
+  reset_i2c();
   exit(0);
 }
 
@@ -637,9 +641,10 @@ int discover_good_loops_restart_12v() {
        (testing_spi = 1) && x++ &&
        test_serial(i)) {
       vm.loop[i].enabled_loop = 1;
+      psyslog("All passed %d\n", x);
       vm.loop[i].why_disabled = "All good, Rodrigez";
       for (int h = i * ASICS_PER_LOOP; h < (i + 1) * ASICS_PER_LOOP; h++) {
-    	  if (! dc2dc_is_removed(h)){
+    	  if (!dc2dc_is_removed(h)){
     		  vm.asic[h].asic_present = 1;
     		  for (int x = 0; x < ENGINE_BITMASCS-1; x++) {
     			  vm.asic[h].not_brocken_engines[x] = vm.enabled_engines_mask;
@@ -704,7 +709,7 @@ int discover_good_loops_restart_12v() {
     			  }
     			}
     			vm.asic[h].dc2dc.dc2dc_present = 0;
-    			psyslog("Disabling DC2DC %d because no ASIC A\n", h);
+    			psyslog("Disabling DC2DC %d because no ASIC A X\n", h);
     			vm.asic[h].asic_present = 0;
     			for (int j = 0; j < ENGINE_BITMASCS; j++) {
     			  vm.asic[h].not_brocken_engines[j] = 0;
@@ -1294,6 +1299,12 @@ int read_flags() {
       vm.enabled_engines_mask = 0x0a000a0a;
     }
 
+
+    if (vm.flag_1 & 0x20) {
+      vm.i2c_less_mode = 1;
+    }
+
+
     assert(ret == 1);      
   }
 }
@@ -1558,14 +1569,18 @@ void configure_mq(uint32_t interval, uint32_t increments, int pause)
 }
 
 
-void test_lost_address() {
+int test_lost_address() {
    // Validate all got address
+   int ret = 0;
   if (read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT) != 0) {
     for (int i = 0; i < ASICS_COUNT; i++) { 
       if (vm.loop[vm.asic[i].loop_address].enabled_loop) {
         int reg = read_reg_asic(i, NO_ENGINE,ADDR_VERSION);
         if (reg == 0) {
-          mg_event_x(RED "ASIC lost address: [%d %x]" RESET,i , reg);
+          if (vm.asic[i].asic_present) {
+            mg_event_x(RED "ASIC lost address: [%d %x]" RESET,i , reg);
+            ret++;
+          }
         }
       } else {
         mg_event_x("ASIC lost address: [%d NA]",i);
@@ -1574,7 +1589,10 @@ void test_lost_address() {
   } else {
     //mg_event_x("No reset detected in ASICs");
   }
+  return ret;
 }
+
+
 void restart_asics_full(int reason,const char * why) {  
   int err;
   int working_asics_before_restart = 0;

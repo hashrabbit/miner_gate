@@ -448,6 +448,7 @@ typedef struct {
   int err_murata;  
   int dc2dc_temp_ignore;  
   int err_i2c; 
+  
 
   int err_read_timeouts2;  
   int err_read_corruption;  
@@ -465,6 +466,7 @@ typedef struct {
   uint32_t not_mining_time; // in seconds how long we are not mining
   uint32_t mining_time; 
   uint32_t enabled_engines_mask;
+  uint32_t i2c_less_mode;  
   int32_t next_bist_countdown; 
 
   

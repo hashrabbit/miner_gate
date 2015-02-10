@@ -477,8 +477,10 @@ void set_nonce_range_in_engines(unsigned int max_range) {
 int revive_asics_if_one_got_reset(const char *why) {
   // Validate all got address
   if (read_reg_asic(ANY_ASIC, NO_ENGINE,ADDR_INTR_BC_GOT_ADDR_NOT) != 0) {
-      test_lost_address();
-      restart_asics_full(1, "revive_asics_if_one_got_reset");
+      int problem = test_lost_address();
+      if (problem) {
+        restart_asics_full(1, "revive_asics_if_one_got_reset");
+      }
   }
   return 0;
 }
@@ -1992,7 +1994,8 @@ void ten_second_tasks() {
   //store_last_voltage();
   dump_watts();
 
-  if (vm.err_i2c >= 130) {
+
+  if (vm.err_i2c >= 200) {
     exit_nicely(1,"Bad i2c");
   }
   
