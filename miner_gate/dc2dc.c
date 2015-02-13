@@ -469,12 +469,14 @@ static void dc2dc_set_phase(int phase_addr, int channel_mask, int *err) {
 
 void dc2dc_disable_dc2dc(int addr, int *err) {  
    //printf("%s:%d\n",__FILE__, __LINE__);
+  int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
   passert(!dc2dc_is_removed(addr));
   pthread_mutex_lock(&i2c_mutex);
   //printf("%s:%d\n",__FILE__, __LINE__);
   dc2dc_select_i2c(addr, err);
   i2c_write_byte(dc2dc_addr[0], 0x02, 0x12, err);
   dc2dc_i2c_close();
+  vm.err_i2c_ignore = iitmp;  
   pthread_mutex_unlock(&i2c_mutex);
 }
 

@@ -25,12 +25,14 @@
 
 int get_mng_board_temp(int *real_temp) {
   int err;
-  int reg;  
+  int reg;
+  int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_TEMP_SENSOR_PIN | PRIMARY_I2C_SWITCH_DEAULT);
   reg = i2c_read_word(I2C_MGMT_THERMAL_SENSOR, 0x0, &err);
   reg = (reg&0xFF)<<4 | (reg&0xF000)>>12;
   *real_temp = (reg*625)/10000;
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT);   
+  vm.err_i2c_ignore = iitmp;
   if (*real_temp > 200) {
       return 0;
   }
@@ -40,7 +42,7 @@ int get_mng_board_temp(int *real_temp) {
 int get_top_board_temp(int *real_temp) {
   int err;
    int reg;
-   
+   int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_BOARD0_MAIN_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err, 0);    
 #ifdef SP2x
    i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0x80, &err, 0);
@@ -60,6 +62,8 @@ int get_top_board_temp(int *real_temp) {
    i2c_write(I2C_DC2DC_SWITCH_GROUP1, 0, &err, 0);
 #endif   
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err, 0);   
+   vm.err_i2c_ignore = iitmp;
+
    if (*real_temp > 200) {
       return 0;
    }
@@ -68,7 +72,8 @@ int get_top_board_temp(int *real_temp) {
 
 int get_bottom_board_temp(int *real_temp) {
    int err;
-   int reg;  
+   int reg;
+   int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_BOARD1_MAIN_PIN | PRIMARY_I2C_SWITCH_DEAULT, &err, 0);   
 #ifdef SP2x
       i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0x80, &err, 0);
@@ -90,6 +95,8 @@ int get_bottom_board_temp(int *real_temp) {
 #endif  
 
    i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err, 0);   
+   vm.err_i2c_ignore = iitmp;
+
    if (*real_temp > 200) {
        return 0;
    }

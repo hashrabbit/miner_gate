@@ -1457,10 +1457,40 @@ void once_second_scaling_logic_restart_if_error() {
   struct timeval tv;
   DBG(DBG_SCALING,"once_second_scaling_logic_restart_if_error start\n");
 
-  if ((one_sec_counter % 3) == 0) {
+#if 0
+  psyslog("update_ac2dc_stats START!\n");
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  update_ac2dc_stats();
+  psyslog("update_ac2dc_stats END!\n");  
+#endif
+
+  //if ((one_sec_counter % 3) == 0) {
     //printf("TIME=%d\n", time(NULL));
     update_ac2dc_stats();
-  }
+  //}
+
 
 #ifdef RUNTIME_BIST
     static int current_dc2dc_to_up = 0; 
@@ -1510,15 +1540,16 @@ void once_second_scaling_logic_restart_if_error() {
         //end_stopper(&tv, "BIST UPSCALE DO");      
         //write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);  
         //write_reg_asic(ANY_ASIC, ANY_ENGINE, ADDR_COMMAND, BIT_ADDR_COMMAND_END_CURRENT_JOB);
+        update_ac2dc_stats();
         do_bist_loop_push_job("BIST_PERIOD_SECS");
         //end_stopper(&tv, "BIST UPSCALE BIST");      
-        update_ac2dc_stats();
       }
       else if (vm.bist_mode == BIST_MODE_MINIMAL ) {
         vm.next_bist_countdown = BIST_PERIOD_SECS_VERY_LONG;
-        do_bist_loop_push_job("BIST_PERIOD_SECS");
         update_ac2dc_stats();
+        do_bist_loop_push_job("BIST_PERIOD_SECS");
       }
+      
     }
 #endif
 
@@ -2040,6 +2071,7 @@ void ten_second_tasks() {
   //write_reg_asic(12, NO_ENGINE,ADDR_GOT_ADDR, 0);
   revive_asics_if_one_got_reset("ten_second_tasks");
 
+  
   vm.temp_mgmt = get_mng_board_temp(&vm.temp_mgmt_r);
   vm.temp_top = get_top_board_temp(&vm.temp_top_r);
   vm.temp_bottom = get_bottom_board_temp(&vm.temp_bottom_r);

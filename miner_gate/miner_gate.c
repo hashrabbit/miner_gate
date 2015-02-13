@@ -147,6 +147,7 @@ void reset_i2c();
 void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   int i, err2;
   static int recursive = 0;
+  int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
   reset_i2c();
 
   if (recursive > 5) {
@@ -619,7 +620,7 @@ int discover_good_loops_restart_12v() {
   uint32_t good_loops = 0;
   int i;
   int good_loops_cnt = 0;
-
+  int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
   write_spi(ADDR_SQUID_LOOP_BYPASS, SQUID_LOOPS_MASK);
   write_spi(ADDR_SQUID_LOOP_RESET, 0);
   write_spi(ADDR_SQUID_COMMAND, 0xF);
@@ -646,8 +647,8 @@ int discover_good_loops_restart_12v() {
       for (int h = i * ASICS_PER_LOOP; h < (i + 1) * ASICS_PER_LOOP; h++) {
     	  if (!dc2dc_is_removed(h)){
     		  vm.asic[h].asic_present = 1;
-    		  for (int x = 0; x < ENGINE_BITMASCS-1; x++) {
-    			  vm.asic[h].not_brocken_engines[x] = vm.enabled_engines_mask;
+    		  for (int z = 0; z < ENGINE_BITMASCS-1; z++) {
+    			  vm.asic[h].not_brocken_engines[z] = vm.enabled_engines_mask;
     		  }
     		  vm.asic[h].not_brocken_engines[ENGINE_BITMASCS-1] = 0x1;
     	  } else {
@@ -664,7 +665,7 @@ int discover_good_loops_restart_12v() {
       good_loops_cnt++;
     } else {
       vm.loop[i].enabled_loop = 0;
-      vm.loop[i].why_disabled = "test serial failed or something";        
+      vm.loop[i].why_disabled = "test serial failed";        
       psyslog("loop %d disabled (code %d)\n", i, x);
 #ifndef SP2x
       if ( vm.try_12v_fix && 
@@ -674,6 +675,7 @@ int discover_good_loops_restart_12v() {
         mg_event_x(RED "Bad loop %d = trying power cycle" RESET, i);
         vm.tryed_power_cycle_to_revive_loops = 1;
         PSU12vPowerCycleALL();
+        vm.err_i2c_ignore = iitmp;
         return -1;
       } else {
         mg_event_x(RED "Bad loop %d = set loop as disabled" RESET, i);
@@ -724,6 +726,7 @@ int discover_good_loops_restart_12v() {
   test_serial(-3);
   psyslog("Found %d good loops\n", good_loops_cnt);
   passert(good_loops_cnt);
+  vm.err_i2c_ignore = iitmp;  
   return 0;
 }
 
@@ -1879,6 +1882,7 @@ psyslog( "------------------------\n");
   test_fix_ac2dc_limits();
   mg_event("\nStarted!");
 
+	int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
 
 
   vm.temp_mgmt = get_mng_board_temp(&vm.temp_mgmt_r);
@@ -2026,6 +2030,7 @@ psyslog( "------------------------\n");
      }
   }
   test_lost_address();
+	vm.err_i2c_ignore = iitmp;
 
   print_scaling();
 

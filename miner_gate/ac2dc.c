@@ -80,6 +80,7 @@ static int ac2dc_get_power(AC2DC *ac2dc, int psu_id) {
 bool ac2dc_check_connected(int psu_id) {
   int err;
   bool ret = false;
+  int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
   i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
   
   i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err, 0);
@@ -97,7 +98,8 @@ bool ac2dc_check_connected(int psu_id) {
     ret= true;
   }
 
-  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err);          
+  i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err);     
+  vm.err_i2c_ignore = iitmp;  
   return ret;
 }
 
@@ -573,7 +575,7 @@ void update_single_psu(AC2DC *ac2dc, int psu_id) {
    
    int usecs = end_stopper(&tv,NULL);
    if ((usecs > 500000)) {
-     mg_event_x("Bad PSU FW on PSU %d", psu_id);  
+     mg_event_x("Bad PSU FW on PSU %d (%d)", psu_id, usecs);  
      exit_nicely(20,"Bad PSU Firmware");
    }
 }
@@ -586,7 +588,7 @@ void *update_ac2dc_power_measurments_thread(void *ptr) {
   AC2DC *ac2dc;
   int p;
 
-  for (int psu_id = 0; psu_id < PSU_COUNT; psu_id++) {
+  for (int psu_id = (PSU_COUNT - 1); psu_id >= 0; psu_id--) {
     ac2dc = &vm.ac2dc[psu_id];
     ac2dc->ac2dc_power_last_last_fake= ac2dc->ac2dc_power_last_fake;
     ac2dc->ac2dc_power_last_fake = ac2dc->ac2dc_power_now_fake;      
@@ -608,7 +610,7 @@ void *update_ac2dc_power_measurments_thread(void *ptr) {
         if (ac2dc_check_connected(psu_id)) {
           exit_nicely(10,"AC2DC connected");
         }
-#endif              
+#endif
       }
     }
   }

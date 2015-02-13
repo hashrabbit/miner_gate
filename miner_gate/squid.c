@@ -79,6 +79,7 @@ int test_all_dc2dc(int verbose);
 int test_all_loops_and_dc2dc(int disable_failed, int verbose) {
   mg_event_x("Testing LOOPs (verbose=%d)", verbose);
   int to_ret = 0;
+  int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
   to_ret += test_all_dc2dc(verbose);  
   reset_asic_queue();    
   for (int l = 0 ; l < LOOP_COUNT; l++) {
@@ -110,6 +111,7 @@ int test_all_loops_and_dc2dc(int disable_failed, int verbose) {
   }
   write_spi(ADDR_SQUID_LOOP_BYPASS, (~(vm.good_loops)) & SQUID_LOOPS_MASK);
   mg_event_x("Testing LOOPs done = ret=%d", to_ret);
+  vm.err_i2c_ignore = iitmp;
   return to_ret;
 }
 #endif

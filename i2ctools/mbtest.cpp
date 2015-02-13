@@ -233,7 +233,6 @@ int main(int argc, char *argv[])
 
 
 	i2c_init(&err);
-
 	dc2dc_init();
 
 	int failedloops;
