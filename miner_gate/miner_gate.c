@@ -58,7 +58,7 @@
 
 using namespace std;
 pthread_mutex_t network_hw_mutex = PTHREAD_MUTEX_INITIALIZER;
-struct sigaction termhandler, inthandler;
+struct sigaction termhandler, inthandler, abrthandler;
 extern int rt_queue_size;
 int socket_fd = 0;
 
@@ -212,6 +212,7 @@ static void sighandler(int sig)
   /* Restore signal handlers so we can still quit if kill_work fails */
   sigaction(SIGTERM, &termhandler, NULL);
   sigaction(SIGINT, &inthandler, NULL);
+	sigaction(SIGABRT, &abrthandler, NULL);
   psyslog( "EXIT::: got signal !\n" );
   mg_event( "EXIT::: got signal !" );
   
@@ -540,7 +541,7 @@ void enable_sinal_handler() {
   sigemptyset(&handler.sa_mask);
   sigaction(SIGTERM, &handler, &termhandler);
   sigaction(SIGINT, &handler, &inthandler);
-
+	sigaction(SIGABRT, &handler, &abrthandler);
 }
 
 void reset_squid() {
