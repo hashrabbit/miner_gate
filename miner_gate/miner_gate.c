@@ -55,6 +55,7 @@
 #include <pwm_manager.h>
 #include <i2c.h>
 #include "watchdog.h"
+#include <systemd/sd-daemon.h>
 
 using namespace std;
 pthread_mutex_t network_hw_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -145,6 +146,9 @@ int update_dc2dc_stats_restart_if_error(int i, int restart_on_oc = 1, int verbos
 void reset_i2c();
 
 void exit_nicely(int seconds_sleep_before_exit, const char* why) {
+	sd_notifyf(false, "STOPPING=1\n"
+		"STATUS=Shutting down: '%s'", why);
+
   int i, err2;
   static int recursive = 0;
   int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
@@ -367,7 +371,9 @@ extern pthread_mutex_t asic_mutex;
 // Support new minergate client
 //
 void *connection_handler_thread(void *adptr) {
+	sd_notify(false, "STATUS=Starting connection");
   psyslog("New adapter connected!\n");
+
   minergate_adapter *adapter = (minergate_adapter *)adptr;
   // DBG(DBG_NET,"connection_fd = %d\n", adapter->connection_fd);
 
@@ -1785,6 +1791,8 @@ void print_scaling();
 
 
 int main(int argc, char *argv[]) {
+	sd_notify(false, "STATUS=Starting up");
+
   printf(RESET);  
   vm.start_run_time = time(NULL);
   vm.enabled_engines_mask = 0xffffffff;
@@ -2037,6 +2045,10 @@ psyslog( "------------------------\n");
   minergate_adapter *adapter = new minergate_adapter;
   passert((int)adapter);
   usleep(1000*1000);
+
+	sd_notify(false, "READY=1\n"
+		"STATUS=Waiting for connection");
+
   while ((adapter->connection_fd =
               accept(socket_fd, (struct sockaddr *)&address, &address_length)) >
          -1) {

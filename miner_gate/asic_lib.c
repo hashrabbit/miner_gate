@@ -36,6 +36,7 @@
 #include "board.h"
 #include "math.h"
 #include "watchdog.h"
+#include <systemd/sd-daemon.h>
 
 #include "pwm_manager.h"
 
@@ -2430,9 +2431,15 @@ void once_second_tasks_rt_restart_if_error() {
     vm.start_mine_time = 0;
     vm.not_mining_time++;
     vm.mining_time = 0;
+
+		sd_notifyf(false, "STATUS=Idle (0 TH/s; top %d°C, bottom %d°C)",
+			vm.temp_top, vm.temp_bottom);
   } else {
     vm.not_mining_time = 0;
     vm.mining_time++;
+
+		sd_notifyf(false, "STATUS=Running (%.2g TH/s; top %d°C, bottom %d°C)",
+			(float) (vm.total_rate_mh / 1000000.0), vm.temp_top, vm.temp_bottom);
   }
   // See if we can stop engines
   //psyslog("not_mining_time %d\n", vm.not_mining_time);

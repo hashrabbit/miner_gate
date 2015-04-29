@@ -42,11 +42,6 @@ void watchdog_init() {
 
 	gettimeofday(&tv, NULL);
 	watchdog_reset(tv);
-
-	sd_notifyf(0, "READY=1\n"
-		"STATUS=Listening for connections...\n"
-		"MAINPID=%lu",
-		(unsigned long) getpid());
 }
 
 void watchdog_heartbeat(struct timeval tv) {
