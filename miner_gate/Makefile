@@ -1,31 +1,37 @@
-# Makefile to build monte_pi_sprng program
-# --- macros
-CC=arm-none-linux-gnueabi-g++
-#MUST OPTIMISE -O3 FOR 1.4!
-CFLAGS= -O0 -g -rdynamic -fpermissive -lpthread -static-libstdc++ -static-libgcc -DDC2DC_CHECK_ON_ERROR -DMINERGATE
-LIBS = -L./ -lpthread
-SRCS = $(wildcard *.c ../i2ctools/mainvpd_lib.cpp)
-INCLUDES = -I./
-FILE_DEPS = $(wildcard *.[hc])
-TARGET30 = miner_gate_sp30
-TARGET20 = miner_gate_sp20
+CXX ?= arm-none-linux-gnueabi-g++
+INSTALL ?= install
 
-#ifeq ($(shell whoami),zvisha)
-#	CFLAGS += -D ZVISHA
-#endif
+VPATH = .:../i2ctools
 
+CFLAGS_base := -g -I. \
+	-lpthread \
+	-rdynamic \
+	-DDC2DC_CHECK_ON_ERROR \
+	-DMINERGATE
 
-.PHONY: all clean depend
+LDFLAGS_base := -fpermissive
 
-# --- targets
-all: $(FILE_DEPS) Makefile
-	$(CC) -o $(TARGET20) $(SRCS) $(CFLAGS) $(INCLUDES) -DSP2x
-	$(CC) -o $(TARGET30) $(SRCS) $(CFLAGS) $(INCLUDES)
+CFLAGS := \
+	$(CFLAGS_base) \
+	$(CFLAGS)
 
+LDFLAGS := \
+	$(LDFLAGS_base) \
+	$(LDFLAGS)
 
-# --- remove binary and executable files
+TARGETS = miner_gate_sp2x miner_gate_sp3x
+SOURCES = $(wildcard *.c) mainvpd_lib.cpp
+
+all: $(TARGETS)
+
+miner_gate_sp2x: CFLAGS += -DSP2x
+$(TARGETS): $(SOURCES)
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(EXTRA_FLAGS) -o $@ $^
+
 clean:
-	rm -f $(TARGET)
+	$(RM) -f $(TARGETS)
 
-depend: $(SRCS)
-	makedepend $(INCLUDES) --$(CFLAGS) --$(SRCS) $^
+install: $(TARGETS)
+	$(INSTALL) -D -m 755 $^ $(DESTDIR)/usr/bin/
+
+.PHONY: all clean install
