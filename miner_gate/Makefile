@@ -1,5 +1,6 @@
 CXX ?= arm-none-linux-gnueabi-g++
 INSTALL ?= install
+PKG_CONFIG ?= pkg-config
 
 VPATH = .:../i2ctools
 
