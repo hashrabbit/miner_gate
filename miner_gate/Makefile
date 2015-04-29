@@ -12,12 +12,17 @@ CFLAGS_base := -g -I. \
 
 LDFLAGS_base := -fpermissive
 
+CFLAGS_libsystemd = $(shell $(PKG_CONFIG) --cflags libsystemd-daemon)
+LDFLAGS_libsystemd = $(shell $(PKG_CONFIG) --libs libsystemd-daemon)
+
 CFLAGS := \
 	$(CFLAGS_base) \
+	$(CFLAGS_libsystemd) \
 	$(CFLAGS)
 
 LDFLAGS := \
 	$(LDFLAGS_base) \
+	$(LDFLAGS_libsystemd) \
 	$(LDFLAGS)
 
 TARGETS = miner_gate_sp2x miner_gate_sp3x

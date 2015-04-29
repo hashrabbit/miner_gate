@@ -54,7 +54,7 @@
 #include <board.h>
 #include <pwm_manager.h>
 #include <i2c.h>
-
+#include "watchdog.h"
 
 using namespace std;
 pthread_mutex_t network_hw_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -197,12 +197,10 @@ void exit_nicely(int seconds_sleep_before_exit, const char* why) {
   }
   psyslog("Dye (%s)!\n", why);
   //set_light(LIGHT_GREEN, LIGHT_MODE_OFF);
-  system("/usr/bin/pkill -9 watchdog");
   usleep(seconds_sleep_before_exit*1000*1000);
   usleep(1000*200);
   set_light_on_off(LIGHT_GREEN, LIGHT_MODE_OFF);
   psyslog("HW WD 5s");  
-  system("/sbin/watchdog -T 5 -t 2 /dev/watchdog0");
   print_stack();
   reset_i2c();
   exit(0);
@@ -1599,7 +1597,6 @@ int test_lost_address() {
 void restart_asics_full(int reason,const char * why) {  
   int err;
   int working_asics_before_restart = 0;
-  system("/usr/bin/pkill -9 watchdog");
   vm.disasics = 0;
   for (int j =0;j< ASICS_COUNT;j++) {    
      if (vm.asic[j].asic_present) {
@@ -1634,7 +1631,6 @@ void restart_asics_full(int reason,const char * why) {
     test_all_loops_and_dc2dc(0,0);
   }
   psyslog("HW WD 240s");
-  system("/sbin/watchdog -T 240 -t 400 /dev/watchdog0");
   psyslog("-------- SOFT RESET 0.3 -----------\n");  
   i2c_write(I2C_DC2DC_SWITCH_GROUP0, 0, &err);
 #ifndef SP2x  
@@ -1798,10 +1794,8 @@ int main(int argc, char *argv[]) {
   setlogmask(LOG_UPTO(LOG_INFO));
   openlog("minergate", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
   syslog(LOG_NOTICE, "minergate started");
-  system("/usr/bin/pkill -9 watchdog");
   usleep(1000*200);
   psyslog("HW WD 180s");
-  system("/sbin/watchdog -T 180 -t 200 /dev/watchdog0");
 #ifdef AAAAAAAA_TESTER
 psyslog( "------------------------\n");
 psyslog( "------------------------\n");
@@ -2033,6 +2027,8 @@ psyslog( "------------------------\n");
 	vm.err_i2c_ignore = iitmp;
 
   print_scaling();
+
+	watchdog_init();
 
   psyslog("Starting HW thread\n");
   s = pthread_create(&main_thread, NULL, squid_regular_state_machine_rt, (void *)NULL);

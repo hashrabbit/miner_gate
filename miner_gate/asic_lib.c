@@ -35,9 +35,9 @@
 #include "pll.h"
 #include "board.h"
 #include "math.h"
+#include "watchdog.h"
 
 #include "pwm_manager.h"
-
 
 #include <sched.h>
 
@@ -2455,14 +2455,9 @@ void once_second_tasks_rt_restart_if_error() {
   if (one_sec_counter % 60 == 1) {
    
   }
-  if (one_sec_counter % 60 == 2) {
-      // Once every minute
-      system("/usr/bin/pkill -9 watchdog");
-    }
   if (one_sec_counter % 60 == 3) {
     // Once every minute
     psyslog("HW WD 240s");
-    system("/sbin/watchdog -T 240 -t 400 /dev/watchdog0");
     once_minute_scaling_logic_restart_if_error();
   }
 
@@ -2779,6 +2774,7 @@ void *squid_regular_state_machine_rt(void *p) {
   vm.hw_errs = 0;
   for (;;) {
     gettimeofday(&tv, NULL);
+		watchdog_heartbeat(tv);
     usec = (tv.tv_sec - last_job_pushed.tv_sec) * 1000000;
     usec += (tv.tv_usec - last_job_pushed.tv_usec);
     //struct timeval * tv2;
