@@ -298,9 +298,11 @@ void i2c_write_byte(uint8_t addr, uint8_t command, uint8_t value, int *pError, i
     if (i2c_smbus_write_byte_data(file, command, value) == -1) {
       if (verbose)
         psyslog(RED "i2c write byte 0x%x 0x%x = 0x%x error6\n" RESET, addr, command, value);
+#ifdef MINERGATE
         if (!vm.err_i2c_ignore) {
           print_stack();
         }
+#endif
       *pError = -1;
     }
     //usleep(SLEEP_TIME_I2C);

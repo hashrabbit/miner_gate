@@ -80,7 +80,9 @@ static int ac2dc_get_power(AC2DC *ac2dc, int psu_id) {
 bool ac2dc_check_connected(int psu_id) {
   int err;
   bool ret = false;
+#ifdef MINERGATE
   int iitmp = vm.err_i2c_ignore;  vm.err_i2c_ignore = 1;
+#endif
   i2c_write(PRIMARY_I2C_SWITCH, psu_addr[psu_id] | PRIMARY_I2C_SWITCH_DEAULT, &err);  
   
   i2c_read_word(AC2DC_EMERSON_1200_I2C_MGMT_DEVICE, AC2DC_I2C_READ_TEMP_WORD, &err, 0);
@@ -99,7 +101,9 @@ bool ac2dc_check_connected(int psu_id) {
   }
 
   i2c_write(PRIMARY_I2C_SWITCH, PRIMARY_I2C_SWITCH_DEAULT, &err);     
+#ifdef MINERGATE
   vm.err_i2c_ignore = iitmp;  
+#endif
   return ret;
 }
 
