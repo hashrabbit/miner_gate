@@ -1159,8 +1159,8 @@ int update_work_mode(int decrease_top, int decrease_bottom, bool to_alternative_
     vm.max_dc2dc_current_16s);
   vm.max_dc2dc_current_16s *=16;
 #endif
+	syncfs(fileno(file));
   fclose(file);
-  system("/bin/sync");
 }
 
 
