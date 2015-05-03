@@ -23,7 +23,7 @@ LDFLAGS := \
 	$(LDFLAGS)
 
 CFLAGS_miner_gate := \
-	$(CFLAGS) \
+	$(CFLAGS) -O0 \
 	-DMINERGATE
 
 LDFLAGS_miner_gate := \
