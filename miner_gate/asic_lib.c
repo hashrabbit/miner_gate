@@ -1720,7 +1720,7 @@ void once_minute_scaling_logic_restart_if_error() {
 void print_production() {
   int err;
   int hash_power = 0;
-  FILE *f = fopen("/var/log/production", "w");
+  FILE *f = fopen("/run/mg_production", "w");
   if (!f) {
     psyslog("Failed to save ASIC production state\n");
     return;
@@ -1812,7 +1812,7 @@ void print_scaling() {
   int err;
   vm.total_rate_mh = 0;
   
-  FILE *f = fopen("/var/log/asics", "w");
+  FILE *f = fopen("/run/asics", "w");
   if (!f) {
     psyslog("Failed to save ASIC state\n");
     return;
