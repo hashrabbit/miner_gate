@@ -185,26 +185,3 @@ void set_light(int light_id, LIGHT_MODE m) {
     }
   }
 }
-
-
-
-
-void leds_init() {
-  FILE *f;
-  f = fopen("/sys/class/gpio/export", "w");
-  fprintf(f, "22");
-  fclose(f);
-  f = fopen("/sys/class/gpio/gpio22/direction", "w");
-  fprintf(f, "out");
-  fclose(f);
-  f = fopen("/sys/class/gpio/export", "w");
-  fprintf(f, "51");
-  fclose(f);
-  f = fopen("/sys/class/gpio/gpio51/direction", "w");
-  fprintf(f, "out");
-  fclose(f);
-}
-
-
-
-

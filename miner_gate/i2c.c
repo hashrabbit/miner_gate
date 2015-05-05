@@ -58,24 +58,7 @@ void my_i2c_set_address(int address, int *pError) {
 
 
 void reset_i2c() {
-  static int exported = 0;
-  FILE *f;
-
-  if (!exported) {
-    f = fopen("/sys/class/gpio/export", "w");
-    if (!f)
-      return;
-    fprintf(f, "111");
-    fclose(f);
-    f = fopen("/sys/class/gpio/gpio111/direction", "w");
-    if (!f)
-      return;
-    fprintf(f, "out");
-    fclose(f);
-    exported = 1;
-  }
-  
-  f = fopen("/sys/class/gpio/gpio111/value", "w");
+  FILE *f = fopen("/sys/class/gpio/gpio111/value", "w");
   if (!f)
     return;
   fprintf(f, "0");

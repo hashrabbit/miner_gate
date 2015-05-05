@@ -551,17 +551,7 @@ void enable_sinal_handler() {
 }
 
 void reset_squid() {
-  FILE *f = fopen("/sys/class/gpio/export", "w");
-  if (!f)
-    return;
-  fprintf(f, "47");
-  fclose(f);
-  f = fopen("/sys/class/gpio/gpio47/direction", "w");
-  if (!f)
-    return;
-  fprintf(f, "out");
-  fclose(f);
-  f = fopen("/sys/class/gpio/gpio47/value", "w");
+  FILE *f = fopen("/sys/class/gpio/gpio47/value", "w");
   if (!f)
     return;
   fprintf(f, "0");
@@ -1860,7 +1850,6 @@ psyslog( "------------------------\n");
   vm.fpga_ver = read_spi(ADDR_SQUID_REVISION);
   vm.vtrim_max = VTRIM_MAX;
   i2c_init(&pError);  
-  leds_init();
   read_generic_ac2dc();
   ac2dc_init();  
   set_light(LIGHT_GREEN, LIGHT_MODE_SLOW_BLINK);
