@@ -29,15 +29,7 @@ extern pthread_mutex_t i2cm;
 #define PWM_VALUE(XX)  (12000+XX*(250))  // TODO - can go up to 250
 //int pwm_values[] = { 12000 , 22000, 32000 };
 void init_pwm() {
-  // cd /sys/devices/bone_capemgr.*
-
   FILE *f;
-  f = fopen("/sys/devices/bone_capemgr.9/slots", "w");
-  fprintf(f, "am33xx_pwm");
-  fclose(f);
-  f = fopen("/sys/devices/bone_capemgr.9/slots", "w");
-  fprintf(f, "bone_pwm_P9_31");
-  fclose(f);
 
   f = fopen("/sys/devices/ocp.3/pwm_test_P9_31.12/period", "w");
   passert(f != NULL);
