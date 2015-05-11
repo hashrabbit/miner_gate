@@ -1791,10 +1791,7 @@ int main(int argc, char *argv[]) {
   srand(time(NULL));
   //enable_reg_debug = 1;
   setlogmask(LOG_UPTO(LOG_INFO));
-  openlog("minergate", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
-  syslog(LOG_NOTICE, "minergate started");
-  usleep(1000*200);
-  psyslog("HW WD 180s");
+  openlog("miner_gate", LOG_CONS | LOG_PID | LOG_NDELAY, LOG_LOCAL1);
 #ifdef AAAAAAAA_TESTER
 psyslog( "------------------------\n");
 psyslog( "------------------------\n");

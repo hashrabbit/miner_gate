@@ -115,7 +115,7 @@ int print_time_delta();
   {                                                                            \
     if (!vm.dont_psyslog) {                                                    \
       print_time_delta();                                                        \
-      syslog(LOG_WARNING, X);                                                    \
+      syslog(LOG_INFO, X);                                                    \
       printf(X);                                                                 \
     }                                                  \
   }
@@ -123,7 +123,7 @@ int print_time_delta();
 #define psyslog(X...)                                                          \
   {                                                                            \
     print_time_delta();                                                        \
-    syslog(LOG_WARNING, X);                                                    \
+    syslog(LOG_INFO, X);                                                    \
     printf(X);                                                                 \
   }
 #endif      
